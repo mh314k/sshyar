@@ -5,6 +5,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { listen } from "@tauri-apps/api/event";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { api } from "../lib/api";
+import { toastError, toastSuccess } from "../lib/toast";
 import { terminalThemes, type ThemeMode } from "../lib/theme";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import "@xterm/xterm/css/xterm.css";
@@ -13,6 +14,11 @@ interface Props {
   ptyId: string;
   active: boolean;
   theme: ThemeMode;
+}
+
+function toPtyText(text: string) {
+  // ConPTY / SSH expect CR as line ending for typed input.
+  return text.replace(/\r\n/g, "\n").replace(/\n/g, "\r");
 }
 
 export function TerminalPane({ ptyId, active, theme }: Props) {
@@ -46,6 +52,32 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
     }
   }
 
+  async function copySelection(silent = false) {
+    const term = termRef.current;
+    if (!term) return false;
+    const sel = term.getSelection();
+    if (!sel) return false;
+    try {
+      await writeText(sel);
+      if (!silent) toastSuccess("Copied");
+      return true;
+    } catch (e) {
+      toastError(e, "Copy");
+      return false;
+    }
+  }
+
+  async function pasteClipboard() {
+    try {
+      const text = await readText();
+      if (!text) return;
+      await api.ptyWrite(ptyId, toPtyText(text));
+      focusTerminal();
+    } catch (e) {
+      toastError(e, "Paste");
+    }
+  }
+
   useEffect(() => {
     if (!hostRef.current) return;
 
@@ -56,6 +88,8 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
       theme: terminalThemes[theme],
       allowProposedApi: true,
       rightClickSelectsWord: false,
+      // Keep browser/OS clipboard shortcuts from being swallowed incorrectly.
+      overviewRuler: undefined,
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -64,7 +98,6 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
     termRef.current = term;
     fitRef.current = fit;
 
-    // Fit after layout paints — first frame often has 0 height.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         fitTerminal();
@@ -89,6 +122,34 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
 
     const onSel = term.onSelectionChange(() => {
       setHasSelection(Boolean(term.getSelection()));
+    });
+
+    // Keyboard copy/paste — xterm does not do this by itself.
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== "keydown") return true;
+      const key = ev.key.toLowerCase();
+      const mod = ev.ctrlKey || ev.metaKey;
+      if (!mod) return true;
+
+      // Copy: Ctrl+Shift+C, or Ctrl+C when there is a selection
+      if (key === "c") {
+        if (ev.shiftKey || term.hasSelection()) {
+          ev.preventDefault();
+          void copySelection(true);
+          return false;
+        }
+        return true; // bare Ctrl+C → SIGINT via onData
+      }
+
+      // Paste: Ctrl+V or Ctrl+Shift+V
+      if (key === "v") {
+        ev.preventDefault();
+        void pasteClipboard();
+        return false;
+      }
+
+      // Copy all: Ctrl+Shift+A handled via select-all in menu; Ctrl+A often means "home" in shells
+      return true;
     });
 
     const ro = new ResizeObserver(() => {
@@ -129,15 +190,9 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
     const term = termRef.current;
     if (!term) return;
     if (id === "copy") {
-      const sel = term.getSelection();
-      if (sel) await writeText(sel);
+      await copySelection();
     } else if (id === "paste") {
-      try {
-        const text = await readText();
-        if (text) await api.ptyWrite(ptyId, text);
-      } catch {
-        /* clipboard empty / denied */
-      }
+      await pasteClipboard();
     } else if (id === "selectAll") {
       term.selectAll();
       setHasSelection(true);
@@ -160,6 +215,12 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
         ref={paneRef}
         className={`terminal-pane ${active ? "" : "is-hidden"}`}
         onPointerDown={(e) => {
+          if (e.button === 1) {
+            // Middle-click paste (common in terminals)
+            e.preventDefault();
+            void pasteClipboard();
+            return;
+          }
           if (e.button !== 0) return;
           pointerDownRef.current = { x: e.clientX, y: e.clientY };
         }}
