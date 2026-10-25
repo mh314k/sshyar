@@ -269,6 +269,7 @@ export default function App() {
           ptyId={activeTab?.ptyId ?? null}
           open
           onToggle={() => panels.setRightOpen(false)}
+          theme={theme}
         />
       }
     />

@@ -22,6 +22,7 @@ import {
   Upload,
 } from "lucide-react";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import type { ThemeMode } from "../lib/theme";
 import { RemoteFileEditor, type FileEditorMode } from "./RemoteFileEditor";
 import { IconButton, iconSize, iconStroke } from "./IconButton";
 
@@ -30,6 +31,7 @@ interface Props {
   ptyId: string | null;
   open: boolean;
   onToggle: () => void;
+  theme?: ThemeMode;
 }
 
 type ClipItem = { path: string; name: string; isDir: boolean };
@@ -73,7 +75,7 @@ function buildFollowInject(enable: boolean): string {
   return `\x15eval "$(printf '%s' '${b64}' | base64 -d 2>/dev/null || printf '%s' '${b64}' | base64 -D 2>/dev/null)"`;
 }
 
-export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
+export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "dark" }: Props) {
   const [sftpId, setSftpId] = useState<string | null>(null);
   const [cwd, setCwd] = useState("");
   const [entries, setEntries] = useState<RemoteEntry[]>([]);
@@ -926,6 +928,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
               sftpId={sftpId}
               path={editor.path}
               mode={editor.mode}
+              theme={theme}
               onClose={() => setEditor(null)}
             />
           )}

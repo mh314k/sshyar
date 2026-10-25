@@ -90,7 +90,9 @@ textarea *,
 .terminal-pane,
 .terminal-pane *,
 .xterm,
-.xterm * {
+.xterm *,
+.file-editor-cm,
+.file-editor-cm * {
   user-select: text !important;
   -webkit-user-select: text !important;
 }
@@ -1225,8 +1227,56 @@ body.is-resizing * {
   white-space: nowrap;
 }
 
+.file-editor-lang {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-hover);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+}
+
 .file-editor-dirty {
   color: var(--accent-hover);
+}
+
+.file-editor-cm {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* flex item height lock so absolute CM children can scroll inside */
+  height: 0;
+  overflow: hidden;
+  background: var(--term-bg);
+}
+
+/* @uiw/react-codemirror outer wrappers must fill the pane */
+.file-editor-cm > div,
+.file-editor-cm .cm-theme,
+.file-editor-cm .cm-editor {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  outline: none;
+}
+
+.file-editor-cm .cm-scroller {
+  overflow: auto !important;
+  height: 100% !important;
+}
+
+.file-editor-cm .cm-focused {
+  outline: none;
+}
+
+.file-editor-cm.is-readonly .cm-cursor {
+  display: none;
 }
 
 .file-editor-actions {

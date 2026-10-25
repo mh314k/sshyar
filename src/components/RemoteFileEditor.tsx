@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { EditorView } from "@codemirror/view";
+import { oneDark } from "@codemirror/theme-one-dark";
 import { Eye, Pencil, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../lib/api";
 import { appConfirm } from "../lib/dialogs";
+import { languageForPath } from "../lib/editorLang";
+import type { ThemeMode } from "../lib/theme";
 import { IconButton, iconStroke } from "./IconButton";
 
 export type FileEditorMode = "view" | "edit";
@@ -10,11 +15,19 @@ interface Props {
   sftpId: string;
   path: string;
   mode: FileEditorMode;
+  theme?: ThemeMode;
   onClose: () => void;
   onSaved?: () => void;
 }
 
-export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onSaved }: Props) {
+export function RemoteFileEditor({
+  sftpId,
+  path,
+  mode: initialMode,
+  theme = "dark",
+  onClose,
+  onSaved,
+}: Props) {
   const [mode, setMode] = useState<FileEditorMode>(initialMode);
   const [content, setContent] = useState("");
   const [original, setOriginal] = useState("");
@@ -23,6 +36,26 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
   const [error, setError] = useState("");
   const name = path.split("/").pop() || path;
   const dirty = content !== original;
+
+  const lang = useMemo(() => languageForPath(path), [path]);
+
+  const extensions = useMemo(() => {
+    const exts = [
+      EditorView.lineWrapping,
+      EditorView.theme({
+        "&": { height: "100%", maxHeight: "100%", fontSize: "13px" },
+        ".cm-scroller": {
+          overflow: "auto !important",
+          fontFamily: "var(--mono)",
+        },
+        ".cm-content": { padding: "0.75rem 0" },
+        ".cm-gutters": { border: "none" },
+      }),
+    ];
+    if (lang) exts.push(lang.extension);
+    if (theme === "dark") exts.push(oneDark);
+    return exts;
+  }, [lang, theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +83,7 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
-        requestClose();
+        void requestClose();
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && mode === "edit") {
         e.preventDefault();
@@ -90,7 +123,7 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
   }
 
   return (
-    <div className="file-editor-overlay" onMouseDown={requestClose}>
+    <div className="file-editor-overlay" onMouseDown={() => void requestClose()}>
       <div
         className="file-editor"
         onMouseDown={(e) => e.stopPropagation()}
@@ -110,6 +143,7 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
             <span className="file-editor-path" title={path}>
               {name}
             </span>
+            {lang ? <span className="file-editor-lang">{lang.name}</span> : null}
             {dirty && mode === "edit" && <span className="file-editor-dirty">●</span>}
           </div>
           <div className="file-editor-actions">
@@ -142,7 +176,7 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
               variant="icon"
               title="Close"
               icon={<X size={15} strokeWidth={iconStroke} />}
-              onClick={requestClose}
+              onClick={() => void requestClose()}
             />
           </div>
         </div>
@@ -151,13 +185,29 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
         ) : error && !content ? (
           <div className="file-editor-status error">{error}</div>
         ) : (
-          <textarea
-            className="file-editor-body"
-            value={content}
-            readOnly={mode === "view"}
-            spellCheck={false}
-            onChange={(e) => setContent(e.target.value)}
-          />
+          <div className={`file-editor-cm ${mode === "view" ? "is-readonly" : ""}`}>
+            <CodeMirror
+              value={content}
+              height="100%"
+              maxHeight="100%"
+              theme={theme === "dark" ? "dark" : "light"}
+              extensions={extensions}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: true,
+                highlightActiveLine: mode === "edit",
+                highlightSelectionMatches: true,
+                bracketMatching: true,
+                autocompletion: false,
+                searchKeymap: true,
+              }}
+              editable={mode === "edit"}
+              readOnly={mode === "view"}
+              onChange={(v) => {
+                if (mode === "edit") setContent(v);
+              }}
+            />
+          </div>
         )}
         {error && content ? <p className="error file-editor-footer-error">{error}</p> : null}
         <div className="file-editor-footer">
