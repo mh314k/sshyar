@@ -401,6 +401,20 @@ async fn sftp_upload(
 }
 
 #[tauri::command]
+async fn sftp_upload_batch(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    sftp_id: String,
+    transfer_id: String,
+    items: Vec<sftp::UploadItem>,
+) -> AppResult<()> {
+    state
+        .sftp
+        .upload_batch(&app, &sftp_id, &transfer_id, &items)
+        .await
+}
+
+#[tauri::command]
 async fn sftp_download(
     state: State<'_, AppState>,
     sftp_id: String,
@@ -490,6 +504,7 @@ pub fn run() {
             sftp_rename,
             sftp_remove,
             sftp_upload,
+            sftp_upload_batch,
             sftp_download,
             sftp_copy_remote,
             sftp_read_text,

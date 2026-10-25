@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api } from "../lib/api";
 import { appConfirm, appPrompt } from "../lib/dialogs";
 import { toast, toastError, toastSuccess } from "../lib/toast";
-import type { RemoteEntry } from "../types";
+import type { RemoteEntry, TransferProgressEvent } from "../types";
 import {
   ArrowUp,
   ClipboardPaste,
@@ -35,6 +35,20 @@ interface Props {
 type ClipItem = { path: string; name: string; isDir: boolean };
 type ClipboardState = { items: ClipItem[]; cut: boolean };
 
+type TransferFile = {
+  name: string;
+  bytesSent: number;
+  bytesTotal: number;
+  status: "pending" | "active" | "done" | "error";
+};
+
+type TransferState = {
+  id: string;
+  files: TransferFile[];
+  overallSent: number;
+  overallTotal: number;
+};
+
 const CWD_OSC_RE = /\x1b\]7337;cwd=([^\x07\x1b]*)\x07/g;
 
 const FOLLOW_SETUP =
@@ -48,6 +62,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [clipboard, setClipboard] = useState<ClipboardState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [transfer, setTransfer] = useState<TransferState | null>(null);
   const [followShell, setFollowShell] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; entry: RemoteEntry | null } | null>(
     null,
@@ -63,6 +78,8 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   const oscBufRef = useRef("");
   const navTimerRef = useRef<number | null>(null);
   const lastClickedRef = useRef<string | null>(null);
+  const transferIdRef = useRef<string | null>(null);
+  const busyRef = useRef(false);
 
   useEffect(() => {
     sftpIdRef.current = sftpId;
@@ -73,6 +90,46 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   useEffect(() => {
     followRef.current = followShell;
   }, [followShell]);
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unlisten = listen<TransferProgressEvent>("sftp-transfer-progress", (ev) => {
+      if (cancelled) return;
+      const p = ev.payload;
+      if (!transferIdRef.current || p.transferId !== transferIdRef.current) return;
+      setTransfer((prev) => {
+        if (!prev || prev.id !== p.transferId) return prev;
+        const files = prev.files.map((f, i) => {
+          if (i !== p.fileIndex) {
+            if (i < p.fileIndex && f.status !== "done") {
+              return { ...f, bytesSent: f.bytesTotal || f.bytesSent, status: "done" as const };
+            }
+            return f;
+          }
+          const done = p.bytesTotal > 0 && p.bytesSent >= p.bytesTotal;
+          return {
+            name: p.fileName || f.name,
+            bytesSent: p.bytesSent,
+            bytesTotal: p.bytesTotal || f.bytesTotal,
+            status: done ? ("done" as const) : ("active" as const),
+          };
+        });
+        return {
+          ...prev,
+          files,
+          overallSent: p.overallSent,
+          overallTotal: p.overallTotal || prev.overallTotal,
+        };
+      });
+    });
+    return () => {
+      cancelled = true;
+      void unlisten.then((u) => u());
+    };
+  }, []);
 
   const refresh = useCallback(async (id: string, path?: string) => {
     const list = await api.sftpList(id, path);
@@ -104,8 +161,10 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
       if (!id || !path) return;
       const normalized = path.replace(/\/+$/, "") || "/";
       if (normalized === cwdRef.current) return;
+      if (busyRef.current) return;
       if (navTimerRef.current) window.clearTimeout(navTimerRef.current);
       navTimerRef.current = window.setTimeout(() => {
+        if (busyRef.current) return;
         void refresh(id, normalized).catch((err) => toastError(err, "SFTP"));
       }, 120);
     },
@@ -251,29 +310,75 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
     }
   }
 
+  async function runUpload(
+    items: { localPath: string; remotePath: string; name: string; sizeHint?: number }[],
+  ) {
+    if (!sftpId || !items.length) return;
+    const transferId = crypto.randomUUID();
+    transferIdRef.current = transferId;
+    setTransfer({
+      id: transferId,
+      files: items.map((it) => ({
+        name: it.name,
+        bytesSent: 0,
+        bytesTotal: it.sizeHint ?? 0,
+        status: "pending",
+      })),
+      overallSent: 0,
+      overallTotal: items.reduce((s, it) => s + (it.sizeHint ?? 0), 0),
+    });
+    setBusy(true);
+    try {
+      await api.sftpUploadBatch(
+        sftpId,
+        transferId,
+        items.map(({ localPath, remotePath }) => ({ localPath, remotePath })),
+      );
+      await refresh(sftpId, cwd);
+      toastSuccess(
+        items.length === 1 ? "Upload done" : `Uploaded ${items.length} files`,
+      );
+    } catch (err) {
+      toastError(err, "Upload");
+      setTransfer((prev) =>
+        prev
+          ? {
+              ...prev,
+              files: prev.files.map((f) =>
+                f.status === "active" || f.status === "pending"
+                  ? { ...f, status: "error" as const }
+                  : f,
+              ),
+            }
+          : prev,
+      );
+    } finally {
+      setBusy(false);
+      transferIdRef.current = null;
+      window.setTimeout(() => setTransfer(null), 1600);
+    }
+  }
+
   async function onDrop(ev: React.DragEvent) {
     ev.preventDefault();
     if (!sftpId) return;
     const files = ev.dataTransfer.files;
     if (!files?.length) return;
-    setBusy(true);
-    try {
-      for (const file of Array.from(files)) {
-        const localPath = (file as File & { path?: string }).path;
-        if (!localPath) {
-          toast("Drag path unavailable — use Upload", { kind: "error", title: "Upload" });
-          continue;
-        }
-        const remotePath = `${cwd.replace(/\/$/, "")}/${file.name}`;
-        await api.sftpUpload(sftpId, localPath, remotePath);
+    const items: { localPath: string; remotePath: string; name: string; sizeHint?: number }[] = [];
+    for (const file of Array.from(files)) {
+      const localPath = (file as File & { path?: string }).path;
+      if (!localPath) {
+        toast("Drag path unavailable — use Upload", { kind: "error", title: "Upload" });
+        continue;
       }
-      await refresh(sftpId, cwd);
-      toastSuccess("Upload done");
-    } catch (err) {
-      toastError(err, "Upload");
-    } finally {
-      setBusy(false);
+      items.push({
+        localPath,
+        remotePath: `${cwd.replace(/\/$/, "")}/${file.name}`,
+        name: file.name,
+        sizeHint: file.size,
+      });
     }
+    await runUpload(items);
   }
 
   async function uploadPicker() {
@@ -281,19 +386,15 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
     const selectedPath = await open({ multiple: true });
     if (!selectedPath) return;
     const paths = Array.isArray(selectedPath) ? selectedPath : [selectedPath];
-    setBusy(true);
-    try {
-      for (const p of paths) {
-        const name = p.replace(/\\/g, "/").split("/").pop()!;
-        await api.sftpUpload(sftpId, p, `${cwd.replace(/\/$/, "")}/${name}`);
-      }
-      await refresh(sftpId, cwd);
-      toastSuccess("Upload done");
-    } catch (err) {
-      toastError(err, "Upload");
-    } finally {
-      setBusy(false);
-    }
+    const items = paths.map((p) => {
+      const name = p.replace(/\\/g, "/").split("/").pop()!;
+      return {
+        localPath: p,
+        remotePath: `${cwd.replace(/\/$/, "")}/${name}`,
+        name,
+      };
+    });
+    await runUpload(items);
   }
 
   async function downloadEntries(list: RemoteEntry[]) {
@@ -638,17 +739,6 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
           <div className="sftp-path" title={cwd}>
             {cwd || "…"}
           </div>
-          {hasSelection && (
-            <div className="sftp-selection-bar">
-              <span>
-                {selectedEntries.length} selected
-                {clipboard ? ` · clipboard: ${clipboard.items.length}` : ""}
-              </span>
-              <button type="button" className="ghost sftp-clear-sel" onClick={() => setChecked(new Set())}>
-                Clear
-              </button>
-            </div>
-          )}
           <div
             className="sftp-list"
             onDragOver={(e) => e.preventDefault()}
@@ -709,6 +799,70 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
               <p className="muted">Empty — drop files here to upload</p>
             )}
           </div>
+          {hasSelection && (
+            <div className="sftp-selection-bar">
+              <span>
+                {selectedEntries.length} selected
+                {clipboard ? ` · clipboard: ${clipboard.items.length}` : ""}
+              </span>
+              <button
+                type="button"
+                className="ghost sftp-clear-sel"
+                onClick={() => setChecked(new Set())}
+              >
+                Clear
+              </button>
+            </div>
+          )}
+          {transfer && (
+            <div className="sftp-transfer">
+              <div className="sftp-transfer-head">
+                <span>
+                  Uploading {transfer.files.filter((f) => f.status === "done").length}/
+                  {transfer.files.length}
+                </span>
+                <span className="sftp-transfer-pct">
+                  {pct(transfer.overallSent, transfer.overallTotal)}%
+                </span>
+              </div>
+              <div className="sftp-transfer-bar">
+                <div
+                  className="sftp-transfer-bar-fill"
+                  style={{ width: `${pct(transfer.overallSent, transfer.overallTotal)}%` }}
+                />
+              </div>
+              <div className="sftp-transfer-overall muted">
+                {formatSize(transfer.overallSent)} / {formatSize(transfer.overallTotal || 0)}
+                {transfer.overallTotal > transfer.overallSent
+                  ? ` · ${formatSize(transfer.overallTotal - transfer.overallSent)} left`
+                  : ""}
+              </div>
+              <ul className="sftp-transfer-files">
+                {transfer.files.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className={`sftp-transfer-file status-${f.status}`}>
+                    <div className="sftp-transfer-file-row">
+                      <span className="sftp-transfer-name" title={f.name}>
+                        {f.name}
+                      </span>
+                      <span className="sftp-transfer-file-pct">
+                        {f.status === "pending"
+                          ? "…"
+                          : f.status === "error"
+                            ? "err"
+                            : `${pct(f.bytesSent, f.bytesTotal)}%`}
+                      </span>
+                    </div>
+                    <div className="sftp-transfer-bar thin">
+                      <div
+                        className="sftp-transfer-bar-fill"
+                        style={{ width: `${pct(f.bytesSent, f.bytesTotal)}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {menu && (
             <ContextMenu
               x={menu.x}
@@ -733,7 +887,14 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
 }
 
 function formatSize(n: number) {
-  if (n < 1024) return `${n} B`;
+  if (!n || n < 0) return "0 B";
+  if (n < 1024) return `${Math.round(n)} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function pct(sent: number, total: number) {
+  if (!total || total <= 0) return sent > 0 ? 100 : 0;
+  return Math.min(100, Math.round((sent / total) * 100));
 }

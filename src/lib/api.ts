@@ -58,6 +58,11 @@ export const api = {
     invoke<void>("sftp_remove", { sftpId, path, isDir }),
   sftpUpload: (sftpId: string, localPath: string, remotePath: string) =>
     invoke<void>("sftp_upload", { sftpId, localPath, remotePath }),
+  sftpUploadBatch: (
+    sftpId: string,
+    transferId: string,
+    items: { localPath: string; remotePath: string }[],
+  ) => invoke<void>("sftp_upload_batch", { sftpId, transferId, items }),
   sftpDownload: (sftpId: string, remotePath: string, localPath: string) =>
     invoke<void>("sftp_download", { sftpId, remotePath, localPath }),
   sftpCopyRemote: (sftpId: string, from: string, to: string) =>

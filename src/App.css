@@ -907,7 +907,93 @@ body.is-resizing * {
   position: relative;
 }
 
+.sftp-transfer {
+  flex-shrink: 0;
+  padding: 0.55rem 0.7rem 0.65rem;
+  border-top: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--bg-elev) 88%, var(--accent));
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sftp-transfer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.sftp-transfer-pct {
+  font-family: var(--mono);
+  color: var(--accent-hover);
+}
+
+.sftp-transfer-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+
+.sftp-transfer-bar.thin {
+  height: 3px;
+}
+
+.sftp-transfer-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  transition: width 0.12s ease-out;
+}
+
+.sftp-transfer-overall {
+  font-size: 0.7rem;
+  font-family: var(--mono);
+}
+
+.sftp-transfer-files {
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  max-height: 120px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sftp-transfer-file-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+}
+
+.sftp-transfer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sftp-transfer-file-pct {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+.sftp-transfer-file.status-done .sftp-transfer-file-pct {
+  color: var(--accent-hover);
+}
+
+.sftp-transfer-file.status-error .sftp-transfer-file-pct {
+  color: var(--danger-text);
+}
+
 .sftp-selection-bar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -915,7 +1001,7 @@ body.is-resizing * {
   padding: 0.35rem 0.7rem;
   font-size: 0.75rem;
   color: var(--muted);
-  border-bottom: 1px solid var(--hairline);
+  border-top: 1px solid var(--hairline);
   background: var(--selected-bg);
 }
 
