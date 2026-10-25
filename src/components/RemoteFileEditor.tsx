@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Eye, Pencil, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../lib/api";
+import { appConfirm } from "../lib/dialogs";
 import { IconButton, iconStroke } from "./IconButton";
 
 export type FileEditorMode = "view" | "edit";
@@ -61,8 +62,16 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, content, dirty]);
 
-  function requestClose() {
-    if (mode === "edit" && dirty && !confirm("Discard unsaved changes?")) return;
+  async function requestClose() {
+    if (mode === "edit" && dirty) {
+      const ok = await appConfirm({
+        title: "Discard unsaved changes?",
+        message: "Your edits will be lost.",
+        confirmLabel: "Discard",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     onClose();
   }
 

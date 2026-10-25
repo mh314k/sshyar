@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type Variant = "primary" | "ghost" | "danger" | "soft" | "icon";
 
@@ -8,18 +8,14 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   label?: string;
 }
 
-export function IconButton({
-  icon,
-  variant = "ghost",
-  label,
-  className = "",
-  children,
-  title,
-  ...rest
-}: Props) {
+export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButton(
+  { icon, variant = "ghost", label, className = "", children, title, ...rest },
+  ref,
+) {
   const tip = title ?? label;
   return (
     <button
+      ref={ref}
       type="button"
       className={`ui-btn ui-btn-${variant} ${icon && !children && !label ? "ui-btn-icon-only" : ""} ${className}`}
       title={tip}
@@ -31,7 +27,7 @@ export function IconButton({
       {children}
     </button>
   );
-}
+});
 
 export const iconSize = 15;
 export const iconStroke = 1.75;

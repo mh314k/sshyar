@@ -1,26 +1,30 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   Copy,
   ExternalLink,
   KeyRound,
   Moon,
+  MoreHorizontal,
   PanelLeftClose,
   Pencil,
   Plus,
-  Shield,
   Sun,
   Trash2,
   Upload,
   CopyPlus,
   Terminal,
+  Zap,
 } from "lucide-react";
 import type { Profile, ProfileInput, Snippet } from "../types";
 import { api } from "../lib/api";
+import { appConfirm, appPrompt } from "../lib/dialogs";
+import { toastError, toastSuccess } from "../lib/toast";
 import type { ThemeMode } from "../lib/theme";
 import { ProfileForm } from "./ProfileForm";
 import { SnippetList } from "./SnippetList";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { Popover } from "./Popover";
 import { IconButton, iconSize, iconStroke } from "./IconButton";
 
 interface Props {
@@ -36,6 +40,8 @@ interface Props {
   onToggleTheme: () => void;
   onCollapse?: () => void;
 }
+
+type Panel = "actions" | "snippets" | "security" | null;
 
 export function ProfileSidebar({
   profiles,
@@ -53,8 +59,12 @@ export function ProfileSidebar({
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Profile | null | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [msg, setMsg] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; profile: Profile } | null>(null);
+  const [panel, setPanel] = useState<Panel>(null);
+
+  const actionsBtnRef = useRef<HTMLButtonElement>(null);
+  const snippetsBtnRef = useRef<HTMLButtonElement>(null);
+  const securityBtnRef = useRef<HTMLButtonElement>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -80,6 +90,10 @@ export function ProfileSidebar({
 
   const selected = profiles.find((p) => p.id === selectedId) ?? null;
 
+  function togglePanel(next: Panel) {
+    setPanel((cur) => (cur === next ? null : next));
+  }
+
   async function save(input: ProfileInput) {
     await api.upsertProfile(editing?.id ?? null, input);
     setEditing(undefined);
@@ -89,54 +103,97 @@ export function ProfileSidebar({
   async function copySsh(id: string) {
     const cmd = await api.getSshCommand(id);
     await writeText(cmd);
-    setMsg("SSH command copied");
-    setTimeout(() => setMsg(""), 2000);
+    toastSuccess("SSH command copied");
   }
 
-  async function genKey() {
-    if (!selected) return;
-    const pass = prompt("Key passphrase (empty = none)") ?? "";
+  async function genKey(profile: Profile) {
+    const pass = await appPrompt({
+      title: "Key passphrase",
+      message: "Optional passphrase for the private key. Leave empty for none.",
+      password: true,
+      allowEmpty: true,
+      placeholder: "Empty = none",
+    });
+    if (pass === null) return;
     try {
-      await api.generateProfileKey(selected.id, pass);
-      setMsg("Key generated");
+      await api.generateProfileKey(profile.id, pass);
+      toastSuccess("Key generated");
       onRefresh();
     } catch (e) {
-      setMsg(String(e));
+      toastError(e, "Keygen");
     }
   }
 
-  async function installKey() {
-    if (!selected) return;
+  async function installKey(profile: Profile) {
     try {
-      await api.installProfileKey(selected.id);
-      setMsg("Public key installed on server");
+      await api.installProfileKey(profile.id);
+      toastSuccess("Public key installed on server");
       onRefresh();
     } catch (e) {
-      setMsg(String(e));
+      toastError(e, "Install key");
     }
   }
 
   async function setMaster() {
-    const pass = prompt("New master password (min 6 chars)");
+    const pass = await appPrompt({
+      title: "Master password",
+      message: "Used to unlock the vault. Minimum 6 characters.",
+      password: true,
+      minLength: 6,
+      placeholder: "Min 6 characters",
+    });
     if (!pass) return;
     try {
       await api.vaultSetMasterPassword(pass);
       onMasterPasswordChange();
-      setMsg("Master password set — unlock required next launch");
+      toastSuccess("Master password set — unlock required next launch");
+      setPanel(null);
     } catch (e) {
-      setMsg(String(e));
+      toastError(e, "Master password");
     }
   }
 
   async function removeMaster() {
-    if (!confirm("Remove master password and use DPAPI only?")) return;
+    const ok = await appConfirm({
+      title: "Remove master password?",
+      message: "Vault will use Windows DPAPI only.",
+      confirmLabel: "Remove",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.vaultRemoveMasterPassword();
       onMasterPasswordChange();
-      setMsg("Master password removed");
+      toastSuccess("Master password removed");
+      setPanel(null);
     } catch (e) {
-      setMsg(String(e));
+      toastError(e, "Master password");
     }
+  }
+
+  async function runProfileAction(profile: Profile, id: string) {
+    if (id === "connect") onConnect(profile);
+    else if (id === "external") onExternal(profile);
+    else if (id === "copy") await copySsh(profile.id);
+    else if (id === "edit") setEditing(profile);
+    else if (id === "duplicate") {
+      await api.duplicateProfile(profile.id);
+      onRefresh();
+    } else if (id === "genkey") await genKey(profile);
+    else if (id === "install") await installKey(profile);
+    else if (id === "delete") {
+      const ok = await appConfirm({
+        title: `Delete ${profile.name}?`,
+        message: "This cannot be undone.",
+        confirmLabel: "Delete",
+        danger: true,
+      });
+      if (!ok) return;
+      await api.deleteProfile(profile.id);
+      setSelectedId(null);
+      onRefresh();
+    }
+    setPanel(null);
   }
 
   if (editing !== undefined) {
@@ -160,6 +217,14 @@ export function ProfileSidebar({
         </div>
         <div className="brand-actions">
           <IconButton
+            ref={snippetsBtnRef}
+            variant="icon"
+            title="Snippets"
+            className={panel === "snippets" ? "is-active" : ""}
+            onClick={() => togglePanel("snippets")}
+            icon={<Zap size={iconSize} strokeWidth={iconStroke} />}
+          />
+          <IconButton
             variant="icon"
             title={theme === "dark" ? "Switch to light" : "Switch to dark"}
             onClick={onToggleTheme}
@@ -170,6 +235,14 @@ export function ProfileSidebar({
                 <Moon size={iconSize} strokeWidth={iconStroke} />
               )
             }
+          />
+          <IconButton
+            ref={securityBtnRef}
+            variant="icon"
+            title="Master password"
+            className={panel === "security" ? "is-active" : ""}
+            onClick={() => togglePanel("security")}
+            icon={<KeyRound size={iconSize} strokeWidth={iconStroke} />}
           />
           <IconButton
             variant="icon"
@@ -187,14 +260,18 @@ export function ProfileSidebar({
           )}
         </div>
       </div>
-      <input
-        className="search"
-        placeholder="Search name, host, tag, group…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
 
-      <div className="profile-groups">
+      <div className="sidebar-section">
+        <input
+          className="search"
+          placeholder="Search name, host, tag, group…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
+      <div className="sidebar-section profile-groups">
+        <div className="sidebar-section-label">Profiles</div>
         {groups.map(([group, list]) => (
           <div key={group} className="group">
             <div className="group-title">{group}</div>
@@ -202,12 +279,20 @@ export function ProfileSidebar({
               <div
                 key={p.id}
                 className={`profile-item ${selectedId === p.id ? "selected" : ""}`}
-                onClick={() => setSelectedId(p.id)}
+                onClick={() => {
+                  if (selectedId === p.id) {
+                    setSelectedId(null);
+                    setPanel(null);
+                  } else {
+                    setSelectedId(p.id);
+                  }
+                }}
                 onDoubleClick={() => onConnect(p)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setSelectedId(p.id);
+                  setPanel(null);
                   setMenu({ x: e.clientX, y: e.clientY, profile: p });
                 }}
               >
@@ -228,11 +313,11 @@ export function ProfileSidebar({
             ))}
           </div>
         ))}
-        {!filtered.length && <p className="muted">No profiles yet</p>}
+        {!filtered.length && <p className="muted">No profiles yet — add one with +</p>}
       </div>
 
       {selected && (
-        <div className="profile-actions">
+        <div className="profile-quickbar">
           <IconButton
             variant="primary"
             label="Connect"
@@ -240,59 +325,96 @@ export function ProfileSidebar({
             onClick={() => onConnect(selected)}
           />
           <IconButton
+            ref={actionsBtnRef}
             variant="ghost"
-            label="External"
-            icon={<ExternalLink size={14} strokeWidth={iconStroke} />}
-            onClick={() => onExternal(selected)}
-          />
-          <IconButton
-            variant="ghost"
-            label="Copy SSH"
-            icon={<Copy size={14} strokeWidth={iconStroke} />}
-            onClick={() => void copySsh(selected.id)}
-          />
-          <IconButton
-            variant="ghost"
-            label="Edit"
-            icon={<Pencil size={14} strokeWidth={iconStroke} />}
-            onClick={() => setEditing(selected)}
-          />
-          <IconButton
-            variant="ghost"
-            label="Duplicate"
-            icon={<CopyPlus size={14} strokeWidth={iconStroke} />}
-            onClick={async () => {
-              await api.duplicateProfile(selected.id);
-              onRefresh();
-            }}
-          />
-          <IconButton
-            variant="ghost"
-            label="Generate key"
-            icon={<KeyRound size={14} strokeWidth={iconStroke} />}
-            onClick={() => void genKey()}
-          />
-          <IconButton
-            variant="ghost"
-            label="Install key"
-            icon={<Upload size={14} strokeWidth={iconStroke} />}
-            onClick={() => void installKey()}
-          />
-          <IconButton
-            variant="danger"
-            label="Delete"
-            icon={<Trash2 size={14} strokeWidth={iconStroke} />}
-            onClick={async () => {
-              if (!confirm(`Delete ${selected.name}?`)) return;
-              await api.deleteProfile(selected.id);
-              setSelectedId(null);
-              onRefresh();
-            }}
+            title="More actions"
+            className={panel === "actions" ? "is-active" : ""}
+            onClick={() => togglePanel("actions")}
+            icon={<MoreHorizontal size={iconSize} strokeWidth={iconStroke} />}
           />
         </div>
       )}
 
-      <SnippetList snippets={snippets} onChange={onRefresh} onRun={onRunSnippet} />
+      <Popover
+        open={panel === "actions" && !!selected}
+        onClose={() => setPanel(null)}
+        anchorRef={actionsBtnRef}
+        width={220}
+        align="end"
+        className="popover-actions"
+      >
+        {selected && (
+          <div className="popover-list">
+            <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "external")}>
+              <ExternalLink size={14} strokeWidth={iconStroke} /> External terminal
+            </button>
+            <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "copy")}>
+              <Copy size={14} strokeWidth={iconStroke} /> Copy SSH
+            </button>
+            <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "edit")}>
+              <Pencil size={14} strokeWidth={iconStroke} /> Edit
+            </button>
+            <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "duplicate")}>
+              <CopyPlus size={14} strokeWidth={iconStroke} /> Duplicate
+            </button>
+            <div className="popover-sep" />
+            <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "genkey")}>
+              <KeyRound size={14} strokeWidth={iconStroke} /> Generate key
+            </button>
+            <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "install")}>
+              <Upload size={14} strokeWidth={iconStroke} /> Install key
+            </button>
+            <div className="popover-sep" />
+            <button
+              type="button"
+              className="popover-item danger"
+              onClick={() => void runProfileAction(selected, "delete")}
+            >
+              <Trash2 size={14} strokeWidth={iconStroke} /> Delete
+            </button>
+          </div>
+        )}
+      </Popover>
+
+      <Popover
+        open={panel === "snippets"}
+        onClose={() => setPanel(null)}
+        anchorRef={snippetsBtnRef}
+        width={280}
+        align="end"
+        className="popover-snippets"
+      >
+        <div className="popover-header">Snippets</div>
+        <SnippetList
+          snippets={snippets}
+          onChange={onRefresh}
+          onRun={(cmd) => {
+            onRunSnippet(cmd);
+            setPanel(null);
+          }}
+        />
+      </Popover>
+
+      <Popover
+        open={panel === "security"}
+        onClose={() => setPanel(null)}
+        anchorRef={securityBtnRef}
+        width={260}
+        align="end"
+        className="popover-security"
+      >
+        <div className="popover-header">Master password</div>
+        <p className="muted popover-copy">
+          {hasMasterPassword
+            ? "Vault unlocks with your master password."
+            : "Vault is protected by Windows DPAPI. Optionally add a master password."}
+        </p>
+        {hasMasterPassword ? (
+          <IconButton variant="ghost" label="Remove master password" onClick={() => void removeMaster()} />
+        ) : (
+          <IconButton variant="ghost" label="Set master password" onClick={() => void setMaster()} />
+        )}
+      </Popover>
 
       {menu && (
         <ContextMenu
@@ -306,52 +428,18 @@ export function ProfileSidebar({
               { id: "sep1", label: "", separator: true },
               { id: "edit", label: "Edit" },
               { id: "duplicate", label: "Duplicate" },
+              { id: "genkey", label: "Generate key" },
+              { id: "install", label: "Install key" },
               { id: "sep2", label: "", separator: true },
               { id: "delete", label: "Delete", danger: true },
             ] satisfies ContextMenuItem[]
           }
           onClose={() => setMenu(null)}
           onAction={(id) => {
-            const p = menu.profile;
-            void (async () => {
-              if (id === "connect") onConnect(p);
-              else if (id === "external") onExternal(p);
-              else if (id === "copy") await copySsh(p.id);
-              else if (id === "edit") setEditing(p);
-              else if (id === "duplicate") {
-                await api.duplicateProfile(p.id);
-                onRefresh();
-              } else if (id === "delete") {
-                if (!confirm(`Delete ${p.name}?`)) return;
-                await api.deleteProfile(p.id);
-                setSelectedId(null);
-                onRefresh();
-              }
-            })();
+            void runProfileAction(menu.profile, id);
           }}
         />
       )}
-
-      <div className="security-box">
-        <h4>
-          <Shield size={13} strokeWidth={iconStroke} /> Security
-        </h4>
-        {hasMasterPassword ? (
-          <IconButton
-            variant="ghost"
-            label="Remove master password"
-            onClick={() => void removeMaster()}
-          />
-        ) : (
-          <IconButton
-            variant="ghost"
-            label="Set master password"
-            onClick={() => void setMaster()}
-          />
-        )}
-      </div>
-
-      {msg && <p className="hint">{msg}</p>}
     </aside>
   );
 }

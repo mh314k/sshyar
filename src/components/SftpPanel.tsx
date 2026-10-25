@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../lib/api";
+import { appConfirm, appPrompt } from "../lib/dialogs";
+import { toast, toastError, toastSuccess } from "../lib/toast";
 import type { RemoteEntry } from "../types";
 import {
   ArrowUp,
@@ -30,10 +32,11 @@ interface Props {
   onToggle: () => void;
 }
 
-/** Invisible OSC used by remote PROMPT_COMMAND when Follow shell is on. */
+type ClipItem = { path: string; name: string; isDir: boolean };
+type ClipboardState = { items: ClipItem[]; cut: boolean };
+
 const CWD_OSC_RE = /\x1b\]7337;cwd=([^\x07\x1b]*)\x07/g;
 
-// Sent as keystrokes into the remote bash session (after SSH). $vars expand on the VPS, not in JS.
 const FOLLOW_SETUP =
   '__sshyar_pwd(){ printf \'\\033]7337;cwd=%s\\007\' "$PWD"; }; ' +
   'PROMPT_COMMAND="__sshyar_pwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"; __sshyar_pwd';
@@ -42,10 +45,8 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   const [sftpId, setSftpId] = useState<string | null>(null);
   const [cwd, setCwd] = useState("");
   const [entries, setEntries] = useState<RemoteEntry[]>([]);
-  const [selected, setSelected] = useState<RemoteEntry | null>(null);
-  const [clipboard, setClipboard] = useState<{ path: string; cut: boolean } | null>(null);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
+  const [clipboard, setClipboard] = useState<ClipboardState | null>(null);
   const [busy, setBusy] = useState(false);
   const [followShell, setFollowShell] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; entry: RemoteEntry | null } | null>(
@@ -61,6 +62,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   const followRef = useRef(false);
   const oscBufRef = useRef("");
   const navTimerRef = useRef<number | null>(null);
+  const lastClickedRef = useRef<string | null>(null);
 
   useEffect(() => {
     sftpIdRef.current = sftpId;
@@ -75,8 +77,26 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   const refresh = useCallback(async (id: string, path?: string) => {
     const list = await api.sftpList(id, path);
     setEntries(list);
-    if (path) setCwd(path);
+    if (path !== undefined) {
+      setCwd(path);
+      setChecked(new Set());
+      lastClickedRef.current = null;
+    } else {
+      setChecked((prev) => {
+        const next = new Set<string>();
+        for (const e of list) if (prev.has(e.path)) next.add(e.path);
+        return next;
+      });
+    }
   }, []);
+
+  const selectedEntries = useMemo(
+    () => entries.filter((e) => checked.has(e.path)),
+    [entries, checked],
+  );
+
+  const allChecked = entries.length > 0 && selectedEntries.length === entries.length;
+  const someChecked = selectedEntries.length > 0 && !allChecked;
 
   const navigateFollow = useCallback(
     (path: string) => {
@@ -86,13 +106,12 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
       if (normalized === cwdRef.current) return;
       if (navTimerRef.current) window.clearTimeout(navTimerRef.current);
       navTimerRef.current = window.setTimeout(() => {
-        void refresh(id, normalized).catch((err) => setError(String(err)));
+        void refresh(id, normalized).catch((err) => toastError(err, "SFTP"));
       }, 120);
     },
     [refresh],
   );
 
-  // Listen for cwd OSC from the active PTY while Follow is enabled
   useEffect(() => {
     if (!ptyId || !followShell) {
       oscBufRef.current = "";
@@ -109,7 +128,6 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
         last = match[1];
       }
       if (last) {
-        // Keep a short tail so split OSC across chunks still works
         const cut = oscBufRef.current.lastIndexOf("\x1b]7337;cwd=");
         oscBufRef.current = cut >= 0 ? oscBufRef.current.slice(cut) : "";
         navigateFollow(last);
@@ -121,13 +139,12 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
     };
   }, [ptyId, followShell, navigateFollow]);
 
-  // When Follow is turned on, install remote PROMPT_COMMAND reporter
   useEffect(() => {
     if (!followShell || !ptyId) return;
     void api.ptyInject(ptyId, FOLLOW_SETUP).catch((err) => {
-      setError(`Follow setup failed: ${err}`);
+      toastError(err, "Follow shell");
     });
-    setStatus("Follow shell: on — cd in terminal updates SFTP");
+    toast("Follow shell on — cd updates SFTP", { kind: "info" });
   }, [followShell, ptyId]);
 
   useEffect(() => {
@@ -141,7 +158,6 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
         return;
       }
       setBusy(true);
-      setError("");
       try {
         if (sftpId) {
           await api.sftpClose(sftpId).catch(() => undefined);
@@ -154,10 +170,9 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
         setSftpId(id);
         setCwd(c);
         await refresh(id, c);
-        setStatus("Connected");
       } catch (err) {
-        setError(String(err));
-        setStatus("");
+        if (!cancelled) toastError(err, "SFTP connect");
+        setSftpId(null);
       } finally {
         setBusy(false);
       }
@@ -169,6 +184,58 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, profileId]);
 
+  function togglePath(path: string, on?: boolean) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      const shouldOn = on ?? !next.has(path);
+      if (shouldOn) next.add(path);
+      else next.delete(path);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allChecked) setChecked(new Set());
+    else setChecked(new Set(entries.map((e) => e.path)));
+  }
+
+  function onRowClick(e: React.MouseEvent, entry: RemoteEntry) {
+    if ((e.target as HTMLElement).closest("input[type=checkbox]")) return;
+
+    if (e.shiftKey && lastClickedRef.current) {
+      const a = entries.findIndex((x) => x.path === lastClickedRef.current);
+      const b = entries.findIndex((x) => x.path === entry.path);
+      if (a >= 0 && b >= 0) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        setChecked((prev) => {
+          const next = new Set(prev);
+          for (let i = lo; i <= hi; i++) next.add(entries[i].path);
+          return next;
+        });
+        return;
+      }
+    }
+
+    if (e.ctrlKey || e.metaKey) {
+      togglePath(entry.path);
+      lastClickedRef.current = entry.path;
+      return;
+    }
+
+    // plain click: select only this one (or deselect if already sole selection)
+    setChecked((prev) => {
+      if (prev.size === 1 && prev.has(entry.path)) return new Set();
+      return new Set([entry.path]);
+    });
+    lastClickedRef.current = entry.path;
+  }
+
+  function targetsForAction(contextEntry: RemoteEntry | null | undefined): RemoteEntry[] {
+    if (selectedEntries.length > 0) return selectedEntries;
+    if (contextEntry) return [contextEntry];
+    return [];
+  }
+
   async function goUp() {
     if (!sftpId || !cwd) return;
     const parent = cwd.replace(/\/+$/, "").split("/").slice(0, -1).join("/") || "/";
@@ -179,9 +246,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
     if (!sftpId) return;
     if (e.isDir) {
       await refresh(sftpId, e.path);
-      setSelected(null);
     } else {
-      setSelected(e);
       setEditor({ path: e.path, mode: "view" });
     }
   }
@@ -192,22 +257,20 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
     const files = ev.dataTransfer.files;
     if (!files?.length) return;
     setBusy(true);
-    setError("");
     try {
       for (const file of Array.from(files)) {
         const localPath = (file as File & { path?: string }).path;
         if (!localPath) {
-          setError("Drag path unavailable — use Upload button");
+          toast("Drag path unavailable — use Upload", { kind: "error", title: "Upload" });
           continue;
         }
         const remotePath = `${cwd.replace(/\/$/, "")}/${file.name}`;
-        setStatus(`Uploading ${file.name}...`);
         await api.sftpUpload(sftpId, localPath, remotePath);
       }
       await refresh(sftpId, cwd);
-      setStatus("Upload done");
+      toastSuccess("Upload done");
     } catch (err) {
-      setError(String(err));
+      toastError(err, "Upload");
     } finally {
       setBusy(false);
     }
@@ -225,39 +288,75 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
         await api.sftpUpload(sftpId, p, `${cwd.replace(/\/$/, "")}/${name}`);
       }
       await refresh(sftpId, cwd);
-      setStatus("Upload done");
+      toastSuccess("Upload done");
     } catch (err) {
-      setError(String(err));
+      toastError(err, "Upload");
     } finally {
       setBusy(false);
     }
   }
 
-  async function downloadEntry(entry: RemoteEntry) {
-    if (!sftpId || entry.isDir) return;
-    const dest = await save({ defaultPath: entry.name });
-    if (!dest) return;
-    setBusy(true);
-    try {
-      await api.sftpDownload(sftpId, entry.path, dest);
-      setStatus("Downloaded");
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function removeEntry(entry: RemoteEntry) {
+  async function downloadEntries(list: RemoteEntry[]) {
     if (!sftpId) return;
-    if (!confirm(`Delete ${entry.name}?`)) return;
+    const files = list.filter((e) => !e.isDir);
+    if (!files.length) {
+      toast("Select file(s) to download — folders not supported yet", {
+        kind: "info",
+        title: "Download",
+      });
+      return;
+    }
+    if (files.length === 1) {
+      const dest = await save({ defaultPath: files[0].name });
+      if (!dest) return;
+      setBusy(true);
+      try {
+        await api.sftpDownload(sftpId, files[0].path, dest);
+        toastSuccess("Downloaded");
+      } catch (err) {
+        toastError(err, "Download");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    const dir = await open({ directory: true, title: "Download folder" });
+    if (!dir || Array.isArray(dir)) return;
     setBusy(true);
     try {
-      await api.sftpRemove(sftpId, entry.path, entry.isDir);
-      setSelected(null);
-      await refresh(sftpId, cwd);
+      for (const f of files) {
+        const dest = `${dir.replace(/[\\/]+$/, "")}\\${f.name}`;
+        await api.sftpDownload(sftpId, f.path, dest);
+      }
+      toastSuccess(`Downloaded ${files.length} files`);
     } catch (err) {
-      setError(String(err));
+      toastError(err, "Download");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeEntries(list: RemoteEntry[]) {
+    if (!sftpId || !list.length) return;
+    const ok = await appConfirm({
+      title: list.length === 1 ? `Delete ${list[0].name}?` : `Delete ${list.length} items?`,
+      message: list.some((e) => e.isDir)
+        ? "Folders and their contents will be removed."
+        : undefined,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      for (const entry of list) {
+        await api.sftpRemove(sftpId, entry.path, entry.isDir);
+      }
+      setChecked(new Set());
+      await refresh(sftpId, cwd);
+      toastSuccess(list.length === 1 ? "Deleted" : `Deleted ${list.length} items`);
+    } catch (err) {
+      toastError(err, "Delete");
     } finally {
       setBusy(false);
     }
@@ -265,37 +364,82 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
 
   async function mkdir() {
     if (!sftpId) return;
-    const name = prompt("Folder name");
-    if (!name) return;
-    await api.sftpMkdir(sftpId, `${cwd.replace(/\/$/, "")}/${name}`);
-    await refresh(sftpId, cwd);
+    const name = await appPrompt({
+      title: "New folder",
+      placeholder: "Folder name",
+    });
+    if (!name?.trim()) return;
+    try {
+      await api.sftpMkdir(sftpId, `${cwd.replace(/\/$/, "")}/${name.trim()}`);
+      await refresh(sftpId, cwd);
+    } catch (err) {
+      toastError(err, "New folder");
+    }
   }
 
   async function renameEntry(entry: RemoteEntry) {
     if (!sftpId) return;
-    const name = prompt("New name", entry.name);
-    if (!name || name === entry.name) return;
+    const name = await appPrompt({
+      title: "Rename",
+      defaultValue: entry.name,
+      placeholder: "New name",
+    });
+    if (!name?.trim() || name.trim() === entry.name) return;
     const parent = entry.path.replace(/\/+$/, "").split("/").slice(0, -1).join("/") || "/";
-    await api.sftpRename(sftpId, entry.path, `${parent}/${name}`);
-    setSelected(null);
-    await refresh(sftpId, cwd);
+    try {
+      await api.sftpRename(sftpId, entry.path, `${parent}/${name.trim()}`);
+      setChecked(new Set());
+      await refresh(sftpId, cwd);
+    } catch (err) {
+      toastError(err, "Rename");
+    }
+  }
+
+  function copyOrCut(list: RemoteEntry[], cut: boolean) {
+    if (!list.length) return;
+    setClipboard({
+      items: list.map((e) => ({ path: e.path, name: e.name, isDir: e.isDir })),
+      cut,
+    });
+    toast(
+      cut
+        ? `Cut ${list.length} item${list.length === 1 ? "" : "s"}`
+        : `Copied ${list.length} item${list.length === 1 ? "" : "s"}`,
+      { kind: "info" },
+    );
   }
 
   async function paste() {
-    if (!sftpId || !clipboard) return;
-    const name = clipboard.path.replace(/\/+$/, "").split("/").pop()!;
-    const dest = `${cwd.replace(/\/$/, "")}/${name}`;
+    if (!sftpId || !clipboard?.items.length) return;
     setBusy(true);
     try {
-      if (clipboard.cut) {
-        await api.sftpRename(sftpId, clipboard.path, dest);
-        setClipboard(null);
-      } else {
-        await api.sftpCopyRemote(sftpId, clipboard.path, dest);
+      let ok = 0;
+      let skipped = 0;
+      for (const item of clipboard.items) {
+        const dest = `${cwd.replace(/\/$/, "")}/${item.name}`;
+        if (item.path === dest || item.path.replace(/\/+$/, "") === dest.replace(/\/+$/, "")) {
+          skipped++;
+          continue;
+        }
+        if (clipboard.cut) {
+          await api.sftpRename(sftpId, item.path, dest);
+          ok++;
+        } else if (item.isDir) {
+          skipped++;
+        } else {
+          await api.sftpCopyRemote(sftpId, item.path, dest);
+          ok++;
+        }
       }
+      if (clipboard.cut) setClipboard(null);
+      setChecked(new Set());
       await refresh(sftpId, cwd);
+      if (ok) toastSuccess(clipboard.cut ? `Moved ${ok}` : `Pasted ${ok}`);
+      if (skipped && !clipboard.cut) {
+        toast("Folder copy not supported yet — files only", { kind: "info", title: "Paste" });
+      }
     } catch (err) {
-      setError(String(err));
+      toastError(err, "Paste");
     } finally {
       setBusy(false);
     }
@@ -304,22 +448,26 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   function openCtx(e: React.MouseEvent, entry: RemoteEntry | null) {
     e.preventDefault();
     e.stopPropagation();
-    if (entry) setSelected(entry);
+    if (entry && !checked.has(entry.path)) {
+      setChecked(new Set([entry.path]));
+      lastClickedRef.current = entry.path;
+    }
     setMenu({ x: e.clientX, y: e.clientY, entry });
   }
 
   async function onMenuAction(id: string) {
-    const entry = menu?.entry;
-    if (id === "open" && entry) await openEntry(entry);
-    else if (id === "view" && entry && !entry.isDir) {
-      setEditor({ path: entry.path, mode: "view" });
-    } else if (id === "edit" && entry && !entry.isDir) {
-      setEditor({ path: entry.path, mode: "edit" });
-    } else if (id === "download" && entry) await downloadEntry(entry);
-    else if (id === "rename" && entry) await renameEntry(entry);
-    else if (id === "delete" && entry) await removeEntry(entry);
-    else if (id === "copy" && entry) setClipboard({ path: entry.path, cut: false });
-    else if (id === "cut" && entry) setClipboard({ path: entry.path, cut: true });
+    const context = menu?.entry ?? null;
+    const list = targetsForAction(context);
+    if (id === "open" && context) await openEntry(context);
+    else if (id === "view" && context && !context.isDir) {
+      setEditor({ path: context.path, mode: "view" });
+    } else if (id === "edit" && context && !context.isDir) {
+      setEditor({ path: context.path, mode: "edit" });
+    } else if (id === "download") await downloadEntries(list);
+    else if (id === "rename" && list.length === 1) await renameEntry(list[0]);
+    else if (id === "delete") await removeEntries(list);
+    else if (id === "copy") copyOrCut(list, false);
+    else if (id === "cut") copyOrCut(list, true);
     else if (id === "paste") await paste();
     else if (id === "mkdir") await mkdir();
     else if (id === "upload") await uploadPicker();
@@ -328,7 +476,11 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
 
   const menuItems: ContextMenuItem[] = (() => {
     if (!menu) return [];
-    if (!menu.entry) {
+    const list = targetsForAction(menu.entry);
+    const n = list.length;
+    const multi = n > 1;
+
+    if (!menu.entry && n === 0) {
       return [
         { id: "upload", label: "Upload…", disabled: !sftpId || busy },
         { id: "mkdir", label: "New folder", disabled: !sftpId || busy },
@@ -337,7 +489,20 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
         { id: "refresh", label: "Refresh", disabled: !sftpId || busy },
       ];
     }
-    const entry = menu.entry;
+
+    if (multi) {
+      const hasFile = list.some((e) => !e.isDir);
+      return [
+        { id: "download", label: `Download (${n})`, disabled: !hasFile || busy },
+        { id: "copy", label: `Copy (${n})` },
+        { id: "cut", label: `Cut (${n})` },
+        { id: "paste", label: "Paste", disabled: !clipboard || busy },
+        { id: "sep1", label: "", separator: true },
+        { id: "delete", label: `Delete (${n})`, danger: true },
+      ];
+    }
+
+    const entry = list[0] ?? menu.entry!;
     if (entry.isDir) {
       return [
         { id: "open", label: "Open" },
@@ -366,6 +531,9 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
 
   if (!isOpen) return null;
 
+  const hasSelection = selectedEntries.length > 0;
+  const single = selectedEntries.length === 1 ? selectedEntries[0] : null;
+
   return (
     <aside className="sftp-panel">
       <div className="sftp-header">
@@ -378,10 +546,13 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
         />
       </div>
       {!profileId ? (
-        <p className="muted">Connect a profile session to browse files.</p>
+        <p className="muted sftp-empty">Connect a profile session to browse remote files here.</p>
       ) : (
         <>
-          <label className="follow-shell" title="When checked, SFTP tracks the remote shell cwd (after SSH is connected)">
+          <label
+            className="follow-shell"
+            title="When checked, SFTP tracks the remote shell cwd (after SSH is connected)"
+          >
             <input
               type="checkbox"
               checked={followShell}
@@ -416,9 +587,9 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
             />
             <IconButton
               variant="soft"
-              title="Download"
-              disabled={!selected || selected.isDir || busy}
-              onClick={() => selected && void downloadEntry(selected)}
+              title="Download selected"
+              disabled={!hasSelection || busy}
+              onClick={() => void downloadEntries(selectedEntries)}
               icon={<Download size={14} strokeWidth={iconStroke} />}
             />
             <IconButton
@@ -431,29 +602,29 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
             <IconButton
               variant="soft"
               title="Rename"
-              disabled={!selected || busy}
-              onClick={() => selected && void renameEntry(selected)}
+              disabled={!single || busy}
+              onClick={() => single && void renameEntry(single)}
               icon={<Pencil size={14} strokeWidth={iconStroke} />}
             />
             <IconButton
               variant="soft"
-              title="Delete"
-              disabled={!selected || busy}
-              onClick={() => selected && void removeEntry(selected)}
+              title="Delete selected"
+              disabled={!hasSelection || busy}
+              onClick={() => void removeEntries(selectedEntries)}
               icon={<Trash2 size={14} strokeWidth={iconStroke} />}
             />
             <IconButton
               variant="soft"
-              title="Copy"
-              disabled={!selected}
-              onClick={() => selected && setClipboard({ path: selected.path, cut: false })}
+              title="Copy selected"
+              disabled={!hasSelection}
+              onClick={() => copyOrCut(selectedEntries, false)}
               icon={<Copy size={14} strokeWidth={iconStroke} />}
             />
             <IconButton
               variant="soft"
-              title="Cut"
-              disabled={!selected}
-              onClick={() => selected && setClipboard({ path: selected.path, cut: true })}
+              title="Cut selected"
+              disabled={!hasSelection}
+              onClick={() => copyOrCut(selectedEntries, true)}
               icon={<Scissors size={14} strokeWidth={iconStroke} />}
             />
             <IconButton
@@ -467,6 +638,17 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
           <div className="sftp-path" title={cwd}>
             {cwd || "…"}
           </div>
+          {hasSelection && (
+            <div className="sftp-selection-bar">
+              <span>
+                {selectedEntries.length} selected
+                {clipboard ? ` · clipboard: ${clipboard.items.length}` : ""}
+              </span>
+              <button type="button" className="ghost sftp-clear-sel" onClick={() => setChecked(new Set())}>
+                Clear
+              </button>
+            </div>
+          )}
           <div
             className="sftp-list"
             onDragOver={(e) => e.preventDefault()}
@@ -474,31 +656,59 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
             onContextMenu={(e) => openCtx(e, null)}
           >
             {busy && <div className="sftp-busy">Working…</div>}
-            {entries.map((e) => (
-              <div
-                key={e.path}
-                className={`sftp-row ${selected?.path === e.path ? "selected" : ""}`}
-                onClick={() => setSelected(e)}
-                onDoubleClick={() => void openEntry(e)}
-                onContextMenu={(ev) => openCtx(ev, e)}
-              >
-                <span className="sftp-icon">
-                  {e.isDir ? (
-                    <Folder size={15} strokeWidth={iconStroke} />
-                  ) : (
-                    <File size={15} strokeWidth={iconStroke} />
-                  )}
-                </span>
-                <span className="sftp-name">{e.name}</span>
-                <span className="sftp-meta">{e.isDir ? "" : formatSize(e.size)}</span>
+            {entries.length > 0 && (
+              <div className="sftp-row sftp-row-head">
+                <label className="sftp-check" title="Select all" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someChecked;
+                    }}
+                    onChange={toggleAll}
+                  />
+                </label>
+                <span className="sftp-icon" aria-hidden />
+                <span className="sftp-name">Name</span>
+                <span className="sftp-meta">Size</span>
               </div>
-            ))}
+            )}
+            {entries.map((e) => {
+              const isChecked = checked.has(e.path);
+              return (
+                <div
+                  key={e.path}
+                  className={`sftp-row ${isChecked ? "selected" : ""}`}
+                  onClick={(ev) => onRowClick(ev, e)}
+                  onDoubleClick={() => void openEntry(e)}
+                  onContextMenu={(ev) => openCtx(ev, e)}
+                >
+                  <label className="sftp-check" onClick={(ev) => ev.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        togglePath(e.path);
+                        lastClickedRef.current = e.path;
+                      }}
+                    />
+                  </label>
+                  <span className="sftp-icon">
+                    {e.isDir ? (
+                      <Folder size={15} strokeWidth={iconStroke} />
+                    ) : (
+                      <File size={15} strokeWidth={iconStroke} />
+                    )}
+                  </span>
+                  <span className="sftp-name">{e.name}</span>
+                  <span className="sftp-meta">{e.isDir ? "" : formatSize(e.size)}</span>
+                </div>
+              );
+            })}
             {!entries.length && !busy && (
               <p className="muted">Empty — drop files here to upload</p>
             )}
           </div>
-          {status && <p className="hint">{status}</p>}
-          {error && <p className="error">{error}</p>}
           {menu && (
             <ContextMenu
               x={menu.x}

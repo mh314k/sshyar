@@ -8,6 +8,8 @@ import { TerminalPane } from "./components/TerminalPane";
 import { SftpPanel } from "./components/SftpPanel";
 import { PanelLayout, usePanelLayout } from "./components/PanelLayout";
 import { readStoredTheme, toggleTheme, type ThemeMode } from "./lib/theme";
+import { DialogHost } from "./lib/dialogs";
+import { ToastHost, toastError } from "./lib/toast";
 import "./App.css";
 
 export default function App() {
@@ -46,17 +48,21 @@ export default function App() {
   const createLocalTab = useCallback(async (profile?: Profile) => {
     const cols = 120;
     const rows = 30;
-    const { sessionId } = await api.ptyCreate(cols, rows, profile?.id ?? null);
-    const tab: SessionTab = {
-      id: crypto.randomUUID(),
-      title: profile?.name ?? "PowerShell",
-      profileId: profile?.id,
-      ptyId: sessionId,
-      status: profile ? "connecting" : "local",
-    };
-    setTabs((t) => [...t, tab]);
-    setActiveId(tab.id);
-    if (profile) panels.setRightOpen(true);
+    try {
+      const { sessionId } = await api.ptyCreate(cols, rows, profile?.id ?? null);
+      const tab: SessionTab = {
+        id: crypto.randomUUID(),
+        title: profile?.name ?? "PowerShell",
+        profileId: profile?.id,
+        ptyId: sessionId,
+        status: profile ? "connecting" : "local",
+      };
+      setTabs((t) => [...t, tab]);
+      setActiveId(tab.id);
+      if (profile) panels.setRightOpen(true);
+    } catch (e) {
+      toastError(e, profile ? "Connect" : "New session");
+    }
   }, [panels.setRightOpen]);
 
   const closeTab = useCallback(async (id: string) => {
@@ -78,15 +84,19 @@ export default function App() {
       if (!tab?.profileId) return;
       const profile = profiles.find((p) => p.id === tab.profileId);
       if (!profile) return;
-      if (tab.ptyId) await api.ptyKill(tab.ptyId);
-      const { sessionId } = await api.ptyCreate(120, 30, profile.id);
-      setTabs((prev) =>
-        prev.map((t) =>
-          t.id === id
-            ? { ...t, ptyId: sessionId, status: "connecting", title: profile.name }
-            : t,
-        ),
-      );
+      try {
+        if (tab.ptyId) await api.ptyKill(tab.ptyId);
+        const { sessionId } = await api.ptyCreate(120, 30, profile.id);
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === id
+              ? { ...t, ptyId: sessionId, status: "connecting", title: profile.name }
+              : t,
+          ),
+        );
+      } catch (e) {
+        toastError(e, "Reconnect");
+      }
     },
     [tabs, profiles],
   );
@@ -134,43 +144,67 @@ export default function App() {
     await api.ptyInject(tab.ptyId, command);
   }
 
+  const hosts = (
+    <>
+      <DialogHost />
+      <ToastHost />
+    </>
+  );
+
   if (bootError) {
     return (
-      <div className="unlock-gate">
-        <div className="unlock-card">
-          <h1>SSHyar</h1>
-          <p className="error">{bootError}</p>
+      <>
+        {hosts}
+        <div className="unlock-gate">
+          <div className="unlock-card">
+            <div className="brand-title">
+              <img src="/app-icon.png" alt="" className="brand-logo" width={36} height={36} />
+              <h1>SSHyar</h1>
+            </div>
+            <p className="error">{bootError}</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (!vault) {
     return (
-      <div className="unlock-gate">
-        <div className="unlock-card">
-          <h1>SSHyar</h1>
-          <p>Loading…</p>
+      <>
+        {hosts}
+        <div className="unlock-gate">
+          <div className="unlock-card">
+            <div className="brand-title">
+              <img src="/app-icon.png" alt="" className="brand-logo" width={36} height={36} />
+              <h1>SSHyar</h1>
+            </div>
+            <p className="muted">Loading…</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (!vault.unlocked) {
     return (
-      <UnlockGate
-        status={vault}
-        onUnlocked={async (s) => {
-          setVault(s);
-          await refreshData();
-        }}
-      />
+      <>
+        {hosts}
+        <UnlockGate
+          status={vault}
+          onUnlocked={async (s) => {
+            setVault(s);
+            await refreshData();
+          }}
+        />
+      </>
     );
   }
 
   const activeTab = tabs.find((t) => t.id === activeId) ?? null;
 
   return (
+    <>
+    {hosts}
     <PanelLayout
       leftOpen={panels.leftOpen}
       rightOpen={panels.rightOpen}
@@ -208,7 +242,8 @@ export default function App() {
           <div className="terminal-stack">
             {!tabs.length && (
               <div className="empty-terminal">
-                <p>Open a local shell or connect a profile to get started.</p>
+                <img src="/app-icon.png" alt="" className="brand-logo" width={48} height={48} />
+                <p>Pick a profile on the left, or open a local PowerShell session.</p>
                 <button type="button" onClick={() => void createLocalTab()}>
                   New PowerShell
                 </button>
@@ -237,5 +272,6 @@ export default function App() {
         />
       }
     />
+    </>
   );
 }

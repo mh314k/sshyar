@@ -29,8 +29,11 @@ export function UnlockGate({ status, onUnlocked }: Props) {
   return (
     <div className="unlock-gate">
       <div className="unlock-card">
-        <h1>SSHyar</h1>
-        <p>Vault is locked. Enter your master password.</p>
+        <div className="brand-title">
+          <img src="/app-icon.png" alt="" className="brand-logo" width={36} height={36} />
+          <h1>SSHyar</h1>
+        </div>
+        <p className="muted">Vault is locked. Enter your master password to continue.</p>
         <form onSubmit={unlock}>
           <input
             type="password"
@@ -44,7 +47,9 @@ export function UnlockGate({ status, onUnlocked }: Props) {
           </button>
         </form>
         {error && <p className="error">{error}</p>}
-        <p className="hint">Profiles: {status.profileCount}</p>
+        <p className="muted">
+          {status.profileCount} profile{status.profileCount === 1 ? "" : "s"} in vault
+        </p>
       </div>
     </div>
   );

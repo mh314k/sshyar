@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Zap } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { Snippet } from "../types";
 import { api } from "../lib/api";
 import { IconButton, iconSize, iconStroke } from "./IconButton";
@@ -30,9 +30,9 @@ export function SnippetList({ snippets, onChange, onRun }: Props) {
 
   return (
     <div className="snippets">
-      <h4>
-        <Zap size={13} strokeWidth={iconStroke} /> Snippets
-      </h4>
+      {snippets.length === 0 && (
+        <p className="muted snippets-empty">No snippets yet. Add a named command below.</p>
+      )}
       <ul>
         {snippets.map((s) => (
           <li key={s.id}>
@@ -40,7 +40,7 @@ export function SnippetList({ snippets, onChange, onRun }: Props) {
               {s.name}
             </button>
             <IconButton
-              variant="icon"
+              variant="ghost"
               title="Delete"
               icon={<Trash2 size={13} strokeWidth={iconStroke} />}
               onClick={async () => {
