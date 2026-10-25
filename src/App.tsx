@@ -208,8 +208,10 @@ export default function App() {
           <div className="terminal-stack">
             {!tabs.length && (
               <div className="empty-terminal">
-                <p>Open a local shell (+) or connect a profile.</p>
-                <button onClick={() => void createLocalTab()}>New PowerShell</button>
+                <p>Open a local shell or connect a profile to get started.</p>
+                <button type="button" onClick={() => void createLocalTab()}>
+                  New PowerShell
+                </button>
               </div>
             )}
             {tabs.map(

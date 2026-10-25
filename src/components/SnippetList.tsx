@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { Plus, Trash2, Zap } from "lucide-react";
 import type { Snippet } from "../types";
 import { api } from "../lib/api";
+import { IconButton, iconSize, iconStroke } from "./IconButton";
 
 interface Props {
   snippets: Snippet[];
@@ -28,23 +30,24 @@ export function SnippetList({ snippets, onChange, onRun }: Props) {
 
   return (
     <div className="snippets">
-      <h4>Snippets</h4>
+      <h4>
+        <Zap size={13} strokeWidth={iconStroke} /> Snippets
+      </h4>
       <ul>
         {snippets.map((s) => (
           <li key={s.id}>
             <button className="snippet-run" title={s.command} onClick={() => onRun(s.command)}>
               {s.name}
             </button>
-            <button
-              className="icon-btn"
+            <IconButton
+              variant="icon"
               title="Delete"
+              icon={<Trash2 size={13} strokeWidth={iconStroke} />}
               onClick={async () => {
                 await api.deleteSnippet(s.id);
                 onChange();
               }}
-            >
-              ×
-            </button>
+            />
           </li>
         ))}
       </ul>
@@ -61,7 +64,12 @@ export function SnippetList({ snippets, onChange, onRun }: Props) {
           onChange={(e) => setCommand(e.target.value)}
           required
         />
-        <button type="submit">Add</button>
+        <IconButton
+          type="submit"
+          variant="soft"
+          label="Add"
+          icon={<Plus size={iconSize} strokeWidth={iconStroke} />}
+        />
       </form>
       {error && <p className="error">{error}</p>}
     </div>

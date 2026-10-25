@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Eye, Pencil, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../lib/api";
+import { IconButton, iconStroke } from "./IconButton";
 
 export type FileEditorMode = "view" | "edit";
 
@@ -88,7 +90,14 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
       >
         <div className="file-editor-header">
           <div className="file-editor-title">
-            <strong>{mode === "view" ? "View" : "Edit"}</strong>
+            <strong className="file-editor-mode">
+              {mode === "view" ? (
+                <Eye size={14} strokeWidth={iconStroke} />
+              ) : (
+                <Pencil size={14} strokeWidth={iconStroke} />
+              )}
+              {mode === "view" ? "View" : "Edit"}
+            </strong>
             <span className="file-editor-path" title={path}>
               {name}
             </span>
@@ -96,29 +105,36 @@ export function RemoteFileEditor({ sftpId, path, mode: initialMode, onClose, onS
           </div>
           <div className="file-editor-actions">
             {mode === "view" ? (
-              <button type="button" className="ghost" onClick={() => setMode("edit")}>
-                Edit
-              </button>
+              <IconButton
+                variant="ghost"
+                label="Edit"
+                icon={<Pencil size={14} strokeWidth={iconStroke} />}
+                onClick={() => setMode("edit")}
+              />
             ) : (
               <>
-                <button
-                  type="button"
-                  className="ghost"
+                <IconButton
+                  variant="ghost"
+                  label="Revert"
                   disabled={!dirty}
-                  onClick={() => {
-                    setContent(original);
-                  }}
-                >
-                  Revert
-                </button>
-                <button type="button" onClick={() => void save()} disabled={saving || !dirty}>
-                  {saving ? "Saving…" : "Save"}
-                </button>
+                  icon={<RotateCcw size={14} strokeWidth={iconStroke} />}
+                  onClick={() => setContent(original)}
+                />
+                <IconButton
+                  variant="primary"
+                  label={saving ? "Saving…" : "Save"}
+                  disabled={saving || !dirty}
+                  icon={<Save size={14} strokeWidth={iconStroke} />}
+                  onClick={() => void save()}
+                />
               </>
             )}
-            <button type="button" className="ghost" onClick={requestClose}>
-              Close
-            </button>
+            <IconButton
+              variant="icon"
+              title="Close"
+              icon={<X size={15} strokeWidth={iconStroke} />}
+              onClick={requestClose}
+            />
           </div>
         </div>
         {loading ? (

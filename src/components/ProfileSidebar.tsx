@@ -1,11 +1,27 @@
 import { useMemo, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import {
+  Copy,
+  ExternalLink,
+  KeyRound,
+  Moon,
+  PanelLeftClose,
+  Pencil,
+  Plus,
+  Shield,
+  Sun,
+  Trash2,
+  Upload,
+  CopyPlus,
+  Terminal,
+} from "lucide-react";
 import type { Profile, ProfileInput, Snippet } from "../types";
 import { api } from "../lib/api";
 import type { ThemeMode } from "../lib/theme";
 import { ProfileForm } from "./ProfileForm";
 import { SnippetList } from "./SnippetList";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { IconButton, iconSize, iconStroke } from "./IconButton";
 
 interface Props {
   profiles: Profile[];
@@ -143,21 +159,31 @@ export function ProfileSidebar({
           <h1>SSHyar</h1>
         </div>
         <div className="brand-actions">
-          <button
-            type="button"
-            className="ghost theme-toggle"
+          <IconButton
+            variant="icon"
             title={theme === "dark" ? "Switch to light" : "Switch to dark"}
             onClick={onToggleTheme}
-          >
-            {theme === "dark" ? "☀" : "☾"}
-          </button>
-          <button className="ghost" onClick={() => setEditing(null)} title="New profile">
-            +
-          </button>
+            icon={
+              theme === "dark" ? (
+                <Sun size={iconSize} strokeWidth={iconStroke} />
+              ) : (
+                <Moon size={iconSize} strokeWidth={iconStroke} />
+              )
+            }
+          />
+          <IconButton
+            variant="icon"
+            title="New profile"
+            onClick={() => setEditing(null)}
+            icon={<Plus size={iconSize} strokeWidth={iconStroke} />}
+          />
           {onCollapse && (
-            <button className="ghost" onClick={onCollapse} title="Hide sidebar">
-              ‹
-            </button>
+            <IconButton
+              variant="icon"
+              title="Hide sidebar"
+              onClick={onCollapse}
+              icon={<PanelLeftClose size={iconSize} strokeWidth={iconStroke} />}
+            />
           )}
         </div>
       </div>
@@ -207,42 +233,62 @@ export function ProfileSidebar({
 
       {selected && (
         <div className="profile-actions">
-          <button onClick={() => onConnect(selected)}>Connect</button>
-          <button className="ghost" onClick={() => onExternal(selected)}>
-            External
-          </button>
-          <button className="ghost" onClick={() => copySsh(selected.id)}>
-            Copy SSH
-          </button>
-          <button className="ghost" onClick={() => setEditing(selected)}>
-            Edit
-          </button>
-          <button
-            className="ghost"
+          <IconButton
+            variant="primary"
+            label="Connect"
+            icon={<Terminal size={14} strokeWidth={iconStroke} />}
+            onClick={() => onConnect(selected)}
+          />
+          <IconButton
+            variant="ghost"
+            label="External"
+            icon={<ExternalLink size={14} strokeWidth={iconStroke} />}
+            onClick={() => onExternal(selected)}
+          />
+          <IconButton
+            variant="ghost"
+            label="Copy SSH"
+            icon={<Copy size={14} strokeWidth={iconStroke} />}
+            onClick={() => void copySsh(selected.id)}
+          />
+          <IconButton
+            variant="ghost"
+            label="Edit"
+            icon={<Pencil size={14} strokeWidth={iconStroke} />}
+            onClick={() => setEditing(selected)}
+          />
+          <IconButton
+            variant="ghost"
+            label="Duplicate"
+            icon={<CopyPlus size={14} strokeWidth={iconStroke} />}
             onClick={async () => {
               await api.duplicateProfile(selected.id);
               onRefresh();
             }}
-          >
-            Duplicate
-          </button>
-          <button className="ghost" onClick={genKey}>
-            Generate key
-          </button>
-          <button className="ghost" onClick={installKey}>
-            Install key
-          </button>
-          <button
-            className="danger"
+          />
+          <IconButton
+            variant="ghost"
+            label="Generate key"
+            icon={<KeyRound size={14} strokeWidth={iconStroke} />}
+            onClick={() => void genKey()}
+          />
+          <IconButton
+            variant="ghost"
+            label="Install key"
+            icon={<Upload size={14} strokeWidth={iconStroke} />}
+            onClick={() => void installKey()}
+          />
+          <IconButton
+            variant="danger"
+            label="Delete"
+            icon={<Trash2 size={14} strokeWidth={iconStroke} />}
             onClick={async () => {
               if (!confirm(`Delete ${selected.name}?`)) return;
               await api.deleteProfile(selected.id);
               setSelectedId(null);
               onRefresh();
             }}
-          >
-            Delete
-          </button>
+          />
         </div>
       )}
 
@@ -287,15 +333,21 @@ export function ProfileSidebar({
       )}
 
       <div className="security-box">
-        <h4>Security</h4>
+        <h4>
+          <Shield size={13} strokeWidth={iconStroke} /> Security
+        </h4>
         {hasMasterPassword ? (
-          <button className="ghost" onClick={removeMaster}>
-            Remove master password
-          </button>
+          <IconButton
+            variant="ghost"
+            label="Remove master password"
+            onClick={() => void removeMaster()}
+          />
         ) : (
-          <button className="ghost" onClick={setMaster}>
-            Set master password
-          </button>
+          <IconButton
+            variant="ghost"
+            label="Set master password"
+            onClick={() => void setMaster()}
+          />
         )}
       </div>
 

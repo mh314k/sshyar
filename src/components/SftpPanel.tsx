@@ -3,8 +3,25 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../lib/api";
 import type { RemoteEntry } from "../types";
+import {
+  ArrowUp,
+  ClipboardPaste,
+  Copy,
+  Download,
+  File,
+  Folder,
+  FolderPlus,
+  Link2,
+  PanelRightClose,
+  Pencil,
+  RefreshCw,
+  Scissors,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { RemoteFileEditor, type FileEditorMode } from "./RemoteFileEditor";
+import { IconButton, iconSize, iconStroke } from "./IconButton";
 
 interface Props {
   profileId: string | null;
@@ -353,9 +370,12 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
     <aside className="sftp-panel">
       <div className="sftp-header">
         <strong>SFTP</strong>
-        <button className="ghost" onClick={onToggle} title="Hide SFTP">
-          ›
-        </button>
+        <IconButton
+          variant="icon"
+          title="Hide SFTP"
+          onClick={onToggle}
+          icon={<PanelRightClose size={iconSize} strokeWidth={iconStroke} />}
+        />
       </div>
       {!profileId ? (
         <p className="muted">Connect a profile session to browse files.</p>
@@ -368,54 +388,81 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
               disabled={!ptyId}
               onChange={(e) => setFollowShell(e.target.checked)}
             />
+            <Link2 size={13} strokeWidth={iconStroke} />
             <span>Follow shell</span>
           </label>
           <div className="sftp-toolbar">
-            <button onClick={goUp} disabled={!sftpId || busy}>
-              ↑
-            </button>
-            <button onClick={() => sftpId && refresh(sftpId, cwd)} disabled={!sftpId || busy}>
-              ↻
-            </button>
-            <button onClick={uploadPicker} disabled={!sftpId || busy}>
-              Upload
-            </button>
-            <button
-              onClick={() => selected && void downloadEntry(selected)}
+            <IconButton
+              variant="soft"
+              title="Up"
+              disabled={!sftpId || busy}
+              onClick={goUp}
+              icon={<ArrowUp size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Refresh"
+              disabled={!sftpId || busy}
+              onClick={() => sftpId && void refresh(sftpId, cwd)}
+              icon={<RefreshCw size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Upload"
+              label="Upload"
+              disabled={!sftpId || busy}
+              onClick={() => void uploadPicker()}
+              icon={<Upload size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Download"
               disabled={!selected || selected.isDir || busy}
-            >
-              Download
-            </button>
-            <button onClick={mkdir} disabled={!sftpId || busy}>
-              New folder
-            </button>
-            <button
+              onClick={() => selected && void downloadEntry(selected)}
+              icon={<Download size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="New folder"
+              disabled={!sftpId || busy}
+              onClick={() => void mkdir()}
+              icon={<FolderPlus size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Rename"
+              disabled={!selected || busy}
               onClick={() => selected && void renameEntry(selected)}
+              icon={<Pencil size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Delete"
               disabled={!selected || busy}
-            >
-              Rename
-            </button>
-            <button
               onClick={() => selected && void removeEntry(selected)}
-              disabled={!selected || busy}
-            >
-              Delete
-            </button>
-            <button
+              icon={<Trash2 size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Copy"
+              disabled={!selected}
               onClick={() => selected && setClipboard({ path: selected.path, cut: false })}
+              icon={<Copy size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Cut"
               disabled={!selected}
-            >
-              Copy
-            </button>
-            <button
               onClick={() => selected && setClipboard({ path: selected.path, cut: true })}
-              disabled={!selected}
-            >
-              Cut
-            </button>
-            <button onClick={paste} disabled={!clipboard || busy}>
-              Paste
-            </button>
+              icon={<Scissors size={14} strokeWidth={iconStroke} />}
+            />
+            <IconButton
+              variant="soft"
+              title="Paste"
+              disabled={!clipboard || busy}
+              onClick={() => void paste()}
+              icon={<ClipboardPaste size={14} strokeWidth={iconStroke} />}
+            />
           </div>
           <div className="sftp-path" title={cwd}>
             {cwd || "…"}
@@ -435,7 +482,13 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
                 onDoubleClick={() => void openEntry(e)}
                 onContextMenu={(ev) => openCtx(ev, e)}
               >
-                <span className="sftp-icon">{e.isDir ? "📁" : "📄"}</span>
+                <span className="sftp-icon">
+                  {e.isDir ? (
+                    <Folder size={15} strokeWidth={iconStroke} />
+                  ) : (
+                    <File size={15} strokeWidth={iconStroke} />
+                  )}
+                </span>
                 <span className="sftp-name">{e.name}</span>
                 <span className="sftp-meta">{e.isDir ? "" : formatSize(e.size)}</span>
               </div>

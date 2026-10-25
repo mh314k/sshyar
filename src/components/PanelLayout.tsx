@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { FolderOpen, Server } from "lucide-react";
 
 const STORAGE_KEY = "sshyar-panel-layout";
 
@@ -157,7 +158,8 @@ export function PanelLayout({
           title="Show sidebar"
           onClick={() => onLeftOpenChange(true)}
         >
-          Profiles
+          <Server size={14} strokeWidth={1.75} />
+          <span>Profiles</span>
         </button>
       )}
 
@@ -182,7 +184,8 @@ export function PanelLayout({
           title="Show SFTP"
           onClick={() => onRightOpenChange(true)}
         >
-          Files
+          <FolderOpen size={14} strokeWidth={1.75} />
+          <span>Files</span>
         </button>
       )}
     </div>

@@ -1,4 +1,6 @@
+import { Plus, RotateCcw, X } from "lucide-react";
 import type { SessionTab } from "../types";
+import { IconButton, iconSize, iconStroke } from "./IconButton";
 
 interface Props {
   tabs: SessionTab[];
@@ -35,33 +37,37 @@ export function SessionTabBar({
             <span className={`dot status-${t.status}`} title={t.status} />
             <span className="tab-title">{t.title}</span>
             {t.profileId && (
-              <button
-                className="tab-action"
+              <IconButton
+                className="tab-icon-btn"
+                variant="icon"
                 title="Reconnect"
+                icon={<RotateCcw size={13} strokeWidth={iconStroke} />}
                 onClick={(e) => {
                   e.stopPropagation();
                   onReconnect(t.id);
                 }}
-              >
-                ↻
-              </button>
+              />
             )}
-            <button
-              className="tab-close"
+            <IconButton
+              className="tab-icon-btn"
+              variant="icon"
               title="Close"
+              icon={<X size={14} strokeWidth={iconStroke} />}
               onClick={(e) => {
                 e.stopPropagation();
                 onClose(t.id);
               }}
-            >
-              ×
-            </button>
+            />
           </div>
         ))}
       </div>
-      <button className="tab-new" title="New local shell (Ctrl+T)" onClick={onNew}>
-        +
-      </button>
+      <IconButton
+        className="tab-new"
+        variant="ghost"
+        title="New local shell (Ctrl+T)"
+        icon={<Plus size={iconSize} strokeWidth={iconStroke} />}
+        onClick={onNew}
+      />
     </div>
   );
 }

@@ -103,16 +103,18 @@ button,
 
 button {
   cursor: pointer;
-}
-
-button {
-  cursor: pointer;
   background: var(--accent);
   border: none;
   color: var(--accent-fg);
   font-weight: 600;
-  border-radius: 6px;
-  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  padding: 0.42rem 0.75rem;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
 }
 
 button:hover {
@@ -128,17 +130,102 @@ button.ghost {
 button.ghost:hover {
   border-color: var(--accent);
   color: var(--accent-hover);
+  background: var(--selected-bg);
 }
 
 button.danger {
   background: transparent;
   color: var(--danger);
-  border: 1px solid var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+
+button.danger:hover {
+  background: rgba(225, 29, 72, 0.1);
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.ui-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ui-btn-icon svg {
+  display: block;
+}
+
+.ui-btn-primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid transparent;
+  box-shadow: 0 1px 0 color-mix(in srgb, #000 12%, transparent);
+}
+
+.ui-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.ui-btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.ui-btn-ghost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: var(--selected-bg);
+  color: var(--text);
+}
+
+.ui-btn-soft {
+  background: var(--bg-soft);
+  color: var(--text);
+  border: 1px solid transparent;
+}
+
+.ui-btn-soft:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-soft));
+}
+
+.ui-btn-danger {
+  background: transparent;
+  color: var(--danger-text);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+.ui-btn-danger:hover:not(:disabled) {
+  background: rgba(225, 29, 72, 0.1);
+}
+
+.ui-btn-icon,
+.ui-btn-icon-only {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.ui-btn-icon-only.ui-btn-ghost {
+  border-color: transparent;
+}
+
+.ui-btn-icon-only.ui-btn-ghost:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--selected-bg);
 }
 
 input,
@@ -224,17 +311,26 @@ body.is-resizing * {
 }
 
 .panel-rail {
-  flex: 0 0 28px;
+  flex: 0 0 32px;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   border-radius: 0;
   background: var(--bg-elev);
-  color: var(--text);
+  color: var(--muted);
   border: none;
   border-inline-end: 1px solid var(--border);
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  padding: 0.6rem 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.7rem 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.panel-rail:hover {
+  color: var(--text);
+  background: var(--selected-bg);
 }
 
 .panel-rail-right {
@@ -445,9 +541,13 @@ body.is-resizing * {
 
 .brand h1 {
   margin: 0;
-  font-size: 1.35rem;
-  letter-spacing: 0.04em;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
   font-weight: 700;
+}
+
+.brand-logo {
+  box-shadow: 0 1px 3px var(--shadow);
 }
 
 .search {
@@ -523,6 +623,9 @@ body.is-resizing * {
   margin: 0.4rem 0;
   font-size: 0.85rem;
   color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .snippets ul {
@@ -599,19 +702,22 @@ body.is-resizing * {
   text-overflow: ellipsis;
 }
 
-.tab-close,
-.tab-action,
-.tab-new {
-  background: transparent;
-  color: var(--muted);
-  border: none;
-  padding: 0 0.25rem;
-  font-weight: 500;
+.tab-icon-btn {
+  width: 1.35rem !important;
+  height: 1.35rem !important;
+  opacity: 0.55;
+}
+
+.tab:hover .tab-icon-btn,
+.tab.active .tab-icon-btn {
+  opacity: 0.9;
 }
 
 .tab-new {
-  font-size: 1.2rem;
-  padding: 0 0.7rem;
+  margin: 0.2rem 0.35rem;
+  width: 1.85rem !important;
+  height: 1.85rem !important;
+  align-self: center;
 }
 
 .dot {
@@ -710,11 +816,16 @@ body.is-resizing * {
   border-bottom: 1px solid var(--border);
 }
 
-.sftp-toolbar button {
-  font-size: 0.72rem;
-  padding: 0.25rem 0.4rem;
-  background: var(--bg-elev);
-  color: var(--text);
+.sftp-toolbar .ui-btn {
+  font-size: 0.75rem;
+  height: 1.9rem;
+  min-height: 1.9rem;
+  padding: 0 0.55rem;
+}
+
+.sftp-toolbar .ui-btn-icon-only {
+  width: 1.9rem;
+  padding: 0;
 }
 
 .sftp-path {
@@ -742,6 +853,23 @@ body.is-resizing * {
   cursor: default;
   font-size: 0.82rem;
   align-items: center;
+}
+
+.sftp-icon {
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sftp-row.selected .sftp-icon {
+  color: var(--accent-hover);
+}
+
+.file-editor-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .sftp-row:hover {
