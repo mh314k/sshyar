@@ -45,12 +45,12 @@ impl PtyManager {
 
         let shell = resolve_shell();
         let mut cmd = CommandBuilder::new(&shell);
-        // Interactive login-ish shell
-        if shell.to_ascii_lowercase().contains("pwsh") {
-            cmd.arg("-NoLogo");
-        } else {
-            cmd.arg("-NoLogo");
-            cmd.arg("-NoExit");
+        cmd.arg("-NoLogo");
+        cmd.arg("-NoExit");
+        // Run SSH as the shell startup command — more reliable than typing into PSReadLine.
+        if let Some(ref ssh_cmd) = initial_command {
+            cmd.arg("-Command");
+            cmd.arg(ssh_cmd);
         }
 
         let child = pair
@@ -90,19 +90,11 @@ impl PtyManager {
             let _ = app_clone.emit(&exit_event, id_clone);
         });
 
-        let mut session = PtySession {
+        let session = PtySession {
             master: pair.master,
             writer,
             child,
         };
-
-        if let Some(cmd) = initial_command {
-            // Give the shell a moment, then inject command
-            let inject = format!("{cmd}\r");
-            thread::sleep(std::time::Duration::from_millis(400));
-            let _ = session.writer.write_all(inject.as_bytes());
-            let _ = session.writer.flush();
-        }
 
         self.sessions.lock().insert(id.clone(), session);
         Ok(id)

@@ -51,9 +51,27 @@ type TransferState = {
 
 const CWD_OSC_RE = /\x1b\]7337;cwd=([^\x07\x1b]*)\x07/g;
 
-const FOLLOW_SETUP =
-  '__sshyar_pwd(){ printf \'\\033]7337;cwd=%s\\007\' "$PWD"; }; ' +
-  'PROMPT_COMMAND="__sshyar_pwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"; __sshyar_pwd';
+/** Remote bash helper — base64 avoids $ / escape corruption while typing into the PTY. */
+function buildFollowInject(enable: boolean): string {
+  const script = enable
+    ? [
+        // Use $'...' so OSC escapes are real ESC bytes; keep name free of ambiguous $tokens.
+        "_sshyar_cwd(){ printf $'\\033]7337;cwd=%s\\007' \"$PWD\"; }",
+        'case ";${PROMPT_COMMAND};" in *_sshyar_cwd*) ;; *) PROMPT_COMMAND="_sshyar_cwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;; esac',
+        "_sshyar_cwd",
+      ].join("\n")
+    : [
+        'PROMPT_COMMAND="${PROMPT_COMMAND//_sshyar_cwd;/}"',
+        'PROMPT_COMMAND="${PROMPT_COMMAND//;_sshyar_cwd/}"',
+        'PROMPT_COMMAND="${PROMPT_COMMAND//_sshyar_cwd/}"',
+        "unset -f _sshyar_cwd 2>/dev/null",
+        "true",
+      ].join("\n");
+
+  const b64 = btoa(script);
+  // Ctrl+U only (clear line) — never Ctrl+C, that aborts SSH / running commands.
+  return `\x15eval "$(printf '%s' '${b64}' | base64 -d 2>/dev/null || printf '%s' '${b64}' | base64 -D 2>/dev/null)"`;
+}
 
 export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   const [sftpId, setSftpId] = useState<string | null>(null);
@@ -80,6 +98,8 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   const lastClickedRef = useRef<string | null>(null);
   const transferIdRef = useRef<string | null>(null);
   const busyRef = useRef(false);
+  const followWasOnRef = useRef(false);
+  const followPtyRef = useRef<string | null>(null);
 
   useEffect(() => {
     sftpIdRef.current = sftpId;
@@ -199,11 +219,40 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle }: Props) {
   }, [ptyId, followShell, navigateFollow]);
 
   useEffect(() => {
-    if (!followShell || !ptyId) return;
-    void api.ptyInject(ptyId, FOLLOW_SETUP).catch((err) => {
-      toastError(err, "Follow shell");
-    });
-    toast("Follow shell on — cd updates SFTP", { kind: "info" });
+    if (!ptyId) {
+      followWasOnRef.current = false;
+      followPtyRef.current = null;
+      return;
+    }
+    const wasOn = followWasOnRef.current;
+    const ptyChanged = followPtyRef.current !== ptyId;
+    followWasOnRef.current = followShell;
+    followPtyRef.current = ptyId;
+
+    let timer: number | undefined;
+
+    if (followShell) {
+      // After a new PTY/SSH session, wait for login before injecting.
+      // When only toggling the checkbox on an existing session, inject sooner.
+      const delayMs = ptyChanged ? 2500 : 600;
+      timer = window.setTimeout(() => {
+        void api
+          .ptyInject(ptyId, buildFollowInject(true))
+          .then(() => {
+            toast("Follow shell on — cd in remote shell updates SFTP", { kind: "info" });
+          })
+          .catch((err) => {
+            toastError(err, "Follow shell");
+          });
+      }, delayMs);
+    } else if (wasOn) {
+      // Only tear down when the user turns it off (not on first mount).
+      void api.ptyInject(ptyId, buildFollowInject(false)).catch(() => undefined);
+    }
+
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [followShell, ptyId]);
 
   useEffect(() => {

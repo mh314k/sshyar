@@ -16,14 +16,38 @@ interface Props {
 }
 
 export function TerminalPane({ ptyId, active, theme }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
 
+  function focusTerminal() {
+    try {
+      termRef.current?.focus();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function fitTerminal() {
+    const fit = fitRef.current;
+    const term = termRef.current;
+    const host = hostRef.current;
+    if (!fit || !term || !host) return;
+    if (host.clientWidth < 8 || host.clientHeight < 8) return;
+    try {
+      fit.fit();
+      void api.ptyResize(ptyId, term.cols, term.rows);
+    } catch {
+      /* ignore */
+    }
+  }
+
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!hostRef.current) return;
 
     const term = new Terminal({
       cursorBlink: true,
@@ -36,12 +60,17 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.loadAddon(new WebLinksAddon());
-    term.open(containerRef.current);
-    fit.fit();
-    term.focus();
-
+    term.open(hostRef.current);
     termRef.current = term;
     fitRef.current = fit;
+
+    // Fit after layout paints — first frame often has 0 height.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        fitTerminal();
+        term.focus();
+      });
+    });
 
     const unlistenOut = listen<string>(`pty-output-${ptyId}`, (ev) => {
       term.write(ev.payload);
@@ -62,16 +91,10 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
       setHasSelection(Boolean(term.getSelection()));
     });
 
-    void api.ptyResize(ptyId, term.cols, term.rows);
-
     const ro = new ResizeObserver(() => {
-      try {
-        fit.fit();
-      } catch {
-        /* ignore */
-      }
+      fitTerminal();
     });
-    ro.observe(containerRef.current);
+    ro.observe(hostRef.current);
 
     return () => {
       ro.disconnect();
@@ -82,6 +105,7 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
       void unlistenExit.then((u) => u());
       term.dispose();
       termRef.current = null;
+      fitRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ptyId]);
@@ -93,14 +117,12 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
   }, [theme]);
 
   useEffect(() => {
-    if (active) {
-      try {
-        fitRef.current?.fit();
-        termRef.current?.focus();
-      } catch {
-        /* ignore */
-      }
-    }
+    if (!active) return;
+    requestAnimationFrame(() => {
+      fitTerminal();
+      focusTerminal();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   async function onMenuAction(id: string) {
@@ -135,16 +157,32 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
   return (
     <>
       <div
-        className="terminal-pane"
-        style={{ display: active ? "flex" : "none" }}
-        ref={containerRef}
+        ref={paneRef}
+        className={`terminal-pane ${active ? "" : "is-hidden"}`}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          pointerDownRef.current = { x: e.clientX, y: e.clientY };
+        }}
+        onPointerUp={(e) => {
+          if (e.button !== 0) return;
+          const start = pointerDownRef.current;
+          pointerDownRef.current = null;
+          if (!start) return;
+          if (Math.abs(e.clientX - start.x) > 4 || Math.abs(e.clientY - start.y) > 4) return;
+          focusTerminal();
+        }}
+        onPointerCancel={() => {
+          pointerDownRef.current = null;
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
           setHasSelection(Boolean(termRef.current?.getSelection()));
           setMenu({ x: e.clientX, y: e.clientY });
         }}
-      />
+      >
+        <div className="terminal-host" ref={hostRef} />
+      </div>
       {menu && active && (
         <ContextMenu
           x={menu.x}

@@ -299,6 +299,15 @@ textarea:focus {
 
 .panel-center {
   flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-center > .main {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .panel-left .sidebar,
@@ -686,6 +695,9 @@ body.is-resizing * {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
   background: var(--term-bg);
   border-inline: 1px solid color-mix(in srgb, var(--hairline) 70%, transparent);
 }
@@ -776,22 +788,42 @@ body.is-resizing * {
 }
 
 .terminal-stack {
-  flex: 1;
+  flex: 1 1 auto;
   position: relative;
   min-height: 0;
+  overflow: hidden;
 }
 
 .terminal-pane {
   position: absolute;
   inset: 0;
+  display: flex;
+  flex-direction: column;
   padding: 6px 8px 8px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-.terminal-pane .xterm {
+.terminal-pane.is-hidden {
+  display: none;
+}
+
+.terminal-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   height: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
-.terminal-pane .xterm-viewport {
+.terminal-host .xterm {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+}
+
+.terminal-host .xterm-viewport {
   overflow-y: auto !important;
 }
 
