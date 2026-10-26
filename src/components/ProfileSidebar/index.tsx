@@ -19,20 +19,22 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-import type { Profile, ProfileInput, Snippet } from "../types";
-import { api } from "../lib/api";
-import { appConfirm, appPasswordPrompt, appPrompt } from "../lib/dialogs";
-import { toastError, toastSuccess } from "../lib/toast";
-import type { ThemeMode } from "../lib/theme";
-import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "../lib/version";
-import { ProfileForm } from "./ProfileForm";
-import { SnippetList } from "./SnippetList";
-import { AboutPopover } from "./AboutPopover";
-import { HelpModal } from "./HelpModal";
-import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
-import { Popover } from "./Popover";
-import { IconButton, iconSize, iconStroke } from "./IconButton";
-import { BrandLogo } from "./BrandLogo";
+import type { Profile, ProfileInput, Snippet } from "../../types";
+import { api } from "../../lib/api";
+import { appConfirm, appPasswordPrompt, appPrompt } from "../../lib/dialogs";
+import { toastError, toastSuccess } from "../../lib/toast";
+import type { ThemeMode } from "../../lib/theme";
+import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "../../lib/version";
+import { ProfileForm } from "../ProfileForm";
+import { SnippetList } from "../SnippetList";
+import { AboutPopover } from "../AboutPopover";
+import { HelpModal } from "../HelpModal";
+import { ContextMenu, type ContextMenuItem } from "../ContextMenu";
+import { Popover } from "../Popover";
+import { IconButton, iconSize, iconStroke } from "../IconButton";
+import { BrandLogo } from "../BrandLogo";
+import { passwordStrengthHint } from "./passwordStrength";
+import { ProfileList } from "./ProfileList";
 
 interface Props {
   profiles: Profile[];
@@ -50,21 +52,6 @@ interface Props {
 }
 
 type Panel = "actions" | "snippets" | "security" | "about" | null;
-
-/** Soft hint only — never blocks setting the password. */
-function passwordStrengthHint(password: string): string | null {
-  const issues: string[] = [];
-  if (password.length < 8) issues.push("shorter than 8 characters");
-  const classes = [
-    /[a-z]/.test(password),
-    /[A-Z]/.test(password),
-    /\d/.test(password),
-    /[^A-Za-z0-9]/.test(password),
-  ].filter(Boolean).length;
-  if (classes < 2) issues.push("only one character type");
-  if (!issues.length) return null;
-  return `This password looks weak (${issues.join(", ")}).`;
-}
 
 export function ProfileSidebar({
   profiles,
@@ -353,51 +340,23 @@ export function ProfileSidebar({
         />
       </div>
 
-      <div className="sidebar-section profile-groups">
-        <div className="sidebar-section-label">Profiles</div>
-        {groups.map(([group, list]) => (
-          <div key={group} className="group">
-            <div className="group-title">{group}</div>
-            {list.map((p) => (
-              <div
-                key={p.id}
-                className={`profile-item ${selectedId === p.id ? "selected" : ""}`}
-                onClick={() => {
-                  if (selectedId === p.id) {
-                    setSelectedId(null);
-                    setPanel(null);
-                  } else {
-                    setSelectedId(p.id);
-                  }
-                }}
-                onDoubleClick={() => onConnect(p)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSelectedId(p.id);
-                  setPanel(null);
-                  setMenu({ x: e.clientX, y: e.clientY, profile: p });
-                }}
-              >
-                <div className="profile-name">{p.name}</div>
-                <div className="profile-meta">
-                  {p.username}@{p.host}:{p.port}
-                </div>
-                {!!p.tags.length && (
-                  <div className="tags">
-                    {p.tags.map((t) => (
-                      <span key={t} className="tag">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
-        {!filtered.length && <p className="muted">No profiles yet — add one with +</p>}
-      </div>
+      <ProfileList
+        groups={groups}
+        filteredEmpty={!filtered.length}
+        selectedId={selectedId}
+        onSelect={(id) => {
+          setSelectedId(id);
+          if (!id) setPanel(null);
+        }}
+        onConnect={onConnect}
+        onContextMenu={(e, p) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setSelectedId(p.id);
+          setPanel(null);
+          setMenu({ x: e.clientX, y: e.clientY, profile: p });
+        }}
+      />
 
       {selected && (
         <div className="profile-quickbar">
