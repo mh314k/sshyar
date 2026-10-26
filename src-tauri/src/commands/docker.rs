@@ -100,6 +100,24 @@ fn shell_quote(s: &str) -> AppResult<String> {
     Ok(format!("'{s}'"))
 }
 
+/// Single-quote for remote paths / compose filenames (allows spaces etc.).
+fn shell_single_quote(s: &str) -> AppResult<String> {
+    if s.is_empty() {
+        return Err(AppError::msg("empty path"));
+    }
+    if s.contains('\0') || s.contains('\n') || s.contains('\r') {
+        return Err(AppError::msg("invalid path characters"));
+    }
+    Ok(format!("'{}'", s.replace('\'', "'\\''")))
+}
+
+fn is_allowed_compose_file(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "compose.yaml" | "compose.yml" | "docker-compose.yml" | "docker-compose.yaml"
+    )
+}
+
 async fn docker_cli(profile: &Profile, args: &str) -> AppResult<ExecResult> {
     let cmd = format!("docker {args}");
     ssh_session::exec_command(profile, &cmd).await
@@ -462,4 +480,73 @@ pub async fn docker_network_remove(
     let q = shell_quote(&id_or_name)?;
     let result = docker_cli(&profile, &format!("network rm {q}")).await?;
     ensure_ok(&result, "docker network rm")
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerComposeResult {
+    pub ok: bool,
+    pub output: String,
+}
+
+/// Run a compose action in a remote directory that contains a compose file.
+#[tauri::command]
+pub async fn docker_compose_run(
+    state: State<'_, AppState>,
+    profile_id: String,
+    workdir: String,
+    file_name: String,
+    action: String,
+) -> AppResult<DockerComposeResult> {
+    let profile = load_docker_profile(&state, &profile_id)?;
+    if !is_allowed_compose_file(&file_name) {
+        return Err(AppError::msg(format!(
+            "unsupported compose file name: {file_name}"
+        )));
+    }
+    let qdir = shell_single_quote(&workdir)?;
+    let qfile = shell_single_quote(&file_name)?;
+    let compose_args = match action.as_str() {
+        "up" => "up -d".to_string(),
+        "down" => "down".to_string(),
+        "restart" => "restart".to_string(),
+        "pull" => "pull".to_string(),
+        "ps" => "ps".to_string(),
+        other => {
+            return Err(AppError::msg(format!(
+                "unsupported compose action: {other}"
+            )))
+        }
+    };
+
+    // Prefer Compose V2 plugin; fall back to legacy docker-compose binary.
+    let cmd = format!(
+        "cd {qdir} && if docker compose version >/dev/null 2>&1; then docker compose -f {qfile} {compose_args}; else docker-compose -f {qfile} {compose_args}; fi"
+    );
+    let result = ssh_session::exec_command(&profile, &cmd).await?;
+    let mut output = String::new();
+    if !result.stdout.is_empty() {
+        output.push_str(&result.stdout);
+    }
+    if !result.stderr.is_empty() {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(&result.stderr);
+    }
+    if result.exit_code != 0 {
+        return Err(AppError::msg(if output.is_empty() {
+            format!("docker compose {action} failed (exit {})", result.exit_code)
+        } else {
+            output
+        }));
+    }
+    Ok(DockerComposeResult {
+        ok: true,
+        output: if output.is_empty() {
+            format!("docker compose {action} completed")
+        } else {
+            output
+        },
+    })
 }

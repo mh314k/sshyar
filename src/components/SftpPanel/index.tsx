@@ -17,6 +17,7 @@ import { buildFollowInject, CWD_OSC_RE } from "./followShell";
 import { joinRemote, parentPath } from "./format";
 import { SftpPathBar } from "./PathBar";
 import { nextSort, sortEntries, type SortDir, type SortKey } from "./sort";
+import { ComposeBar, findComposeFileName } from "./ComposeBar";
 import { SftpToolbar } from "./Toolbar";
 import { TransferBar } from "./TransferBar";
 import {
@@ -34,6 +35,8 @@ interface Props {
   theme?: ThemeMode;
   /** When false, parent owns the panel chrome (tabs / hide). */
   showChrome?: boolean;
+  /** When true, show Compose controls if the cwd has a compose file. */
+  dockerEnabled?: boolean;
 }
 
 export function SftpPanel({
@@ -43,6 +46,7 @@ export function SftpPanel({
   onToggle,
   theme = "dark",
   showChrome = true,
+  dockerEnabled = false,
 }: Props) {
   const [sftpId, setSftpId] = useState<string | null>(null);
   const [cwd, setCwd] = useState("");
@@ -597,6 +601,10 @@ export function SftpPanel({
 
   const hasSelection = selectedEntries.length > 0;
   const single = selectedEntries.length === 1 ? selectedEntries[0] : null;
+  const composeFile =
+    dockerEnabled && profileId && cwd
+      ? findComposeFileName(entries.filter((e) => !e.isDir).map((e) => e.name))
+      : null;
 
   return (
     <aside className="sftp-panel">
@@ -646,6 +654,14 @@ export function SftpPanel({
             onCut={() => copyOrCut(selectedEntries, true)}
             onPaste={() => void paste()}
           />
+          {composeFile ? (
+            <ComposeBar
+              profileId={profileId}
+              workdir={cwd}
+              fileName={composeFile}
+              disabled={!sftpId || busy}
+            />
+          ) : null}
           <SftpPathBar
             cwd={cwd}
             disabled={!sftpId || busy}

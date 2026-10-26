@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  DockerComposeAction,
+  DockerComposeResult,
   DockerContainer,
   DockerContainerAction,
   DockerImage,
@@ -24,4 +26,16 @@ export const dockerApi = {
     invoke<DockerNetwork[]>("docker_list_networks", { profileId }),
   networkRemove: (profileId: string, idOrName: string) =>
     invoke<void>("docker_network_remove", { profileId, idOrName }),
+  composeRun: (
+    profileId: string,
+    workdir: string,
+    fileName: string,
+    action: DockerComposeAction,
+  ) =>
+    invoke<DockerComposeResult>("docker_compose_run", {
+      profileId,
+      workdir,
+      fileName,
+      action,
+    }),
 };

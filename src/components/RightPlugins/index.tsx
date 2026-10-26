@@ -69,6 +69,7 @@ export function RightPlugins({
           onToggle={onToggle}
           theme={theme}
           showChrome={false}
+          dockerEnabled={dockerEnabled}
         />
       ) : (
         <DockerPanel profileId={profileId} enabled={dockerEnabled} />

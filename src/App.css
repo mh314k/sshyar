@@ -1427,6 +1427,64 @@ body.is-resizing * {
   opacity: 0.38;
 }
 
+.sftp-compose-bar {
+  border-bottom: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+  flex-shrink: 0;
+}
+
+.sftp-compose-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+}
+
+.sftp-compose-label {
+  font-size: 0.74rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-compose-label strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.sftp-compose-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sftp-compose-actions .ui-btn {
+  font-size: 0.72rem;
+  height: 1.8rem;
+  min-height: 1.8rem;
+  padding: 0 0.45rem;
+}
+
+.sftp-compose-output {
+  margin: 0;
+  padding: 0.45rem 0.65rem 0.55rem;
+  max-height: 9rem;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-top: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--text);
+}
+
 .sftp-path-bar {
   display: flex;
   align-items: center;

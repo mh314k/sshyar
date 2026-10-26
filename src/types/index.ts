@@ -9,5 +9,7 @@ export type {
   DockerVolume,
   DockerNetwork,
   DockerContainerAction,
+  DockerComposeAction,
+  DockerComposeResult,
 } from "./docker";
-export { DOCKER_STANDALONE_GROUP } from "./docker";
+export { DOCKER_STANDALONE_GROUP, COMPOSE_FILE_CANDIDATES } from "./docker";

@@ -75,6 +75,7 @@ pub fn run() {
             docker_volume_remove,
             docker_list_networks,
             docker_network_remove,
+            docker_compose_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -40,4 +40,19 @@ export interface DockerNetwork {
 
 export type DockerContainerAction = "start" | "stop" | "restart" | "remove";
 
+export type DockerComposeAction = "up" | "down" | "restart" | "pull" | "ps";
+
+export interface DockerComposeResult {
+  ok: boolean;
+  output: string;
+}
+
 export const DOCKER_STANDALONE_GROUP = "__standalone__";
+
+/** Preferred compose filenames (first match wins). */
+export const COMPOSE_FILE_CANDIDATES = [
+  "compose.yaml",
+  "compose.yml",
+  "docker-compose.yml",
+  "docker-compose.yaml",
+] as const;

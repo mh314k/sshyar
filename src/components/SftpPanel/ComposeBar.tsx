@@ -1,0 +1,139 @@
+import { useState } from "react";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import StopIcon from "@mui/icons-material/Stop";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import ListAltIcon from "@mui/icons-material/ListAlt";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import { api } from "../../lib/api";
+import { appConfirm } from "../../lib/dialogs";
+import { toastError, toastSuccess } from "../../lib/toast";
+import type { DockerComposeAction } from "../../types";
+import { IconButton, iconProps, iconSizeSm } from "../IconButton";
+
+interface Props {
+  profileId: string;
+  workdir: string;
+  fileName: string;
+  disabled?: boolean;
+}
+
+export function ComposeBar({ profileId, workdir, fileName, disabled }: Props) {
+  const [busy, setBusy] = useState(false);
+  const [output, setOutput] = useState("");
+  const [showOut, setShowOut] = useState(false);
+
+  async function run(action: DockerComposeAction) {
+    if (action === "down") {
+      const ok = await appConfirm({
+        title: "Compose down",
+        message: `Stop and remove containers for “${fileName}” in this folder?`,
+        confirmLabel: "Down",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      const result = await api.dockerComposeRun(profileId, workdir, fileName, action);
+      setOutput(result.output);
+      if (action === "ps") setShowOut(true);
+      toastSuccess(`Compose ${action} ok`, fileName);
+    } catch (e) {
+      const msg = String(e);
+      setOutput(msg);
+      setShowOut(true);
+      toastError(e, `Compose ${action}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const off = disabled || busy;
+  const ip = iconProps(iconSizeSm);
+
+  return (
+    <div className="sftp-compose-bar">
+      <div className="sftp-compose-head">
+        <span className="sftp-compose-label" title={`${workdir}/${fileName}`}>
+          Compose · <strong>{fileName}</strong>
+        </span>
+        <div className="sftp-compose-actions">
+          <IconButton
+            variant="soft"
+            title="Up (-d)"
+            label="Up"
+            disabled={off}
+            onClick={() => void run("up")}
+            icon={<PlayArrowIcon {...ip} />}
+          />
+          <IconButton
+            variant="soft"
+            title="Down"
+            label="Down"
+            disabled={off}
+            onClick={() => void run("down")}
+            icon={<StopIcon {...ip} />}
+          />
+          <IconButton
+            variant="soft"
+            title="Restart"
+            disabled={off}
+            onClick={() => void run("restart")}
+            icon={<RestartAltIcon {...ip} />}
+          />
+          <IconButton
+            variant="soft"
+            title="Pull images"
+            disabled={off}
+            onClick={() => void run("pull")}
+            icon={<CloudDownloadIcon {...ip} />}
+          />
+          <IconButton
+            variant="soft"
+            title="Status (ps)"
+            disabled={off}
+            onClick={() => void run("ps")}
+            icon={<ListAltIcon {...ip} />}
+          />
+          {output ? (
+            <IconButton
+              variant="icon"
+              title={showOut ? "Hide output" : "Show output"}
+              disabled={busy}
+              onClick={() => setShowOut((v) => !v)}
+              icon={
+                showOut ? (
+                  <ExpandLessIcon {...iconProps(16)} />
+                ) : (
+                  <ExpandMoreIcon {...iconProps(16)} />
+                )
+              }
+            />
+          ) : null}
+        </div>
+      </div>
+      {showOut && output ? (
+        <pre className="sftp-compose-output" tabIndex={0}>
+          {output}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
+/** Pick preferred compose filename from a directory listing (case-insensitive). */
+export function findComposeFileName(names: string[]): string | null {
+  const byLower = new Map(names.map((n) => [n.toLowerCase(), n]));
+  for (const candidate of [
+    "compose.yaml",
+    "compose.yml",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+  ]) {
+    const hit = byLower.get(candidate);
+    if (hit) return hit;
+  }
+  return null;
+}
