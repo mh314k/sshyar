@@ -89,6 +89,16 @@ pub fn run() {
             docker_logs_stop,
             docker_session_ensure,
             docker_session_close,
+            nginx_probe,
+            nginx_test,
+            nginx_reload,
+            nginx_list_sites,
+            systemd_list_units,
+            systemd_unit_action,
+            cron_probe,
+            cron_user_list,
+            cron_system_list,
+            cron_read_system_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

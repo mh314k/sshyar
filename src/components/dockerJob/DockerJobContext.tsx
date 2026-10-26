@@ -10,7 +10,7 @@ import {
 } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopNotify } from "../../lib/desktopNotify";
-import { toast, toastError, toastSuccess } from "../../lib/toast";
+import { toastError, toastSuccess } from "../../lib/toast";
 
 /** Jobs longer than this also get an OS desktop notification when they finish. */
 const LONG_JOB_NOTIFY_MS = 8_000;
@@ -99,7 +99,6 @@ export function DockerJobProvider({ children }: { children: ReactNode }) {
       const detail = opts.detail ?? opts.runningMessage ?? opts.title;
       const runningMsg = opts.runningMessage ?? detail;
       setJob({ id, title: opts.title, detail: runningMsg, status: "running" });
-      toast(runningMsg, { kind: "info", title: opts.title, durationMs: 2500 });
 
       try {
         const result = await fn(id);
@@ -117,15 +116,18 @@ export function DockerJobProvider({ children }: { children: ReactNode }) {
         return result;
       } catch (e) {
         const errText = String(e);
+        // Prefer the start — we craft short privilege hints there; panel shows full output.
+        const short =
+          errText.length > 220 ? `${errText.slice(0, 217).trimEnd()}…` : errText;
         setJob({
           id,
           title: opts.title,
-          detail: errText.length > 120 ? `${errText.slice(0, 117)}…` : errText,
+          detail: short,
           status: "error",
         });
         toastError(e, opts.title);
         if (Date.now() - startedAt >= LONG_JOB_NOTIFY_MS) {
-          void desktopNotify(opts.title, errText.length > 160 ? `${errText.slice(0, 157)}…` : errText);
+          void desktopNotify(opts.title, short.length > 160 ? `${short.slice(0, 157)}…` : short);
         }
         clearTimer.current = window.setTimeout(() => {
           setJob((j) => (j?.id === id ? null : j));

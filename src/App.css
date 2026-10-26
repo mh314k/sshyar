@@ -1183,6 +1183,7 @@ body.is-resizing * {
 }
 
 .plugin-tabs {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 0.15rem;
@@ -1515,6 +1516,277 @@ body.is-resizing * {
 
 .docker-prune-out {
   max-height: 11rem;
+}
+
+.host-svc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 14rem;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.host-svc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.3rem 0.15rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.host-svc-row:last-child {
+  border-bottom: none;
+}
+
+.host-svc-row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.host-svc-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-svc-meta {
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-svc-units {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.host-svc-output {
+  margin: 0.5rem 0.75rem 0.75rem;
+  max-height: 12rem;
+}
+
+.host-svc-hint {
+  margin: 0;
+  padding: 0.35rem 0.85rem 0.45rem;
+}
+
+/* ── cron panel ─────────────────────────────────────────────────────────── */
+
+.cron-panel {
+  min-height: 0;
+}
+
+.cron-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.cron-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.cron-user,
+.cron-system {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.cron-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 1.4rem 1rem;
+}
+
+.cron-empty-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.cron-empty-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-width: 18rem;
+}
+
+.cron-code {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  border: none;
+  border-radius: 0;
+  scrollbar-width: thin;
+}
+
+.cron-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0 0.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.cron-group {
+  margin: 0;
+  padding: 0;
+}
+
+.cron-group-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.35rem 0.9rem 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.cron-group-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cron-file-btn {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  margin: 0;
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cron-file-btn:hover {
+  background: var(--selected-bg);
+}
+
+.cron-file-btn.is-active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.cron-file-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.cron-file-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.cron-file-path {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.cron-preview {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 42%;
+  min-height: 7rem;
+  border-top: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--bg-elev) 80%, transparent);
+}
+
+.cron-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem 0.35rem 0.9rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.cron-preview-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.cron-preview-name {
+  font-size: 0.78rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cron-preview-path {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cron-preview-loading {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.75rem;
+}
+
+.cron-preview-code {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  padding: 0.55rem 0.9rem 0.75rem;
 }
 
 .docker-groups {
@@ -2379,6 +2651,22 @@ body.is-resizing * {
 .profile-form .profile-check input {
   width: auto;
   margin: 0;
+}
+
+.profile-plugin-flags {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.profile-plugin-flags-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text);
+  margin-bottom: 0.1rem;
 }
 
 .profile-forwards {

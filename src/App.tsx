@@ -263,11 +263,16 @@ export default function App() {
           <RightPlugins
             profileId={sessions.activeTab?.profileId ?? null}
             ptyId={sessions.activeTab?.ptyId ?? null}
-            dockerEnabled={
-              !!sessions.activeTab?.profileId &&
-              (profiles.find((p) => p.id === sessions.activeTab?.profileId)?.dockerManagement ??
-                false)
-            }
+            plugins={(() => {
+              const p = profiles.find((x) => x.id === sessions.activeTab?.profileId);
+              const on = !!sessions.activeTab?.profileId && !!p;
+              return {
+                docker: on && !!p?.dockerManagement,
+                nginx: on && !!p?.nginxManagement,
+                systemd: on && !!p?.systemdManagement,
+                cron: on && !!p?.cronManagement,
+              };
+            })()}
             onToggle={() => panels.setRightOpen(false)}
             theme={theme}
           />

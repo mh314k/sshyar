@@ -34,6 +34,9 @@ const empty: ProfileInput = {
   keepaliveCountMax: 3,
   notes: "",
   dockerManagement: false,
+  nginxManagement: false,
+  systemdManagement: false,
+  cronManagement: false,
   portForwards: [],
 };
 
@@ -68,6 +71,9 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         keepaliveCountMax: initial.keepaliveCountMax,
         notes: initial.notes,
         dockerManagement: initial.dockerManagement ?? false,
+        nginxManagement: initial.nginxManagement ?? false,
+        systemdManagement: initial.systemdManagement ?? false,
+        cronManagement: initial.cronManagement ?? false,
         portForwards: (initial.portForwards ?? []).map((f) => ({
           localPort: f.localPort,
           remoteHost: f.remoteHost || "127.0.0.1",
@@ -263,14 +269,41 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         Notes
         <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
       </label>
-      <label className="profile-check">
-        <input
-          type="checkbox"
-          checked={form.dockerManagement}
-          onChange={(e) => set("dockerManagement", e.target.checked)}
-        />
-        <span>Docker management</span>
-      </label>
+      <div className="profile-plugin-flags">
+        <span className="profile-plugin-flags-label">Session plugins</span>
+        <label className="profile-check">
+          <input
+            type="checkbox"
+            checked={form.dockerManagement}
+            onChange={(e) => set("dockerManagement", e.target.checked)}
+          />
+          <span>Docker</span>
+        </label>
+        <label className="profile-check">
+          <input
+            type="checkbox"
+            checked={form.nginxManagement}
+            onChange={(e) => set("nginxManagement", e.target.checked)}
+          />
+          <span>Nginx</span>
+        </label>
+        <label className="profile-check">
+          <input
+            type="checkbox"
+            checked={form.systemdManagement}
+            onChange={(e) => set("systemdManagement", e.target.checked)}
+          />
+          <span>systemd</span>
+        </label>
+        <label className="profile-check">
+          <input
+            type="checkbox"
+            checked={form.cronManagement}
+            onChange={(e) => set("cronManagement", e.target.checked)}
+          />
+          <span>cron</span>
+        </label>
+      </div>
       <div className="profile-forwards">
         <div className="profile-forwards-head">
           <span>Local port forwards</span>

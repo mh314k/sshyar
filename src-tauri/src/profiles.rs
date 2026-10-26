@@ -60,6 +60,15 @@ pub struct Profile {
     /// When true, the Docker management plugin is available for sessions of this profile.
     #[serde(default)]
     pub docker_management: bool,
+    /// When true, the Nginx management plugin is available for this profile.
+    #[serde(default)]
+    pub nginx_management: bool,
+    /// When true, the systemd management plugin is available for this profile.
+    #[serde(default)]
+    pub systemd_management: bool,
+    /// When true, the cron management plugin is available for this profile.
+    #[serde(default)]
+    pub cron_management: bool,
     /// Local TCP forwards opened with the SSH session (`-L`).
     #[serde(default)]
     pub port_forwards: Vec<PortForward>,
@@ -94,6 +103,9 @@ impl Profile {
             keepalive_count_max: 3,
             notes: String::new(),
             docker_management: false,
+            nginx_management: false,
+            systemd_management: false,
+            cron_management: false,
             port_forwards: vec![],
         }
     }
@@ -120,6 +132,9 @@ impl Profile {
         p.keepalive_count_max = input.keepalive_count_max;
         p.notes = input.notes;
         p.docker_management = input.docker_management;
+        p.nginx_management = input.nginx_management;
+        p.systemd_management = input.systemd_management;
+        p.cron_management = input.cron_management;
         p.port_forwards = sanitize_forwards(input.port_forwards);
         p
     }
@@ -142,6 +157,9 @@ impl Profile {
         self.keepalive_count_max = input.keepalive_count_max;
         self.notes = input.notes;
         self.docker_management = input.docker_management;
+        self.nginx_management = input.nginx_management;
+        self.systemd_management = input.systemd_management;
+        self.cron_management = input.cron_management;
         self.port_forwards = sanitize_forwards(input.port_forwards);
     }
 }
@@ -202,6 +220,12 @@ pub struct ProfileInput {
     pub notes: String,
     #[serde(default)]
     pub docker_management: bool,
+    #[serde(default)]
+    pub nginx_management: bool,
+    #[serde(default)]
+    pub systemd_management: bool,
+    #[serde(default)]
+    pub cron_management: bool,
     #[serde(default)]
     pub port_forwards: Vec<PortForward>,
 }

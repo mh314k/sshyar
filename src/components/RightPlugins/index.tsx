@@ -2,18 +2,28 @@ import { useEffect, useState } from "react";
 import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
 import { api } from "../../lib/api";
 import type { ThemeMode } from "../../lib/theme";
-import { IconButton, iconProps, iconSize } from "../IconButton";
+import { CronPanel } from "../CronPanel";
 import { DockerJobBar } from "../dockerJob/DockerJobBar";
 import { DockerJobProvider } from "../dockerJob/DockerJobContext";
 import { DockerPanel } from "../DockerPanel";
+import { IconButton, iconProps, iconSize } from "../IconButton";
+import { NginxPanel } from "../NginxPanel";
 import { SftpPanel } from "../SftpPanel";
+import { SystemdPanel } from "../SystemdPanel";
 
-export type PluginTab = "sftp" | "docker";
+export type PluginTab = "sftp" | "docker" | "nginx" | "systemd" | "cron";
+
+export type PluginFlags = {
+  docker: boolean;
+  nginx: boolean;
+  systemd: boolean;
+  cron: boolean;
+};
 
 interface Props {
   profileId: string | null;
   ptyId: string | null;
-  dockerEnabled: boolean;
+  plugins: PluginFlags;
   onToggle: () => void;
   theme?: ThemeMode;
 }
@@ -21,16 +31,22 @@ interface Props {
 export function RightPlugins({
   profileId,
   ptyId,
-  dockerEnabled,
+  plugins,
   onToggle,
   theme = "dark",
 }: Props) {
   const [tab, setTab] = useState<PluginTab>("sftp");
   const [sftpJumpPath, setSftpJumpPath] = useState<string | null>(null);
 
+  const needsRemoteSession =
+    plugins.docker || plugins.nginx || plugins.systemd || plugins.cron;
+
   useEffect(() => {
-    if (!dockerEnabled && tab === "docker") setTab("sftp");
-  }, [dockerEnabled, tab]);
+    if (tab === "docker" && !plugins.docker) setTab("sftp");
+    else if (tab === "nginx" && !plugins.nginx) setTab("sftp");
+    else if (tab === "systemd" && !plugins.systemd) setTab("sftp");
+    else if (tab === "cron" && !plugins.cron) setTab("sftp");
+  }, [plugins, tab]);
 
   function openComposeInSftp(path: string) {
     const normalized = path.trim().replace(/\/+$/, "") || "/";
@@ -39,12 +55,12 @@ export function RightPlugins({
   }
 
   useEffect(() => {
-    if (!dockerEnabled || !profileId) return;
+    if (!needsRemoteSession || !profileId) return;
     void api.dockerSessionEnsure(profileId).catch(() => undefined);
     return () => {
       void api.dockerSessionClose(profileId).catch(() => undefined);
     };
-  }, [dockerEnabled, profileId]);
+  }, [needsRemoteSession, profileId]);
 
   return (
     <DockerJobProvider>
@@ -60,7 +76,7 @@ export function RightPlugins({
             >
               SFTP
             </button>
-            {dockerEnabled ? (
+            {plugins.docker ? (
               <button
                 type="button"
                 role="tab"
@@ -69,6 +85,39 @@ export function RightPlugins({
                 onClick={() => setTab("docker")}
               >
                 Docker
+              </button>
+            ) : null}
+            {plugins.nginx ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "nginx"}
+                className={`plugin-tab ${tab === "nginx" ? "is-active" : ""}`}
+                onClick={() => setTab("nginx")}
+              >
+                Nginx
+              </button>
+            ) : null}
+            {plugins.systemd ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "systemd"}
+                className={`plugin-tab ${tab === "systemd" ? "is-active" : ""}`}
+                onClick={() => setTab("systemd")}
+              >
+                systemd
+              </button>
+            ) : null}
+            {plugins.cron ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "cron"}
+                className={`plugin-tab ${tab === "cron" ? "is-active" : ""}`}
+                onClick={() => setTab("cron")}
+              >
+                cron
               </button>
             ) : null}
           </div>
@@ -89,20 +138,28 @@ export function RightPlugins({
               onToggle={onToggle}
               theme={theme}
               showChrome={false}
-              dockerEnabled={dockerEnabled}
+              dockerEnabled={plugins.docker}
               jumpPath={sftpJumpPath}
               onJumpPathConsumed={() => setSftpJumpPath(null)}
             />
-          ) : (
+          ) : null}
+          {tab === "docker" ? (
             <DockerPanel
               profileId={profileId}
-              enabled={dockerEnabled}
+              enabled={plugins.docker}
               onOpenComposeInSftp={openComposeInSftp}
             />
-          )}
+          ) : null}
+          {tab === "nginx" ? (
+            <NginxPanel profileId={profileId} ptyId={ptyId} enabled={plugins.nginx} />
+          ) : null}
+          {tab === "systemd" ? (
+            <SystemdPanel profileId={profileId} ptyId={ptyId} enabled={plugins.systemd} />
+          ) : null}
+          {tab === "cron" ? <CronPanel profileId={profileId} enabled={plugins.cron} /> : null}
         </div>
 
-        {dockerEnabled ? <DockerJobBar /> : null}
+        {needsRemoteSession ? <DockerJobBar /> : null}
       </div>
     </DockerJobProvider>
   );

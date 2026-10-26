@@ -22,3 +22,13 @@ export type {
   DockerLogEventKind,
 } from "./docker";
 export { DOCKER_STANDALONE_GROUP, COMPOSE_FILE_CANDIDATES } from "./docker";
+export type {
+  HostSvcCmdResult,
+  NginxStatus,
+  NginxSite,
+  SystemdUnit,
+  SystemdUnitAction,
+  CronStatus,
+  CronUserTable,
+  CronSystemFile,
+} from "./hostSvc";

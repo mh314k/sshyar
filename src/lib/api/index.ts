@@ -1,4 +1,5 @@
 import { dockerApi } from "./docker";
+import { hostSvcApi } from "./hostSvc";
 import { keysApi, ptyApi } from "./pty";
 import { profilesApi, snippetsApi } from "./profiles";
 import { sftpApi } from "./sftp";
@@ -69,6 +70,26 @@ export const api = {
   dockerLogsStop: dockerApi.logsStop,
   dockerSessionEnsure: dockerApi.sessionEnsure,
   dockerSessionClose: dockerApi.sessionClose,
+
+  nginxProbe: hostSvcApi.nginxProbe,
+  nginxTest: hostSvcApi.nginxTest,
+  nginxReload: hostSvcApi.nginxReload,
+  nginxListSites: hostSvcApi.nginxListSites,
+  systemdListUnits: hostSvcApi.systemdListUnits,
+  systemdUnitAction: hostSvcApi.systemdUnitAction,
+  cronProbe: hostSvcApi.cronProbe,
+  cronUserList: hostSvcApi.cronUserList,
+  cronSystemList: hostSvcApi.cronSystemList,
+  cronReadSystemFile: hostSvcApi.cronReadSystemFile,
 };
 
-export { vaultApi, profilesApi, snippetsApi, ptyApi, keysApi, sftpApi, dockerApi };
+export {
+  vaultApi,
+  profilesApi,
+  snippetsApi,
+  ptyApi,
+  keysApi,
+  sftpApi,
+  dockerApi,
+  hostSvcApi,
+};

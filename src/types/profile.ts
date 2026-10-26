@@ -26,6 +26,9 @@ export interface Profile {
   notes: string;
   /** When true, the Docker management plugin is available for this profile's sessions. */
   dockerManagement: boolean;
+  nginxManagement: boolean;
+  systemdManagement: boolean;
+  cronManagement: boolean;
   /** Local port forwards opened with the SSH session. */
   portForwards: PortForward[];
 }
@@ -46,6 +49,9 @@ export interface ProfileInput {
   keepaliveCountMax: number;
   notes: string;
   dockerManagement: boolean;
+  nginxManagement: boolean;
+  systemdManagement: boolean;
+  cronManagement: boolean;
   portForwards: PortForward[];
 }
 
