@@ -73,7 +73,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "profiles",
     title: "Profiles",
     summary:
-      "SSH targets with groups, tags, auth, remote shell, keepalive, post-connect hooks, and optional Docker management.",
+      "SSH targets with groups, tags, auth, remote shell, keepalive, post-connect hooks, local port forwards, and optional Docker management.",
     keywords: [
       "profile",
       "host",
@@ -84,6 +84,9 @@ export const HELP_SECTIONS: HelpSection[] = [
       "key",
       "remote shell",
       "docker",
+      "port forward",
+      "tunnel",
+      "LocalForward",
     ],
     blocks: [
       {
@@ -100,7 +103,33 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Group organizes the sidebar; Tags (comma-separated) are searchable.",
           "Notes are free-form reminders on the profile.",
           "Check Docker management to show the Docker plugin tab next to SFTP for sessions of this profile.",
+          "Local port forwards (optional) map a port on your PC to a host:port reachable from the server — see Local port forwards below.",
           "Save writes into the encrypted vault immediately.",
+        ],
+      },
+      {
+        id: "port-forwards",
+        title: "Local port forwards",
+        keywords: [
+          "port forward",
+          "forward",
+          "tunnel",
+          "-L",
+          "LocalForward",
+          "localhost",
+          "postgres",
+          "mysql",
+          "redis",
+          "mongo",
+          "8080",
+        ],
+        steps: [
+          "In the profile form, Local port forwards adds OpenSSH -L tunnels for Connect, Open external, and Copy SSH.",
+          "Each row is local port → remote host:remote port (remote host defaults to 127.0.0.1 on the server).",
+          "Presets (HTTP, HTTPS, Postgres, MySQL, Redis, Mongo) fill common local→remote pairs; skip if that local port is already listed.",
+          "Example: local 5432 → 127.0.0.1:5432 lets you point a local DB client at localhost:5432 while SSH is connected.",
+          "Reconnect (or open a new session) after changing forwards — existing tabs keep the old ssh command.",
+          "Forwards last only while that SSH session is up; they are not a separate background tunnel.",
         ],
       },
       {

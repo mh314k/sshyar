@@ -8,7 +8,7 @@ Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted pr
 
 - **Terminal** — local shell + OpenSSH in a real PTY (PowerShell / ConPTY on Windows; `$SHELL` on Linux); session tabs (`Ctrl+T` / `Ctrl+W` / `Ctrl+Tab`); reconnect
 - **Clipboard** — copy/paste in the terminal (`Ctrl+C` with selection, `Ctrl+V`, context menu, middle-click)
-- **Profiles** — host, user, password or key, group, tags, search, post-connect command, keepalive, **remote shell** (bash / zsh / fish / sh / custom / server default), optional **Docker management** flag
+- **Profiles** — host, user, password or key, group, tags, search, post-connect command, keepalive, **remote shell** (bash / zsh / fish / sh / custom / server default), **local port forwards** (`ssh -L`, with common-port presets), optional **Docker management** flag
 - **Keys** — generate per-profile ed25519 keys; install public key on the server
 - **External SSH** — same command in your system terminal (Windows Terminal / PowerShell on Windows; gnome-terminal, konsole, kitty, … on Linux); copy SSH command to clipboard
 - **SFTP** — browse, multi-select, upload/download with progress, mkdir, rename, delete, copy/cut/paste; View/Edit with syntax highlighting; **Follow shell** cwd sync; **Compose bar** (up/down/restart/pull/ps) when the folder has a compose file and Docker management is on
