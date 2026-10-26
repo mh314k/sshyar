@@ -9,7 +9,11 @@ import {
   type ReactNode,
 } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { desktopNotify } from "../../lib/desktopNotify";
 import { toast, toastError, toastSuccess } from "../../lib/toast";
+
+/** Jobs longer than this also get an OS desktop notification when they finish. */
+const LONG_JOB_NOTIFY_MS = 8_000;
 
 export type DockerJobStatus = "running" | "success" | "error";
 
@@ -91,6 +95,7 @@ export function DockerJobProvider({ children }: { children: ReactNode }) {
       }
       const id = `dj-${++seq}`;
       activeIdRef.current = id;
+      const startedAt = Date.now();
       const detail = opts.detail ?? opts.runningMessage ?? opts.title;
       const runningMsg = opts.runningMessage ?? detail;
       setJob({ id, title: opts.title, detail: runningMsg, status: "running" });
@@ -101,6 +106,9 @@ export function DockerJobProvider({ children }: { children: ReactNode }) {
         const successMsg = opts.successMessage ?? `${opts.title} completed`;
         setJob({ id, title: opts.title, detail: successMsg, status: "success" });
         toastSuccess(successMsg, opts.title);
+        if (Date.now() - startedAt >= LONG_JOB_NOTIFY_MS) {
+          void desktopNotify(opts.title, successMsg);
+        }
         clearTimer.current = window.setTimeout(() => {
           setJob((j) => (j?.id === id ? null : j));
           if (activeIdRef.current === id) activeIdRef.current = null;
@@ -116,6 +124,9 @@ export function DockerJobProvider({ children }: { children: ReactNode }) {
           status: "error",
         });
         toastError(e, opts.title);
+        if (Date.now() - startedAt >= LONG_JOB_NOTIFY_MS) {
+          void desktopNotify(opts.title, errText.length > 160 ? `${errText.slice(0, 157)}…` : errText);
+        }
         clearTimer.current = window.setTimeout(() => {
           setJob((j) => (j?.id === id ? null : j));
           if (activeIdRef.current === id) activeIdRef.current = null;

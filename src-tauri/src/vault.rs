@@ -263,6 +263,116 @@ impl VaultState {
     pub fn keys_dir(&self) -> PathBuf {
         self.dir.join("keys")
     }
+
+    /// Portable encrypted backup (password-based; independent of DPAPI / machine key).
+    pub fn export_backup(&self, password: &str) -> AppResult<Vec<u8>> {
+        if !self.unlocked {
+            return Err(AppError::msg("Vault is locked"));
+        }
+        if password.is_empty() {
+            return Err(AppError::msg("Backup password cannot be empty"));
+        }
+        let mut salt = [0u8; 16];
+        rand::thread_rng().fill_bytes(&mut salt);
+        let key = derive_key(password, &salt)?;
+        let plaintext = serde_json::to_vec(&self.data)?;
+        let ciphertext = encrypt(&key, &plaintext)?;
+        let envelope = VaultBackupEnvelope {
+            format: BACKUP_FORMAT.into(),
+            version: BACKUP_VERSION,
+            created_at: chrono::Utc::now().to_rfc3339(),
+            profile_count: self.data.profiles.len(),
+            snippet_count: self.data.snippets.len(),
+            kdf_salt: B64.encode(salt),
+            ciphertext: B64.encode(ciphertext),
+        };
+        Ok(serde_json::to_vec_pretty(&envelope)?)
+    }
+
+    /// Import a portable backup. `replace` swaps vault contents; otherwise merges by id
+    /// (incoming wins on id collision). Returns (profiles_added_or_updated, snippets_…).
+    pub fn import_backup(
+        &mut self,
+        password: &str,
+        blob: &[u8],
+        replace: bool,
+    ) -> AppResult<(usize, usize)> {
+        if !self.unlocked {
+            return Err(AppError::msg("Vault is locked"));
+        }
+        if password.is_empty() {
+            return Err(AppError::msg("Backup password cannot be empty"));
+        }
+        let envelope: VaultBackupEnvelope = serde_json::from_slice(blob)
+            .map_err(|_| AppError::msg("Invalid backup file (not a SSHyar vault backup)"))?;
+        if envelope.format != BACKUP_FORMAT {
+            return Err(AppError::msg(format!(
+                "Unsupported backup format: {}",
+                envelope.format
+            )));
+        }
+        if envelope.version != BACKUP_VERSION {
+            return Err(AppError::msg(format!(
+                "Unsupported backup version: {}",
+                envelope.version
+            )));
+        }
+        let salt = B64
+            .decode(envelope.kdf_salt.trim())
+            .map_err(|_| AppError::msg("Corrupt backup (salt)"))?;
+        let ciphertext = B64
+            .decode(envelope.ciphertext.trim())
+            .map_err(|_| AppError::msg("Corrupt backup (ciphertext)"))?;
+        let key = derive_key(password, &salt)?;
+        let plain = decrypt(&key, &ciphertext)?;
+        let incoming: VaultData = serde_json::from_slice(&plain)
+            .map_err(|_| AppError::msg("Corrupt backup (payload)"))?;
+
+        let mut profiles_touched = 0usize;
+        let mut snippets_touched = 0usize;
+
+        if replace {
+            profiles_touched = incoming.profiles.len();
+            snippets_touched = incoming.snippets.len();
+            self.data = incoming;
+        } else {
+            for p in incoming.profiles {
+                if let Some(existing) = self.data.profiles.iter_mut().find(|x| x.id == p.id) {
+                    *existing = p;
+                } else {
+                    self.data.profiles.push(p);
+                }
+                profiles_touched += 1;
+            }
+            for s in incoming.snippets {
+                if let Some(existing) = self.data.snippets.iter_mut().find(|x| x.id == s.id) {
+                    *existing = s;
+                } else {
+                    self.data.snippets.push(s);
+                }
+                snippets_touched += 1;
+            }
+        }
+        self.save()?;
+        Ok((profiles_touched, snippets_touched))
+    }
+}
+
+const BACKUP_FORMAT: &str = "sshyar-vault-backup";
+const BACKUP_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VaultBackupEnvelope {
+    format: String,
+    version: u32,
+    created_at: String,
+    #[serde(default)]
+    profile_count: usize,
+    #[serde(default)]
+    snippet_count: usize,
+    kdf_salt: String,
+    ciphertext: String,
 }
 
 pub fn app_dir() -> AppResult<PathBuf> {

@@ -12,6 +12,8 @@ export const api = {
   vaultSetMasterPassword: vaultApi.setMasterPassword,
   vaultChangeMasterPassword: vaultApi.changeMasterPassword,
   vaultRemoveMasterPassword: vaultApi.removeMasterPassword,
+  vaultExportBackup: vaultApi.exportBackup,
+  vaultImportBackup: vaultApi.importBackup,
 
   listProfiles: profilesApi.list,
   upsertProfile: profilesApi.upsert,

@@ -26,6 +26,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             vault_status,
@@ -34,6 +35,8 @@ pub fn run() {
             vault_set_master_password,
             vault_change_master_password,
             vault_remove_master_password,
+            vault_export_backup,
+            vault_import_backup,
             list_profiles,
             upsert_profile,
             delete_profile,

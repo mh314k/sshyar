@@ -1028,6 +1028,19 @@ body.is-resizing * {
   font-size: 0.95rem;
 }
 
+.empty-terminal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.empty-terminal-hint {
+  font-size: 0.78rem !important;
+  max-width: 28rem !important;
+}
+
 .sftp-panel {
   width: 100%;
   height: 100%;

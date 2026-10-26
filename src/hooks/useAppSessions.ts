@@ -1,5 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import {
+  clearSessionSnapshot,
+  type SavedSessionTab,
+  writeSessionSnapshot,
+} from "../lib/sessionRestore";
 import { toastError } from "../lib/toast";
 import type { Profile, SessionStatus, SessionTab } from "../types";
 
@@ -15,6 +20,28 @@ function hostLabelFor(profile: Profile) {
 export function useAppSessions({ profiles, onOpenSftp }: Options) {
   const [tabs, setTabs] = useState<SessionTab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const persistTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Keep the last non-empty snapshot so lock / empty UI can still offer restore.
+    if (tabs.length === 0) return;
+    if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
+    persistTimer.current = window.setTimeout(() => {
+      const active = tabs.find((t) => t.id === activeId);
+      writeSessionSnapshot({
+        tabs: tabs.map((t) => ({
+          profileId: t.profileId ?? null,
+          title: t.title,
+        })),
+        activeProfileId: active?.profileId ?? null,
+        savedAt: Date.now(),
+      });
+      persistTimer.current = null;
+    }, 400);
+    return () => {
+      if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
+    };
+  }, [tabs, activeId]);
 
   const setTabStatus = useCallback((id: string, status: SessionStatus) => {
     setTabs((prev) =>
@@ -42,6 +69,21 @@ export function useAppSessions({ profiles, onOpenSftp }: Options) {
       }
     },
     [onOpenSftp],
+  );
+
+  const restoreTabs = useCallback(
+    async (saved: SavedSessionTab[]) => {
+      for (const item of saved) {
+        if (item.profileId) {
+          const profile = profiles.find((p) => p.id === item.profileId);
+          if (profile) await createLocalTab(profile);
+        } else {
+          await createLocalTab();
+        }
+      }
+      clearSessionSnapshot();
+    },
+    [profiles, createLocalTab],
   );
 
   const closeTab = useCallback(async (id: string) => {
@@ -150,6 +192,7 @@ export function useAppSessions({ profiles, onOpenSftp }: Options) {
     setActiveId,
     setTabStatus,
     createLocalTab,
+    restoreTabs,
     closeTab,
     killAllTabs,
     reconnect,

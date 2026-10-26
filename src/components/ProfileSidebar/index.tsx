@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import AddIcon from "@mui/icons-material/Add";
 import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -7,6 +8,8 @@ import ControlPointDuplicateOutlinedIcon from "@mui/icons-material/ControlPointD
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import HelpOutlinedIcon from "@mui/icons-material/HelpOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
@@ -216,6 +219,78 @@ export function ProfileSidebar({
   function lockVault() {
     setPanel(null);
     onLock?.();
+  }
+
+  async function exportBackup() {
+    setPanel(null);
+    const result = await appPasswordPrompt({
+      title: "Export vault backup",
+      message:
+        "Choose a password for this backup file. You will need it to import on another machine (independent of master password / DPAPI).",
+      strengthHint: passwordStrengthHint,
+    });
+    if (!result) return;
+    const path = await saveDialog({
+      title: "Save vault backup",
+      defaultPath: `sshyar-vault-${new Date().toISOString().slice(0, 10)}.sshyar-backup`,
+      filters: [{ name: "SSHyar backup", extensions: ["sshyar-backup", "json"] }],
+    });
+    if (!path) return;
+    try {
+      const out = await api.vaultExportBackup(result.password, path);
+      toastSuccess(
+        `Saved ${out.profileCount} profile(s), ${out.snippetCount} snippet(s)`,
+        "Vault backup",
+      );
+    } catch (e) {
+      toastError(e, "Vault backup");
+    }
+  }
+
+  async function importBackup() {
+    setPanel(null);
+    const path = await openDialog({
+      title: "Import vault backup",
+      multiple: false,
+      filters: [{ name: "SSHyar backup", extensions: ["sshyar-backup", "json"] }],
+    });
+    if (!path || Array.isArray(path)) return;
+    const pass = await appPrompt({
+      title: "Import vault backup",
+      message: "Enter the password used when this backup was exported.",
+      password: true,
+      placeholder: "Backup password",
+    });
+    if (!pass) return;
+    const replace = await appConfirm({
+      title: "Import mode",
+      message:
+        "Replace: wipe current profiles/snippets and load the backup.\nMerge: keep existing items; backup entries overwrite matching ids.",
+      confirmLabel: "Replace all",
+      danger: true,
+    });
+    // Cancel → false; user may want merge. Offer merge if they cancel replace?
+    // Better: two-step — ask Merge first with secondary. Simpler: confirm Replace vs Merge via second dialog if first cancelled.
+    let doReplace = replace;
+    if (!replace) {
+      const merge = await appConfirm({
+        title: "Merge backup?",
+        message: "Merge backup into the current vault (matching ids are overwritten).",
+        confirmLabel: "Merge",
+      });
+      if (!merge) return;
+      doReplace = false;
+    }
+    try {
+      const out = await api.vaultImportBackup(pass, path, doReplace);
+      onRefresh();
+      toastSuccess(
+        `${doReplace ? "Replaced" : "Merged"} · ${out.profiles} profile(s), ${out.snippets} snippet(s)`,
+        "Vault import",
+      );
+    } catch (e) {
+      toastError(e, "Vault import");
+    }
   }
 
   async function runProfileAction(profile: Profile, id: string) {
@@ -446,11 +521,11 @@ export function ProfileSidebar({
         align="end"
         className="popover-security"
       >
-        <div className="popover-header">Master password</div>
+        <div className="popover-header">Vault & security</div>
         <p className="muted popover-copy">
           {hasMasterPassword
             ? "Vault unlocks with your master password."
-            : "Vault is protected by Windows DPAPI. Optionally add a master password."}
+            : "Vault is protected by Windows DPAPI (or a local key file on Linux). Optionally add a master password."}
         </p>
         {hasMasterPassword ? (
           <>
@@ -466,6 +541,19 @@ export function ProfileSidebar({
         ) : (
           <IconButton variant="ghost" label="Set master password" onClick={() => void setMaster()} />
         )}
+        <div className="popover-sep" />
+        <IconButton
+          variant="ghost"
+          label="Export backup…"
+          icon={<FileDownloadOutlinedIcon {...iconProps(iconSize)} />}
+          onClick={() => void exportBackup()}
+        />
+        <IconButton
+          variant="ghost"
+          label="Import backup…"
+          icon={<FileUploadOutlinedIcon {...iconProps(iconSize)} />}
+          onClick={() => void importBackup()}
+        />
       </Popover>
 
       <Popover
