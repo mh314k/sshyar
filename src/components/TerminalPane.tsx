@@ -88,8 +88,6 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
       theme: terminalThemes[theme],
       allowProposedApi: true,
       rightClickSelectsWord: false,
-      // Keep browser/OS clipboard shortcuts from being swallowed incorrectly.
-      overviewRuler: undefined,
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
