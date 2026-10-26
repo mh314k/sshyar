@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
-import { filterHelpSections } from "../lib/helpContent";
+import { HELP_SECTIONS, filterHelpSections } from "../lib/helpContent";
 import { APP_VERSION } from "../lib/version";
 import { iconStroke } from "./IconButton";
 
@@ -13,6 +13,7 @@ interface Props {
 export function HelpModal({ open, onClose }: Props) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const sections = useMemo(() => filterHelpSections(query), [query]);
 
   useEffect(() => {
@@ -28,6 +29,14 @@ export function HelpModal({ open, onClose }: Props) {
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
+
+  function jumpTo(id: string) {
+    setQuery("");
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`help-${id}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   if (!open) return null;
 
@@ -62,7 +71,7 @@ export function HelpModal({ open, onClose }: Props) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search help… e.g. sftp, paste, vault, snippet"
+            placeholder="Search help… e.g. sftp, paste, vault, zsh, timeout"
             autoComplete="off"
             spellCheck={false}
           />
@@ -73,7 +82,17 @@ export function HelpModal({ open, onClose }: Props) {
           ) : null}
         </div>
 
-        <div className="help-body">
+        {!query ? (
+          <div className="help-toc" aria-label="Topics">
+            {HELP_SECTIONS.map((s) => (
+              <button key={s.id} type="button" className="help-toc-chip" onClick={() => jumpTo(s.id)}>
+                {s.title}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="help-body" ref={bodyRef}>
           {sections.length === 0 ? (
             <p className="help-empty muted">No topics match “{query}”.</p>
           ) : (
