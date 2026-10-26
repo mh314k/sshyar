@@ -225,8 +225,19 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     id: "sftp",
     title: "SFTP",
-    summary: "Browse, multi-select, transfer with progress, edit with syntax highlight, follow shell cwd.",
-    keywords: ["sftp", "file", "upload", "download", "folder", "follow", "editor"],
+    summary:
+      "Browse, multi-select, transfer with progress, edit with syntax highlight, follow shell cwd, and Compose controls when a compose file is present.",
+    keywords: [
+      "sftp",
+      "file",
+      "upload",
+      "download",
+      "folder",
+      "follow",
+      "editor",
+      "compose",
+      "docker",
+    ],
     blocks: [
       {
         id: "open-panel",
@@ -295,13 +306,33 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Destructive actions ask for confirmation where appropriate.",
         ],
       },
+      {
+        id: "compose-in-folder",
+        title: "Docker Compose in this folder",
+        keywords: [
+          "compose",
+          "docker-compose",
+          "up",
+          "down",
+          "pull",
+          "yaml",
+          "yml",
+        ],
+        steps: [
+          "Requires Docker management enabled on the profile.",
+          "When the current folder contains compose.yaml, compose.yml, docker-compose.yml, or docker-compose.yaml, a Compose bar appears under the SFTP toolbar.",
+          "Actions run in that remote directory: Up (up -d), Down (with confirmation), Restart, Pull, and Ps (status).",
+          "Compose jobs show toast notifications and a progress bar at the bottom of the right panel while running.",
+          "Ps and errors can expand an output pane under the Compose bar.",
+        ],
+      },
     ],
   },
   {
     id: "docker",
     title: "Docker",
     summary:
-      "Optional remote Docker plugin: status, containers (Compose-grouped), images, volumes, and networks with basic actions.",
+      "Optional remote Docker plugin: status, Compose-grouped containers, images, volumes, networks, SFTP Compose bar, and job progress toasts.",
     keywords: [
       "docker",
       "container",
@@ -313,6 +344,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       "version",
       "management",
       "plugin",
+      "progress",
+      "toast",
     ],
     blocks: [
       {
@@ -359,6 +392,17 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Volumes — name, driver, mountpoint; Remove runs docker volume rm (with confirmation).",
           "Networks — name, driver, scope; Remove runs docker network rm. Built-in bridge / host / none cannot be removed.",
           "Each sub-tab has its own Refresh. Destructive actions need the remote user to have permission for those docker commands.",
+        ],
+      },
+      {
+        id: "job-progress",
+        title: "Progress and notifications",
+        keywords: ["progress", "toast", "notification", "job", "bar", "running"],
+        steps: [
+          "Mutating Docker actions (container start/stop/restart/remove, image/volume/network remove, and SFTP Compose commands) show an info toast when they start.",
+          "A progress bar at the bottom of the right panel animates while the remote command runs, then turns green on success or red on failure.",
+          "A success or error toast appears when the job finishes; you can dismiss the bar after it completes.",
+          "Only one Docker job runs at a time from the UI; controls stay disabled while a job is running.",
         ],
       },
     ],
@@ -534,6 +578,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Probe says not installed — the remote user has no docker binary on PATH (install Docker Engine, or use a login that can see it).",
           "List/action errors (permission denied) — the SSH user may need membership in the docker group or root-equivalent access to the daemon.",
           "Compose groups missing — only containers labeled by Docker Compose are grouped; others stay under Standalone.",
+          "No Compose bar in SFTP — enable Docker management, and open a folder that contains compose.yaml / compose.yml / docker-compose.yml|.yaml.",
           "Cannot remove bridge/host/none — those are built-in networks and are blocked on purpose.",
           "Probe or list errors — confirm the profile can still SSH; try Refresh after fixing connectivity.",
         ],

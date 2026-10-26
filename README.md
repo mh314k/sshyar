@@ -11,8 +11,8 @@ Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted pr
 - **Profiles** — host, user, password or key, group, tags, search, post-connect command, keepalive, **remote shell** (bash / zsh / fish / sh / custom / server default), optional **Docker management** flag
 - **Keys** — generate per-profile ed25519 keys; install public key on the server
 - **External SSH** — same command in your system terminal (Windows Terminal / PowerShell on Windows; gnome-terminal, konsole, kitty, … on Linux); copy SSH command to clipboard
-- **SFTP** — browse, multi-select, upload/download with progress, mkdir, rename, delete, copy/cut/paste; View/Edit with syntax highlighting; **Follow shell** cwd sync
-- **Docker** — per-profile plugin tab next to SFTP: Status (CLI version), Containers (Compose-grouped; start/stop/restart/remove), Images, Volumes, and Networks with remove actions
+- **SFTP** — browse, multi-select, upload/download with progress, mkdir, rename, delete, copy/cut/paste; View/Edit with syntax highlighting; **Follow shell** cwd sync; **Compose bar** (up/down/restart/pull/ps) when the folder has a compose file and Docker management is on
+- **Docker** — per-profile plugin tab next to SFTP: Status, Containers (Compose-grouped; start/stop/restart/remove), Images, Volumes, Networks; toast + progress bar for remote Docker jobs
 - **Snippets** — vault-backed commands injected into the active terminal
 - **Vault** — AES-GCM; Windows DPAPI by default; on Linux a user-only key file (`0600`); optional master password (set / change / remove / lock)
 - **UI** — dark/light theme, Material icons, in-app Help (searchable), About with GitHub release update check
