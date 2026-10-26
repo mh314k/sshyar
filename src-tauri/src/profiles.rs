@@ -33,6 +33,10 @@ pub struct Profile {
     pub tags: Vec<String>,
     #[serde(default)]
     pub post_connect_command: String,
+    /// Remote login shell binary/name, e.g. `bash`, `zsh`, `fish`, or a full path.
+    /// Empty = use the server account default shell.
+    #[serde(default = "default_remote_shell")]
+    pub remote_shell: String,
     #[serde(default = "default_keepalive")]
     pub keepalive_interval: u32,
     #[serde(default = "default_keepalive_count")]
@@ -41,6 +45,9 @@ pub struct Profile {
     pub notes: String,
 }
 
+fn default_remote_shell() -> String {
+    "bash".into()
+}
 fn default_keepalive() -> u32 {
     30
 }
@@ -62,6 +69,7 @@ impl Profile {
             group: "Default".into(),
             tags: vec![],
             post_connect_command: String::new(),
+            remote_shell: default_remote_shell(),
             keepalive_interval: 30,
             keepalive_count_max: 3,
             notes: String::new(),
@@ -103,6 +111,8 @@ pub struct ProfileInput {
     pub group: String,
     pub tags: Vec<String>,
     pub post_connect_command: String,
+    #[serde(default = "default_remote_shell")]
+    pub remote_shell: String,
     pub keepalive_interval: u32,
     pub keepalive_count_max: u32,
     pub notes: String,

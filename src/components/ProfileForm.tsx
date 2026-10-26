@@ -7,6 +7,8 @@ interface Props {
   onCancel: () => void;
 }
 
+const SHELL_PRESETS = ["bash", "zsh", "fish", "sh", "dash"] as const;
+
 const empty: ProfileInput = {
   name: "",
   host: "",
@@ -18,6 +20,7 @@ const empty: ProfileInput = {
   group: "Default",
   tags: [],
   postConnectCommand: "",
+  remoteShell: "bash",
   keepaliveInterval: 30,
   keepaliveCountMax: 3,
   notes: "",
@@ -26,11 +29,18 @@ const empty: ProfileInput = {
 export function ProfileForm({ initial, onSave, onCancel }: Props) {
   const [form, setForm] = useState<ProfileInput>(empty);
   const [tagsText, setTagsText] = useState("");
+  const [shellPreset, setShellPreset] = useState<string>("bash");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (initial) {
+      const shell = initial.remoteShell ?? "bash";
+      const preset = !shell
+        ? "default"
+        : (SHELL_PRESETS as readonly string[]).includes(shell)
+          ? shell
+          : "custom";
       setForm({
         name: initial.name,
         host: initial.host,
@@ -42,16 +52,29 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         group: initial.group || "Default",
         tags: initial.tags,
         postConnectCommand: initial.postConnectCommand,
+        remoteShell: shell,
         keepaliveInterval: initial.keepaliveInterval,
         keepaliveCountMax: initial.keepaliveCountMax,
         notes: initial.notes,
       });
+      setShellPreset(preset);
       setTagsText(initial.tags.join(", "));
     } else {
       setForm(empty);
+      setShellPreset("bash");
       setTagsText("");
     }
   }, [initial]);
+
+  function onShellPresetChange(value: string) {
+    setShellPreset(value);
+    if (value === "default") set("remoteShell", "");
+    else if (value === "custom") {
+      if ((SHELL_PRESETS as readonly string[]).includes(form.remoteShell) || !form.remoteShell) {
+        set("remoteShell", "/bin/bash");
+      }
+    } else set("remoteShell", value);
+  }
 
   function set<K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -151,6 +174,29 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
           placeholder="cd /var/www && sudo -i"
         />
       </label>
+      <label>
+        Remote shell
+        <select value={shellPreset} onChange={(e) => onShellPresetChange(e.target.value)}>
+          <option value="default">Server default</option>
+          <option value="bash">bash</option>
+          <option value="zsh">zsh</option>
+          <option value="fish">fish</option>
+          <option value="sh">sh</option>
+          <option value="dash">dash</option>
+          <option value="custom">Custom path…</option>
+        </select>
+      </label>
+      {shellPreset === "custom" ? (
+        <label>
+          Shell path / command
+          <input
+            value={form.remoteShell}
+            onChange={(e) => set("remoteShell", e.target.value)}
+            placeholder="/usr/bin/zsh"
+            required
+          />
+        </label>
+      ) : null}
       <div className="row">
         <label>
           Keepalive interval (s)

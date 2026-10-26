@@ -30,20 +30,47 @@ pub fn build_ssh_args(profile: &Profile) -> Vec<String> {
     args.push(profile.port.to_string());
 
     let target = format!("{}@{}", profile.username, profile.host);
-
     let post = profile.post_connect_command.trim();
-    if !post.is_empty() {
+    let remote_cmd = build_remote_command(post, &profile.remote_shell);
+
+    if let Some(remote) = remote_cmd {
         args.push("-t".into());
         args.push(target);
         // Avoid $SHELL: PowerShell expands $vars before ssh sees them.
-        // Run post-connect, then drop into an interactive bash login shell.
-        let remote = format!("{post}; exec bash -l");
         args.push(remote);
     } else {
         args.push(target);
     }
 
     args
+}
+
+/// Interactive remote command: optional post-connect, then preferred shell.
+/// Returns None when neither post-connect nor a forced shell is set (server default).
+fn build_remote_command(post: &str, remote_shell: &str) -> Option<String> {
+    let exec = shell_exec(remote_shell);
+    match (post.is_empty(), exec.as_deref()) {
+        (true, None) => None,
+        (true, Some(ex)) => Some(ex.to_string()),
+        (false, None) => Some(format!("{post}; exec bash -l")),
+        (false, Some(ex)) => Some(format!("{post}; {ex}")),
+    }
+}
+
+fn shell_exec(remote_shell: &str) -> Option<String> {
+    let s = remote_shell.trim();
+    if s.is_empty() || s.eq_ignore_ascii_case("default") {
+        return None;
+    }
+    // Already a full command (user typed args) — just exec it.
+    if s.contains(char::is_whitespace) {
+        return Some(format!("exec {s}"));
+    }
+    // Common shells: request a login shell.
+    match s {
+        "bash" | "zsh" | "fish" | "sh" | "dash" | "ksh" => Some(format!("exec {s} -l")),
+        other => Some(format!("exec {other} -l")),
+    }
 }
 
 pub fn build_ssh_command_line(profile: &Profile) -> String {
@@ -83,9 +110,27 @@ mod tests {
     fn post_connect_avoids_shell_var_and_uses_ps_quotes() {
         let mut p = Profile::new("t".into(), "1.2.3.4".into(), "u".into());
         p.post_connect_command = "ls -la".into();
+        p.remote_shell = "bash".into();
         let cmd = build_ssh_command_line(&p);
         assert!(cmd.contains("exec bash -l"), "{cmd}");
         assert!(!cmd.contains("$SHELL"), "{cmd}");
         assert!(cmd.contains("'ls -la; exec bash -l'"), "{cmd}");
+    }
+
+    #[test]
+    fn respects_zsh_shell() {
+        let mut p = Profile::new("t".into(), "1.2.3.4".into(), "u".into());
+        p.remote_shell = "zsh".into();
+        let cmd = build_ssh_command_line(&p);
+        assert!(cmd.contains("exec zsh -l"), "{cmd}");
+    }
+
+    #[test]
+    fn empty_shell_uses_server_default() {
+        let mut p = Profile::new("t".into(), "1.2.3.4".into(), "u".into());
+        p.remote_shell = String::new();
+        let args = build_ssh_args(&p);
+        assert_eq!(args.last().map(String::as_str), Some("u@1.2.3.4"));
+        assert!(!args.iter().any(|a| a == "-t"));
     }
 }

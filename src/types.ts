@@ -12,6 +12,8 @@ export interface Profile {
   group: string;
   tags: string[];
   postConnectCommand: string;
+  /** Remote shell name/path: bash, zsh, fish, sh, or custom. Empty = server default. */
+  remoteShell: string;
   keepaliveInterval: number;
   keepaliveCountMax: number;
   notes: string;
@@ -28,6 +30,7 @@ export interface ProfileInput {
   group: string;
   tags: string[];
   postConnectCommand: string;
+  remoteShell: string;
   keepaliveInterval: number;
   keepaliveCountMax: number;
   notes: string;

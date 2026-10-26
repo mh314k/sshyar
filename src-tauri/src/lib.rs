@@ -117,6 +117,7 @@ fn upsert_profile(
         p.group = input.group;
         p.tags = input.tags;
         p.post_connect_command = input.post_connect_command;
+        p.remote_shell = input.remote_shell;
         p.keepalive_interval = input.keepalive_interval;
         p.keepalive_count_max = input.keepalive_count_max;
         p.notes = input.notes;
@@ -134,6 +135,11 @@ fn upsert_profile(
         };
         p.tags = input.tags;
         p.post_connect_command = input.post_connect_command;
+        p.remote_shell = if input.remote_shell.trim().is_empty() {
+            "bash".into()
+        } else {
+            input.remote_shell
+        };
         p.keepalive_interval = input.keepalive_interval;
         p.keepalive_count_max = input.keepalive_count_max;
         p.notes = input.notes;

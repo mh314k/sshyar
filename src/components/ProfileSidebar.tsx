@@ -3,6 +3,7 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   Copy,
   ExternalLink,
+  CircleHelp,
   Info,
   KeyRound,
   Lock,
@@ -27,6 +28,7 @@ import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "../lib/version"
 import { ProfileForm } from "./ProfileForm";
 import { SnippetList } from "./SnippetList";
 import { AboutPopover } from "./AboutPopover";
+import { HelpModal } from "./HelpModal";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { Popover } from "./Popover";
 import { IconButton, iconSize, iconStroke } from "./IconButton";
@@ -83,6 +85,7 @@ export function ProfileSidebar({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; profile: Profile } | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
 
   const actionsBtnRef = useRef<HTMLButtonElement>(null);
@@ -316,6 +319,16 @@ export function ProfileSidebar({
           />
           <IconButton
             variant="icon"
+            title="Help"
+            className={helpOpen ? "is-active" : ""}
+            onClick={() => {
+              setPanel(null);
+              setHelpOpen(true);
+            }}
+            icon={<CircleHelp size={iconSize} strokeWidth={iconStroke} />}
+          />
+          <IconButton
+            variant="icon"
             title="New profile"
             onClick={() => setEditing(null)}
             icon={<Plus size={iconSize} strokeWidth={iconStroke} />}
@@ -506,6 +519,8 @@ export function ProfileSidebar({
         <div className="popover-header">About</div>
         <AboutPopover update={update} onUpdateChange={setUpdate} />
       </Popover>
+
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {menu && (
         <ContextMenu
