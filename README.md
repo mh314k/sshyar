@@ -2,7 +2,7 @@
 
 Windows SSH helper with an embedded real PowerShell terminal, encrypted profile vault, graphical SFTP, snippets, and optional master-password lock.
 
-**Version:** 0.2.0 · **License:** [GPL-3.0-or-later](LICENSE)
+**Version:** 0.3.0 · **License:** [GPL-3.0-or-later](LICENSE)
 
 ## Features
 
@@ -44,8 +44,8 @@ Installer artifacts land under `src-tauri/target/release/bundle/`.
 2. Commit, then tag and push:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds the Windows app and publishes a GitHub Release.
