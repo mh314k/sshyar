@@ -1,6 +1,6 @@
 # SSHyar
 
-Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted profile vault, graphical SFTP, snippets, and optional master-password lock.
+Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted profile vault, graphical SFTP, optional Docker management, snippets, and optional master-password lock.
 
 **Version:** 0.3.0 · **License:** [GPL-3.0-or-later](LICENSE)
 
@@ -8,10 +8,11 @@ Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted pr
 
 - **Terminal** — local shell + OpenSSH in a real PTY (PowerShell / ConPTY on Windows; `$SHELL` on Linux); session tabs (`Ctrl+T` / `Ctrl+W` / `Ctrl+Tab`); reconnect
 - **Clipboard** — copy/paste in the terminal (`Ctrl+C` with selection, `Ctrl+V`, context menu, middle-click)
-- **Profiles** — host, user, password or key, group, tags, search, post-connect command, keepalive, **remote shell** (bash / zsh / fish / sh / custom / server default)
+- **Profiles** — host, user, password or key, group, tags, search, post-connect command, keepalive, **remote shell** (bash / zsh / fish / sh / custom / server default), optional **Docker management** flag
 - **Keys** — generate per-profile ed25519 keys; install public key on the server
 - **External SSH** — same command in your system terminal (Windows Terminal / PowerShell on Windows; gnome-terminal, konsole, kitty, … on Linux); copy SSH command to clipboard
 - **SFTP** — browse, multi-select, upload/download with progress, mkdir, rename, delete, copy/cut/paste; View/Edit with syntax highlighting; **Follow shell** cwd sync
+- **Docker** — per-profile plugin tab next to SFTP; probes whether Docker is installed on the remote host and reports the CLI version
 - **Snippets** — vault-backed commands injected into the active terminal
 - **Vault** — AES-GCM; Windows DPAPI by default; on Linux a user-only key file (`0600`); optional master password (set / change / remove / lock)
 - **UI** — dark/light theme, Material icons, in-app Help (searchable), About with GitHub release update check
