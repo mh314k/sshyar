@@ -17,6 +17,8 @@ export interface Profile {
   keepaliveInterval: number;
   keepaliveCountMax: number;
   notes: string;
+  /** When true, the Docker management plugin is available for this profile's sessions. */
+  dockerManagement: boolean;
 }
 
 export interface ProfileInput {
@@ -34,6 +36,7 @@ export interface ProfileInput {
   keepaliveInterval: number;
   keepaliveCountMax: number;
   notes: string;
+  dockerManagement: boolean;
 }
 
 export interface Snippet {

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use russh::client::{self, Handle};
 use russh::keys::key::PrivateKeyWithHashAlg;
 use russh::keys::{load_secret_key, HashAlg, PublicKey};
-use russh::Disconnect;
+use russh::{ChannelMsg, Disconnect};
 use russh_sftp::client::SftpSession;
 use std::path::Path;
 use std::sync::Arc;
@@ -109,6 +109,53 @@ pub async fn open_sftp(profile: &Profile) -> AppResult<(Handle<ClientHandler>, S
         .await
         .map_err(|e| AppError::msg(format!("sftp session: {e}")))?;
     Ok((handle, sftp))
+}
+
+pub struct ExecResult {
+    pub exit_code: u32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+/// Open a short-lived SSH session and run a non-interactive remote command.
+pub async fn exec_command(profile: &Profile, command: &str) -> AppResult<ExecResult> {
+    let handle = connect_handle(profile).await?;
+    let mut channel = handle
+        .channel_open_session()
+        .await
+        .map_err(|e| AppError::msg(format!("channel: {e}")))?;
+    channel
+        .exec(true, command)
+        .await
+        .map_err(|e| AppError::msg(format!("exec: {e}")))?;
+
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let mut exit_code = None;
+
+    loop {
+        let Some(msg) = channel.wait().await else {
+            break;
+        };
+        match msg {
+            ChannelMsg::Data { ref data } => stdout.extend_from_slice(data),
+            ChannelMsg::ExtendedData { ref data, ext } if ext == 1 => {
+                stderr.extend_from_slice(data);
+            }
+            ChannelMsg::ExitStatus { exit_status } => exit_code = Some(exit_status),
+            _ => {}
+        }
+    }
+
+    let _ = handle
+        .disconnect(Disconnect::ByApplication, "", "en")
+        .await;
+
+    Ok(ExecResult {
+        exit_code: exit_code.unwrap_or(255),
+        stdout: String::from_utf8_lossy(&stdout).trim().to_string(),
+        stderr: String::from_utf8_lossy(&stderr).trim().to_string(),
+    })
 }
 
 pub async fn install_authorized_key(profile: &Profile, pub_key: &str) -> AppResult<()> {

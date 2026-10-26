@@ -24,6 +24,7 @@ const empty: ProfileInput = {
   keepaliveInterval: 30,
   keepaliveCountMax: 3,
   notes: "",
+  dockerManagement: false,
 };
 
 export function ProfileForm({ initial, onSave, onCancel }: Props) {
@@ -56,6 +57,7 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         keepaliveInterval: initial.keepaliveInterval,
         keepaliveCountMax: initial.keepaliveCountMax,
         notes: initial.notes,
+        dockerManagement: initial.dockerManagement ?? false,
       });
       setShellPreset(preset);
       setTagsText(initial.tags.join(", "));
@@ -218,6 +220,14 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
       <label>
         Notes
         <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
+      </label>
+      <label className="profile-check">
+        <input
+          type="checkbox"
+          checked={form.dockerManagement}
+          onChange={(e) => set("dockerManagement", e.target.checked)}
+        />
+        <span>Docker management</span>
       </label>
       {error && <p className="error">{error}</p>}
       <div className="form-actions">

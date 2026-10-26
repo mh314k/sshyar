@@ -1,3 +1,4 @@
+import { dockerApi } from "./docker";
 import { keysApi, ptyApi } from "./pty";
 import { profilesApi, snippetsApi } from "./profiles";
 import { sftpApi } from "./sftp";
@@ -47,6 +48,8 @@ export const api = {
   sftpMoveBatch: sftpApi.moveBatch,
   sftpReadText: sftpApi.readText,
   sftpWriteText: sftpApi.writeText,
+
+  dockerProbe: dockerApi.probe,
 };
 
-export { vaultApi, profilesApi, snippetsApi, ptyApi, keysApi, sftpApi };
+export { vaultApi, profilesApi, snippetsApi, ptyApi, keysApi, sftpApi, dockerApi };

@@ -66,6 +66,7 @@ pub fn run() {
             sftp_move_batch,
             sftp_read_text,
             sftp_write_text,
+            docker_probe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

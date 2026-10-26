@@ -32,9 +32,18 @@ interface Props {
   open: boolean;
   onToggle: () => void;
   theme?: ThemeMode;
+  /** When false, parent owns the panel chrome (tabs / hide). */
+  showChrome?: boolean;
 }
 
-export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "dark" }: Props) {
+export function SftpPanel({
+  profileId,
+  ptyId,
+  open: isOpen,
+  onToggle,
+  theme = "dark",
+  showChrome = true,
+}: Props) {
   const [sftpId, setSftpId] = useState<string | null>(null);
   const [cwd, setCwd] = useState("");
   const [entries, setEntries] = useState<RemoteEntry[]>([]);
@@ -591,15 +600,17 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
 
   return (
     <aside className="sftp-panel">
-      <div className="sftp-header">
-        <strong>SFTP</strong>
-        <IconButton
-          variant="icon"
-          title="Hide SFTP"
-          onClick={onToggle}
-          icon={<ViewSidebarOutlinedIcon {...iconProps(iconSize)} />}
-        />
-      </div>
+      {showChrome ? (
+        <div className="sftp-header">
+          <strong>SFTP</strong>
+          <IconButton
+            variant="icon"
+            title="Hide SFTP"
+            onClick={onToggle}
+            icon={<ViewSidebarOutlinedIcon {...iconProps(iconSize)} />}
+          />
+        </div>
+      ) : null}
       {!profileId ? (
         <p className="muted sftp-empty">Connect a profile session to browse remote files here.</p>
       ) : (

@@ -5,7 +5,7 @@ import { UnlockGate } from "./components/UnlockGate";
 import { ProfileSidebar } from "./components/ProfileSidebar";
 import { SessionTabBar } from "./components/SessionTabBar";
 import { TerminalPane } from "./components/TerminalPane";
-import { SftpPanel } from "./components/SftpPanel";
+import { RightPlugins } from "./components/RightPlugins";
 import { PanelLayout, usePanelLayout } from "./components/PanelLayout";
 import { readStoredTheme, toggleTheme, type ThemeMode } from "./lib/theme";
 import { DialogHost } from "./lib/dialogs";
@@ -193,10 +193,14 @@ export default function App() {
           </main>
         }
         right={
-          <SftpPanel
+          <RightPlugins
             profileId={sessions.activeTab?.profileId ?? null}
             ptyId={sessions.activeTab?.ptyId ?? null}
-            open
+            dockerEnabled={
+              !!sessions.activeTab?.profileId &&
+              (profiles.find((p) => p.id === sessions.activeTab?.profileId)?.dockerManagement ??
+                false)
+            }
             onToggle={() => panels.setRightOpen(false)}
             theme={theme}
           />

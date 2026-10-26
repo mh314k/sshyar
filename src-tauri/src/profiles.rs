@@ -43,6 +43,9 @@ pub struct Profile {
     pub keepalive_count_max: u32,
     #[serde(default)]
     pub notes: String,
+    /// When true, the Docker management plugin is available for sessions of this profile.
+    #[serde(default)]
+    pub docker_management: bool,
 }
 
 fn default_remote_shell() -> String {
@@ -73,6 +76,7 @@ impl Profile {
             keepalive_interval: 30,
             keepalive_count_max: 3,
             notes: String::new(),
+            docker_management: false,
         }
     }
 
@@ -97,6 +101,7 @@ impl Profile {
         p.keepalive_interval = input.keepalive_interval;
         p.keepalive_count_max = input.keepalive_count_max;
         p.notes = input.notes;
+        p.docker_management = input.docker_management;
         p
     }
 
@@ -117,6 +122,7 @@ impl Profile {
         self.keepalive_interval = input.keepalive_interval;
         self.keepalive_count_max = input.keepalive_count_max;
         self.notes = input.notes;
+        self.docker_management = input.docker_management;
     }
 }
 
@@ -159,4 +165,6 @@ pub struct ProfileInput {
     pub keepalive_interval: u32,
     pub keepalive_count_max: u32,
     pub notes: String,
+    #[serde(default)]
+    pub docker_management: bool,
 }
