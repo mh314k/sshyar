@@ -4,6 +4,7 @@ import {
   Copy,
   ExternalLink,
   KeyRound,
+  Lock,
   Moon,
   MoreHorizontal,
   PanelLeftClose,
@@ -37,6 +38,7 @@ interface Props {
   onRunSnippet: (command: string) => void;
   hasMasterPassword: boolean;
   onMasterPasswordChange: () => void;
+  onLock?: () => void;
   theme: ThemeMode;
   onToggleTheme: () => void;
   onCollapse?: () => void;
@@ -68,6 +70,7 @@ export function ProfileSidebar({
   onRunSnippet,
   hasMasterPassword,
   onMasterPasswordChange,
+  onLock,
   theme,
   onToggleTheme,
   onCollapse,
@@ -201,6 +204,11 @@ export function ProfileSidebar({
     } catch (e) {
       toastError(e, "Master password");
     }
+  }
+
+  function lockVault() {
+    setPanel(null);
+    onLock?.();
   }
 
   async function runProfileAction(profile: Profile, id: string) {
@@ -443,6 +451,12 @@ export function ProfileSidebar({
         </p>
         {hasMasterPassword ? (
           <>
+            <IconButton
+              variant="ghost"
+              label="Lock vault"
+              icon={<Lock size={iconSize} strokeWidth={iconStroke} />}
+              onClick={lockVault}
+            />
             <IconButton variant="ghost" label="Change password" onClick={() => void changeMaster()} />
             <IconButton variant="ghost" label="Remove master password" onClick={() => void removeMaster()} />
           </>

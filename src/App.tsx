@@ -79,6 +79,26 @@ export default function App() {
     });
   }, []);
 
+  const lockVault = useCallback(async () => {
+    try {
+      setTabs((prev) => {
+        for (const tab of prev) {
+          if (tab.ptyId) void api.ptyKill(tab.ptyId);
+        }
+        return [];
+      });
+      setActiveId(null);
+      setProfiles([]);
+      setSnippets([]);
+      panels.setRightOpen(false);
+      await api.vaultLock();
+      const st = await api.vaultStatus();
+      setVault(st);
+    } catch (e) {
+      toastError(e, "Lock vault");
+    }
+  }, [panels.setRightOpen]);
+
   const reconnect = useCallback(
     async (id: string) => {
       const tab = tabs.find((t) => t.id === id);
@@ -225,6 +245,7 @@ export default function App() {
           onRunSnippet={(c) => void runSnippet(c)}
           hasMasterPassword={vault.hasMasterPassword}
           onMasterPasswordChange={() => void refreshData()}
+          onLock={() => void lockVault()}
           theme={theme}
           onToggleTheme={() => setTheme((t) => toggleTheme(t))}
           onCollapse={() => panels.setLeftOpen(false)}
