@@ -332,7 +332,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "docker",
     title: "Docker",
     summary:
-      "Optional remote Docker plugin: status, Compose-grouped containers with live logs, images, volumes, networks, SFTP Compose bar, and job progress toasts.",
+      "Optional remote Docker plugin: status, Compose-grouped containers with live logs, images, volumes, networks, SFTP Compose bar, persistent SSH session, and streamed job progress.",
     keywords: [
       "docker",
       "container",
@@ -359,6 +359,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Inside Docker: Status, Containers, Images, Volumes, and Networks sub-tabs.",
           "Profiles without the checkbox keep only the SFTP plugin (no Docker tab).",
           "Duplicate copies the Docker management flag along with the rest of the profile.",
+          "While Docker management is active for the connected profile, SSHyar keeps a persistent SSH session for Docker so lists and actions reuse one connection instead of reconnecting each time.",
         ],
       },
       {
@@ -430,12 +431,23 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "job-progress",
         title: "Progress and notifications",
-        keywords: ["progress", "toast", "notification", "job", "bar", "running"],
+        keywords: [
+          "progress",
+          "toast",
+          "notification",
+          "job",
+          "bar",
+          "running",
+          "stream",
+          "session",
+        ],
         steps: [
           "Mutating Docker actions (container start/stop/restart/remove, image/volume/network remove, and SFTP Compose commands) show an info toast when they start.",
           "A progress bar at the bottom of the right panel animates while the remote command runs, then turns green on success or red on failure.",
+          "Compose jobs stream remote output into the job bar detail so you see live command progress, not only a spinner.",
           "A success or error toast appears when the job finishes; you can dismiss the bar after it completes.",
           "Only one Docker job runs at a time from the UI; controls stay disabled while a job is running.",
+          "The pooled Docker SSH session closes when you switch away from that profile or lock the vault.",
         ],
       },
     ],
