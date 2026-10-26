@@ -1,5 +1,5 @@
 import { Plus, RotateCcw, X } from "lucide-react";
-import type { SessionTab } from "../types";
+import type { SessionStatus, SessionTab } from "../types";
 import { IconButton, iconSize, iconStroke } from "./IconButton";
 
 interface Props {
@@ -9,6 +9,24 @@ interface Props {
   onClose: (id: string) => void;
   onNew: () => void;
   onReconnect: (id: string) => void;
+}
+
+function statusLabel(status: SessionStatus): string {
+  switch (status) {
+    case "local":
+      return "Local shell";
+    case "connecting":
+      return "Connecting…";
+    case "connected":
+      return "Connected";
+    case "disconnected":
+      return "Disconnected";
+  }
+}
+
+function tabTooltip(t: SessionTab): string {
+  const base = statusLabel(t.status);
+  return t.hostLabel ? `${base} · ${t.hostLabel}` : base;
 }
 
 export function SessionTabBar({
@@ -26,6 +44,7 @@ export function SessionTabBar({
           <div
             key={t.id}
             className={`tab ${t.id === activeId ? "active" : ""}`}
+            title={tabTooltip(t)}
             onClick={() => onSelect(t.id)}
             onMouseDown={(e) => {
               if (e.button === 1) {
@@ -34,7 +53,11 @@ export function SessionTabBar({
               }
             }}
           >
-            <span className={`dot status-${t.status}`} title={t.status} />
+            <span
+              className={`dot status-${t.status}`}
+              title={tabTooltip(t)}
+              aria-label={tabTooltip(t)}
+            />
             <span className="tab-title">{t.title}</span>
             {t.profileId && (
               <IconButton

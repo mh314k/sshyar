@@ -18,6 +18,7 @@ type Props = {
   sftpId: string | null;
   busy: boolean;
   hasSelection: boolean;
+  hasFileSelection: boolean;
   single: RemoteEntry | null;
   clipboard: ClipboardState | null;
   onUp: () => void;
@@ -36,6 +37,7 @@ export function SftpToolbar({
   sftpId,
   busy,
   hasSelection,
+  hasFileSelection,
   single,
   clipboard,
   onUp,
@@ -49,79 +51,88 @@ export function SftpToolbar({
   onCut,
   onPaste,
 }: Props) {
+  const navOff = !sftpId || busy;
   return (
     <div className="sftp-toolbar">
-      <IconButton
-        variant="soft"
-        title="Up"
-        disabled={!sftpId || busy}
-        onClick={onUp}
-        icon={<ArrowUp size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Refresh"
-        disabled={!sftpId || busy}
-        onClick={onRefresh}
-        icon={<RefreshCw size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Upload"
-        label="Upload"
-        disabled={!sftpId || busy}
-        onClick={onUpload}
-        icon={<Upload size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Download selected"
-        disabled={!hasSelection || busy}
-        onClick={onDownload}
-        icon={<Download size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="New folder"
-        disabled={!sftpId || busy}
-        onClick={onMkdir}
-        icon={<FolderPlus size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Rename"
-        disabled={!single || busy}
-        onClick={onRename}
-        icon={<Pencil size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Delete selected"
-        disabled={!hasSelection || busy}
-        onClick={onDelete}
-        icon={<Trash2 size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Copy selected"
-        disabled={!hasSelection}
-        onClick={onCopy}
-        icon={<Copy size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Cut selected"
-        disabled={!hasSelection}
-        onClick={onCut}
-        icon={<Scissors size={14} strokeWidth={iconStroke} />}
-      />
-      <IconButton
-        variant="soft"
-        title="Paste"
-        disabled={!clipboard || busy}
-        onClick={onPaste}
-        icon={<ClipboardPaste size={14} strokeWidth={iconStroke} />}
-      />
+      <div className="sftp-toolbar-group" title="Navigate">
+        <IconButton
+          variant="soft"
+          title="Up"
+          disabled={navOff}
+          onClick={onUp}
+          icon={<ArrowUp size={14} strokeWidth={iconStroke} />}
+        />
+        <IconButton
+          variant="soft"
+          title="Refresh"
+          disabled={navOff}
+          onClick={onRefresh}
+          icon={<RefreshCw size={14} strokeWidth={iconStroke} />}
+        />
+      </div>
+      <span className="sftp-toolbar-divider" aria-hidden />
+      <div className="sftp-toolbar-group" title="Transfer">
+        <IconButton
+          variant="soft"
+          title="Upload"
+          label="Upload"
+          disabled={navOff}
+          onClick={onUpload}
+          icon={<Upload size={14} strokeWidth={iconStroke} />}
+        />
+        <IconButton
+          variant="soft"
+          title={hasFileSelection ? "Download selected" : "Select file(s) to download"}
+          disabled={!hasFileSelection || busy}
+          onClick={onDownload}
+          icon={<Download size={14} strokeWidth={iconStroke} />}
+        />
+      </div>
+      <span className="sftp-toolbar-divider" aria-hidden />
+      <div className="sftp-toolbar-group" title="Edit">
+        <IconButton
+          variant="soft"
+          title="New folder"
+          disabled={navOff}
+          onClick={onMkdir}
+          icon={<FolderPlus size={14} strokeWidth={iconStroke} />}
+        />
+        <IconButton
+          variant="soft"
+          title="Rename"
+          disabled={!single || busy}
+          onClick={onRename}
+          icon={<Pencil size={14} strokeWidth={iconStroke} />}
+        />
+        <IconButton
+          variant="soft"
+          title="Delete selected"
+          disabled={!hasSelection || busy}
+          onClick={onDelete}
+          icon={<Trash2 size={14} strokeWidth={iconStroke} />}
+        />
+        <IconButton
+          variant="soft"
+          title="Copy selected"
+          disabled={!hasSelection}
+          onClick={onCopy}
+          icon={<Copy size={14} strokeWidth={iconStroke} />}
+        />
+        <IconButton
+          variant="soft"
+          title="Cut selected"
+          disabled={!hasSelection}
+          onClick={onCut}
+          icon={<Scissors size={14} strokeWidth={iconStroke} />}
+        />
+        <IconButton
+          variant="soft"
+          title="Paste"
+          disabled={!clipboard || busy}
+          onClick={onPaste}
+          icon={<ClipboardPaste size={14} strokeWidth={iconStroke} />}
+        />
+      </div>
     </div>
   );
 }

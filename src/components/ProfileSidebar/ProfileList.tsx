@@ -3,19 +3,25 @@ import type { Profile } from "../../types";
 type Props = {
   groups: [string, Profile[]][];
   filteredEmpty: boolean;
+  hasAnyProfiles: boolean;
+  query: string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onConnect: (profile: Profile) => void;
   onContextMenu: (e: React.MouseEvent, profile: Profile) => void;
+  onClearSearch?: () => void;
 };
 
 export function ProfileList({
   groups,
   filteredEmpty,
+  hasAnyProfiles,
+  query,
   selectedId,
   onSelect,
   onConnect,
   onContextMenu,
+  onClearSearch,
 }: Props) {
   return (
     <div className="sidebar-section profile-groups">
@@ -27,6 +33,7 @@ export function ProfileList({
             <div
               key={p.id}
               className={`profile-item ${selectedId === p.id ? "selected" : ""}`}
+              title="Double-click to connect"
               onClick={() => onSelect(selectedId === p.id ? null : p.id)}
               onDoubleClick={() => onConnect(p)}
               onContextMenu={(e) => onContextMenu(e, p)}
@@ -44,11 +51,31 @@ export function ProfileList({
                   ))}
                 </div>
               )}
+              <div className="profile-hint">Double-click to connect</div>
             </div>
           ))}
         </div>
       ))}
-      {filteredEmpty && <p className="muted">No profiles yet — add one with +</p>}
+      {filteredEmpty && (
+        <div className="profile-empty">
+          {!hasAnyProfiles ? (
+            <>
+              <p className="muted">No profiles yet</p>
+              <p className="muted profile-empty-sub">Use + above to add your first host.</p>
+            </>
+          ) : (
+            <>
+              <p className="muted">No matches for “{query.trim()}”</p>
+              <p className="muted profile-empty-sub">Try another name, host, tag, or group.</p>
+              {onClearSearch && (
+                <button type="button" className="ghost profile-empty-clear" onClick={onClearSearch}>
+                  Clear search
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -387,11 +387,12 @@ body.is-resizing * {
   border-right: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.9rem 0.8rem 0.85rem;
+  gap: 0.75rem;
+  padding: 1rem 0.85rem 0.9rem;
   overflow: auto;
   height: 100%;
   backdrop-filter: blur(8px);
+  animation: pane-in 0.22s ease-out;
 }
 
 .brand {
@@ -494,24 +495,66 @@ body.is-resizing * {
 }
 
 .profile-item {
-  padding: 0.6rem 0.65rem;
+  padding: 0.7rem 0.7rem 0.55rem;
   border-radius: var(--radius);
   border: 1px solid transparent;
   cursor: pointer;
   transition:
-    background 0.12s ease,
-    border-color 0.12s ease;
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .profile-item:hover {
-  background: color-mix(in srgb, var(--bg-elev) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
   border-color: var(--hairline);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--shadow) 55%, transparent);
+}
+
+.profile-item:hover .profile-hint {
+  opacity: 1;
 }
 
 .profile-item.selected {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   background: var(--selected-bg);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.profile-hint {
+  margin-top: 0.35rem;
+  font-size: 0.65rem;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.profile-item.selected .profile-hint {
+  opacity: 0.85;
+}
+
+.profile-empty {
+  padding: 1.1rem 0.55rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  animation: fade-up 0.2s ease-out;
+}
+
+.profile-empty-sub {
+  font-size: 0.75rem;
+}
+
+.profile-empty-clear {
+  align-self: center;
+  margin-top: 0.45rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  height: auto;
+  min-height: 0;
 }
 
 .profile-name {
@@ -833,14 +876,15 @@ body.is-resizing * {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.65rem;
+  padding: 0.5rem 0.7rem;
   border-right: 1px solid var(--hairline);
   cursor: pointer;
   white-space: nowrap;
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--muted);
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background 0.14s ease, color 0.14s ease;
+  animation: fade-up 0.18s ease-out;
 }
 
 .tab:hover {
@@ -884,6 +928,7 @@ body.is-resizing * {
   border-radius: 50%;
   background: var(--muted);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-elev) 80%, transparent);
+  flex-shrink: 0;
 }
 
 .dot.status-local {
@@ -891,9 +936,13 @@ body.is-resizing * {
 }
 .dot.status-connecting {
   background: #f59e0b;
+  animation: status-pulse 1.1s ease-in-out infinite;
 }
 .dot.status-connected {
-  background: #34d399;
+  background: #22c55e;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--bg-elev) 80%, transparent),
+    0 0 0 3px color-mix(in srgb, #22c55e 35%, transparent);
 }
 .dot.status-disconnected {
   background: var(--danger);
@@ -948,6 +997,7 @@ body.is-resizing * {
   color: var(--muted);
   text-align: center;
   padding: 2rem;
+  animation: fade-up 0.28s ease-out;
 }
 
 .empty-terminal .brand-logo {
@@ -972,6 +1022,7 @@ body.is-resizing * {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: pane-in 0.22s ease-out;
 }
 
 .sftp-empty {
@@ -1015,34 +1066,111 @@ body.is-resizing * {
 .sftp-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.28rem;
-  padding: 0.45rem 0.5rem;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem;
   border-bottom: 1px solid var(--hairline);
   background: color-mix(in srgb, var(--bg) 35%, transparent);
 }
 
+.sftp-toolbar-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  align-items: center;
+}
+
+.sftp-toolbar-divider {
+  width: 1px;
+  height: 1.35rem;
+  background: var(--hairline);
+  margin: 0 0.15rem;
+  flex-shrink: 0;
+}
+
 .sftp-toolbar .ui-btn {
   font-size: 0.74rem;
-  height: 1.85rem;
-  min-height: 1.85rem;
+  height: 1.9rem;
+  min-height: 1.9rem;
   padding: 0 0.5rem;
 }
 
 .sftp-toolbar .ui-btn-icon-only {
-  width: 1.85rem;
+  width: 1.9rem;
   padding: 0;
 }
 
-.sftp-path {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  color: var(--muted);
-  padding: 0.4rem 0.7rem;
+.sftp-toolbar .ui-btn:disabled {
+  opacity: 0.38;
+}
+
+.sftp-path-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem 0.4rem 0.55rem;
   border-bottom: 1px solid var(--hairline);
+  background: var(--panel);
+  min-height: 2.1rem;
+}
+
+.sftp-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.05rem;
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  scrollbar-width: thin;
+}
+
+.sftp-crumb-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sftp-crumb-sep {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  padding: 0 0.1rem;
+  user-select: none;
+}
+
+.sftp-crumb {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--accent-hover);
+  padding: 0.15rem 0.3rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.2;
+  max-width: 10rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--panel);
+}
+
+.sftp-crumb:hover:not(:disabled) {
+  background: var(--selected-bg);
+  color: var(--text);
+}
+
+.sftp-crumb.is-current,
+.sftp-crumb:disabled {
+  color: var(--text);
+  font-weight: 600;
+  cursor: default;
+}
+
+.sftp-path-copy {
+  flex-shrink: 0;
+  width: 1.7rem !important;
+  height: 1.7rem !important;
 }
 
 .sftp-list {
@@ -1159,12 +1287,13 @@ body.is-resizing * {
 .sftp-row {
   display: grid;
   grid-template-columns: 1.15rem 1.25rem 1fr auto;
-  gap: 0.4rem;
-  padding: 0.38rem 0.65rem;
+  gap: 0.45rem;
+  padding: 0.48rem 0.75rem;
   cursor: default;
   font-size: 0.82rem;
   align-items: center;
   border-bottom: 1px solid color-mix(in srgb, var(--hairline) 55%, transparent);
+  transition: background 0.12s ease;
 }
 
 .sftp-row-head {
@@ -1178,6 +1307,34 @@ body.is-resizing * {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.sftp-sort-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.sftp-sort-btn:hover,
+.sftp-sort-btn.is-active {
+  color: var(--text);
+}
+
+.sftp-list-empty {
+  padding: 1.25rem 0.85rem;
+  text-align: center;
 }
 
 .sftp-check {
@@ -1610,6 +1767,40 @@ body.is-resizing * {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pane-in {
+  from {
+    opacity: 0.55;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
   }
 }
 

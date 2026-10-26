@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { toastError } from "../lib/toast";
-import type { Profile, SessionTab } from "../types";
+import type { Profile, SessionStatus, SessionTab } from "../types";
 
 type Options = {
   profiles: Profile[];
   onOpenSftp?: () => void;
 };
 
+function hostLabelFor(profile: Profile) {
+  return `${profile.username}@${profile.host}:${profile.port}`;
+}
+
 export function useAppSessions({ profiles, onOpenSftp }: Options) {
   const [tabs, setTabs] = useState<SessionTab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  const setTabStatus = useCallback((id: string, status: SessionStatus) => {
+    setTabs((prev) =>
+      prev.map((t) => (t.id === id && t.status !== status ? { ...t, status } : t)),
+    );
+  }, []);
 
   const createLocalTab = useCallback(
     async (profile?: Profile) => {
@@ -20,6 +30,7 @@ export function useAppSessions({ profiles, onOpenSftp }: Options) {
           id: crypto.randomUUID(),
           title: profile?.name ?? "PowerShell",
           profileId: profile?.id,
+          hostLabel: profile ? hostLabelFor(profile) : undefined,
           ptyId: sessionId,
           status: profile ? "connecting" : "local",
         };
@@ -68,7 +79,13 @@ export function useAppSessions({ profiles, onOpenSftp }: Options) {
         setTabs((prev) =>
           prev.map((t) =>
             t.id === id
-              ? { ...t, ptyId: sessionId, status: "connecting", title: profile.name }
+              ? {
+                  ...t,
+                  ptyId: sessionId,
+                  status: "connecting",
+                  title: profile.name,
+                  hostLabel: hostLabelFor(profile),
+                }
               : t,
           ),
         );
@@ -131,6 +148,7 @@ export function useAppSessions({ profiles, onOpenSftp }: Options) {
     activeId,
     activeTab,
     setActiveId,
+    setTabStatus,
     createLocalTab,
     closeTab,
     killAllTabs,

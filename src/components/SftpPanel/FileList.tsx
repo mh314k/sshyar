@@ -1,7 +1,8 @@
-import { File, Folder } from "lucide-react";
+import { ArrowDown, ArrowUp, File, Folder } from "lucide-react";
 import type { RemoteEntry } from "../../types";
 import { iconStroke } from "../IconButton";
 import { formatSize } from "./format";
+import type { SortDir, SortKey } from "./sort";
 
 type Props = {
   entries: RemoteEntry[];
@@ -9,6 +10,9 @@ type Props = {
   allChecked: boolean;
   someChecked: boolean;
   busy: boolean;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (key: SortKey) => void;
   onToggleAll: () => void;
   onRowClick: (e: React.MouseEvent, entry: RemoteEntry) => void;
   onOpen: (entry: RemoteEntry) => void;
@@ -18,12 +22,39 @@ type Props = {
   onDrop: (e: React.DragEvent) => void;
 };
 
+function SortLabel({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={`sftp-sort-btn ${active ? "is-active" : ""}`} onClick={onClick}>
+      {label}
+      {active &&
+        (dir === "asc" ? (
+          <ArrowUp size={11} strokeWidth={iconStroke} />
+        ) : (
+          <ArrowDown size={11} strokeWidth={iconStroke} />
+        ))}
+    </button>
+  );
+}
+
 export function SftpFileList({
   entries,
   checked,
   allChecked,
   someChecked,
   busy,
+  sortKey,
+  sortDir,
+  onSort,
   onToggleAll,
   onRowClick,
   onOpen,
@@ -53,8 +84,22 @@ export function SftpFileList({
             />
           </label>
           <span className="sftp-icon" aria-hidden />
-          <span className="sftp-name">Name</span>
-          <span className="sftp-meta">Size</span>
+          <span className="sftp-name">
+            <SortLabel
+              label="Name"
+              active={sortKey === "name"}
+              dir={sortDir}
+              onClick={() => onSort("name")}
+            />
+          </span>
+          <span className="sftp-meta">
+            <SortLabel
+              label="Size"
+              active={sortKey === "size"}
+              dir={sortDir}
+              onClick={() => onSort("size")}
+            />
+          </span>
         </div>
       )}
       {entries.map((e) => {
@@ -89,7 +134,9 @@ export function SftpFileList({
           </div>
         );
       })}
-      {!entries.length && !busy && <p className="muted">Empty — drop files here to upload</p>}
+      {!entries.length && !busy && (
+        <p className="muted sftp-list-empty">Empty — drop files here to upload</p>
+      )}
     </div>
   );
 }

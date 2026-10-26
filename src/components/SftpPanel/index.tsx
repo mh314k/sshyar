@@ -14,6 +14,8 @@ import { buildSftpMenuItems } from "./buildMenuItems";
 import { SftpFileList } from "./FileList";
 import { buildFollowInject, CWD_OSC_RE } from "./followShell";
 import { joinRemote, parentPath } from "./format";
+import { SftpPathBar } from "./PathBar";
+import { nextSort, sortEntries, type SortDir, type SortKey } from "./sort";
 import { SftpToolbar } from "./Toolbar";
 import { TransferBar } from "./TransferBar";
 import {
@@ -44,6 +46,8 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
     null,
   );
   const [editor, setEditor] = useState<{ path: string; mode: FileEditorMode } | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const sftpIdRef = useRef<string | null>(null);
   const cwdRef = useRef("");
@@ -102,13 +106,19 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
     }
   }, []);
 
-  const selectedEntries = useMemo(
-    () => entries.filter((e) => checked.has(e.path)),
-    [entries, checked],
+  const sortedEntries = useMemo(
+    () => sortEntries(entries, sortKey, sortDir),
+    [entries, sortKey, sortDir],
   );
 
-  const allChecked = entries.length > 0 && selectedEntries.length === entries.length;
+  const selectedEntries = useMemo(
+    () => sortedEntries.filter((e) => checked.has(e.path)),
+    [sortedEntries, checked],
+  );
+
+  const allChecked = sortedEntries.length > 0 && selectedEntries.length === sortedEntries.length;
   const someChecked = selectedEntries.length > 0 && !allChecked;
+  const hasFileSelection = selectedEntries.some((e) => !e.isDir);
 
   const navigateFollow = useCallback(
     (path: string) => {
@@ -248,20 +258,26 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
 
   function toggleAll() {
     if (allChecked) setChecked(new Set());
-    else setChecked(new Set(entries.map((e) => e.path)));
+    else setChecked(new Set(sortedEntries.map((e) => e.path)));
+  }
+
+  function onSort(key: SortKey) {
+    const next = nextSort(sortKey, sortDir, key);
+    setSortKey(next.key);
+    setSortDir(next.dir);
   }
 
   function onRowClick(e: React.MouseEvent, entry: RemoteEntry) {
     if ((e.target as HTMLElement).closest("input[type=checkbox]")) return;
 
     if (e.shiftKey && lastClickedRef.current) {
-      const a = entries.findIndex((x) => x.path === lastClickedRef.current);
-      const b = entries.findIndex((x) => x.path === entry.path);
+      const a = sortedEntries.findIndex((x) => x.path === lastClickedRef.current);
+      const b = sortedEntries.findIndex((x) => x.path === entry.path);
       if (a >= 0 && b >= 0) {
         const [lo, hi] = a < b ? [a, b] : [b, a];
         setChecked((prev) => {
           const next = new Set(prev);
-          for (let i = lo; i <= hi; i++) next.add(entries[i].path);
+          for (let i = lo; i <= hi; i++) next.add(sortedEntries[i].path);
           return next;
         });
         return;
@@ -604,6 +620,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
             sftpId={sftpId}
             busy={busy}
             hasSelection={hasSelection}
+            hasFileSelection={hasFileSelection}
             single={single}
             clipboard={clipboard}
             onUp={() => void goUp()}
@@ -617,15 +634,20 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
             onCut={() => copyOrCut(selectedEntries, true)}
             onPaste={() => void paste()}
           />
-          <div className="sftp-path" title={cwd}>
-            {cwd || "…"}
-          </div>
+          <SftpPathBar
+            cwd={cwd}
+            disabled={!sftpId || busy}
+            onNavigate={(path) => sftpId && void refresh(sftpId, path)}
+          />
           <SftpFileList
-            entries={entries}
+            entries={sortedEntries}
             checked={checked}
             allChecked={allChecked}
             someChecked={someChecked}
             busy={busy}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={onSort}
             onToggleAll={toggleAll}
             onRowClick={onRowClick}
             onOpen={(e) => void openEntry(e)}

@@ -48,7 +48,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Click + to create a profile: name, host/IP, port, username, Password or Key auth.",
           "Pick a Remote shell (bash by default) if the server should not use its passwd default.",
-          "Select the profile → Connect (or right-click → Connect). The terminal opens and SFTP appears on the right.",
+          "Select the profile → Connect (or double-click / right-click → Connect). The terminal opens and SFTP appears on the right.",
           "Optional: set a master password (key icon) so the next launch asks you to unlock the vault.",
           "Open Help (?) anytime — use the search box at the top to jump to a topic.",
         ],
@@ -80,6 +80,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["create", "edit", "new", "form", "port", "username", "notes"],
         steps: [
           "Click + for a new profile, or right-click a profile → Edit (also available from Actions when selected).",
+          "Double-click a profile in the list to connect quickly (hint appears on hover).",
+          "Search filters by name, host, tag, or group; Clear search appears when nothing matches.",
           "Required: name, host, port (default 22), username, auth method.",
           "Password auth: store the password in the vault (optional leave blank to type at connect time depending on OpenSSH prompts).",
           "Key auth: set the private key path (e.g. C:\\Users\\…\\.ssh\\id_ed25519).",
@@ -168,6 +170,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Connect (or New PowerShell / empty-state button) opens a center tab.",
           "Tab bar + creates a local PowerShell; × closes the tab and kills that PTY.",
+          "Status dot: amber (connecting), green (connected), red (disconnected), grey (local). Hover the tab for status · user@host:port.",
           "Reconnect (rotate icon) kills the old PTY and starts a fresh SSH session for that profile.",
           "Multiple tabs can stay open; only one is focused for typing at a time.",
         ],
@@ -227,6 +230,9 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Listing shows the remote cwd; double-click a folder to enter it.",
           "↑ goes to the parent directory; Refresh reloads the listing.",
+          "Click a path segment in the breadcrumb bar to jump up the tree; use the copy icon to copy the full path.",
+          "Click Name or Size in the header to sort (folders stay first).",
+          "Toolbar groups: Navigate · Transfer · Edit — disabled actions stay visibly dimmed.",
           "Checkboxes support multi-select for bulk download, delete, copy, or cut.",
           "Right-click a row (or empty area) for context actions matching the toolbar.",
         ],

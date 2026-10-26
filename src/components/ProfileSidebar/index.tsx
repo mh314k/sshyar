@@ -343,12 +343,15 @@ export function ProfileSidebar({
       <ProfileList
         groups={groups}
         filteredEmpty={!filtered.length}
+        hasAnyProfiles={profiles.length > 0}
+        query={query}
         selectedId={selectedId}
         onSelect={(id) => {
           setSelectedId(id);
           if (!id) setPanel(null);
         }}
         onConnect={onConnect}
+        onClearSearch={() => setQuery("")}
         onContextMenu={(e, p) => {
           e.preventDefault();
           e.stopPropagation();

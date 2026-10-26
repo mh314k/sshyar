@@ -180,6 +180,12 @@ export default function App() {
                       ptyId={t.ptyId}
                       active={t.id === sessions.activeId}
                       theme={theme}
+                      onConnected={() => {
+                        if (t.profileId) sessions.setTabStatus(t.id, "connected");
+                      }}
+                      onDisconnected={() => {
+                        if (t.profileId) sessions.setTabStatus(t.id, "disconnected");
+                      }}
                     />
                   ),
               )}

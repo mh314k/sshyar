@@ -14,6 +14,9 @@ interface Props {
   ptyId: string;
   active: boolean;
   theme: ThemeMode;
+  /** Fired once when the first PTY output arrives (SSH session alive). */
+  onConnected?: () => void;
+  onDisconnected?: () => void;
 }
 
 function toPtyText(text: string) {
@@ -21,14 +24,24 @@ function toPtyText(text: string) {
   return text.replace(/\r\n/g, "\n").replace(/\n/g, "\r");
 }
 
-export function TerminalPane({ ptyId, active, theme }: Props) {
+export function TerminalPane({ ptyId, active, theme, onConnected, onDisconnected }: Props) {
   const paneRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const connectedOnceRef = useRef(false);
+  const onConnectedRef = useRef(onConnected);
+  const onDisconnectedRef = useRef(onDisconnected);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
+
+  useEffect(() => {
+    onConnectedRef.current = onConnected;
+  }, [onConnected]);
+  useEffect(() => {
+    onDisconnectedRef.current = onDisconnected;
+  }, [onDisconnected]);
 
   function focusTerminal() {
     try {
@@ -103,11 +116,17 @@ export function TerminalPane({ ptyId, active, theme }: Props) {
       });
     });
 
+    connectedOnceRef.current = false;
     const unlistenOut = listen<string>(`pty-output-${ptyId}`, (ev) => {
       term.write(ev.payload);
+      if (!connectedOnceRef.current) {
+        connectedOnceRef.current = true;
+        onConnectedRef.current?.();
+      }
     });
     const unlistenExit = listen<string>(`pty-exit-${ptyId}`, () => {
       term.writeln("\r\n\x1b[90m[session ended]\x1b[0m");
+      onDisconnectedRef.current?.();
     });
 
     const onData = term.onData((data) => {
