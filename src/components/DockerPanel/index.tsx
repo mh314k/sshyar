@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../lib/api";
 import { toastError } from "../../lib/toast";
 import type { DockerStatus } from "../../types";
-import { IconButton, iconProps, iconSizeSm } from "../IconButton";
+import { ContainersTab } from "./ContainersTab";
+import { ImagesTab } from "./ImagesTab";
+import { NetworksTab } from "./NetworksTab";
+import { StatusTab } from "./StatusTab";
+import { VolumesTab } from "./VolumesTab";
+
+type DockerTab = "status" | "containers" | "images" | "volumes" | "networks";
 
 interface Props {
   profileId: string | null;
   enabled: boolean;
 }
 
+const TABS: { id: DockerTab; label: string }[] = [
+  { id: "status", label: "Status" },
+  { id: "containers", label: "Containers" },
+  { id: "images", label: "Images" },
+  { id: "volumes", label: "Volumes" },
+  { id: "networks", label: "Networks" },
+];
+
 export function DockerPanel({ profileId, enabled }: Props) {
+  const [tab, setTab] = useState<DockerTab>("status");
   const [status, setStatus] = useState<DockerStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -24,12 +38,10 @@ export function DockerPanel({ profileId, enabled }: Props) {
     setBusy(true);
     setError("");
     try {
-      const result = await api.dockerProbe(profileId);
-      setStatus(result);
+      setStatus(await api.dockerProbe(profileId));
     } catch (e) {
       setStatus(null);
-      const msg = String(e);
-      setError(msg);
+      setError(String(e));
       toastError(e, "Docker");
     } finally {
       setBusy(false);
@@ -53,50 +65,51 @@ export function DockerPanel({ profileId, enabled }: Props) {
   if (!profileId) {
     return (
       <div className="docker-panel">
-        <p className="muted docker-empty">Connect a profile session to probe Docker on the server.</p>
+        <p className="muted docker-empty">
+          Connect a profile session to manage Docker on the server.
+        </p>
       </div>
     );
   }
 
+  const installed = status ? status.installed : null;
+
   return (
     <div className="docker-panel">
-      <div className="docker-toolbar">
-        <span className="docker-toolbar-label">Server status</span>
-        <IconButton
-          variant="icon"
-          title="Refresh"
-          disabled={busy}
-          onClick={() => void probe()}
-          icon={<RefreshIcon {...iconProps(iconSizeSm)} />}
-        />
+      <div className="docker-subtabs" role="tablist" aria-label="Docker sections">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`docker-subtab ${tab === t.id ? "is-active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {busy && !status ? <p className="muted docker-empty">Checking Docker…</p> : null}
-
-      {error ? <p className="error docker-empty">{error}</p> : null}
-
-      {status ? (
-        <div className="docker-status-card">
-          <div className="docker-status-row">
-            <span className="docker-status-key">Installed</span>
-            <span
-              className={`docker-status-badge ${status.installed ? "is-ok" : "is-missing"}`}
-            >
-              {status.installed ? "Yes" : "No"}
-            </span>
-          </div>
-          <div className="docker-status-row">
-            <span className="docker-status-key">Version</span>
-            <span className="docker-status-value">
-              {status.installed ? status.version || "—" : "—"}
-            </span>
-          </div>
-          {status.detail ? (
-            <p className="docker-status-detail muted" title={status.detail}>
-              {status.detail}
-            </p>
-          ) : null}
-        </div>
+      {tab === "status" ? (
+        <StatusTab
+          status={status}
+          busy={busy}
+          error={error}
+          onRefresh={() => void probe()}
+        />
+      ) : null}
+      {tab === "containers" ? (
+        <ContainersTab profileId={profileId} dockerInstalled={installed} />
+      ) : null}
+      {tab === "images" ? (
+        <ImagesTab profileId={profileId} dockerInstalled={installed} />
+      ) : null}
+      {tab === "volumes" ? (
+        <VolumesTab profileId={profileId} dockerInstalled={installed} />
+      ) : null}
+      {tab === "networks" ? (
+        <NetworksTab profileId={profileId} dockerInstalled={installed} />
       ) : null}
     </div>
   );

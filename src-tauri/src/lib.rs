@@ -67,6 +67,14 @@ pub fn run() {
             sftp_read_text,
             sftp_write_text,
             docker_probe,
+            docker_list_containers,
+            docker_container_action,
+            docker_list_images,
+            docker_image_remove,
+            docker_list_volumes,
+            docker_volume_remove,
+            docker_list_networks,
+            docker_network_remove,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -50,6 +50,14 @@ export const api = {
   sftpWriteText: sftpApi.writeText,
 
   dockerProbe: dockerApi.probe,
+  dockerListContainers: dockerApi.listContainers,
+  dockerContainerAction: dockerApi.containerAction,
+  dockerListImages: dockerApi.listImages,
+  dockerImageRemove: dockerApi.imageRemove,
+  dockerListVolumes: dockerApi.listVolumes,
+  dockerVolumeRemove: dockerApi.volumeRemove,
+  dockerListNetworks: dockerApi.listNetworks,
+  dockerNetworkRemove: dockerApi.networkRemove,
 };
 
 export { vaultApi, profilesApi, snippetsApi, ptyApi, keysApi, sftpApi, dockerApi };
