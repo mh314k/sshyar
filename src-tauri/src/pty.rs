@@ -43,15 +43,7 @@ impl PtyManager {
             })
             .map_err(|e| AppError::msg(format!("openpty failed: {e}")))?;
 
-        let shell = resolve_shell();
-        let mut cmd = CommandBuilder::new(&shell);
-        cmd.arg("-NoLogo");
-        cmd.arg("-NoExit");
-        // Run SSH as the shell startup command — more reliable than typing into PSReadLine.
-        if let Some(ref ssh_cmd) = initial_command {
-            cmd.arg("-Command");
-            cmd.arg(ssh_cmd);
-        }
+        let cmd = build_shell_command(initial_command.as_deref());
 
         let child = pair
             .slave
@@ -143,15 +135,110 @@ impl PtyManager {
     }
 }
 
+fn build_shell_command(initial_command: Option<&str>) -> CommandBuilder {
+    #[cfg(windows)]
+    {
+        let shell = resolve_shell();
+        let mut cmd = CommandBuilder::new(&shell);
+        cmd.arg("-NoLogo");
+        cmd.arg("-NoExit");
+        // Run SSH as the shell startup command — more reliable than typing into PSReadLine.
+        if let Some(ssh_cmd) = initial_command {
+            cmd.arg("-Command");
+            cmd.arg(ssh_cmd);
+        }
+        cmd
+    }
+
+    #[cfg(unix)]
+    {
+        let user_shell = resolve_shell();
+        if let Some(ssh_cmd) = initial_command {
+            // Prefer bash for -c parsing; fall back to the user shell.
+            let runner = which::which("bash")
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| user_shell.clone());
+            let mut cmd = CommandBuilder::new(&runner);
+            // Keep an interactive shell after SSH exits.
+            let wrapped = format!("{ssh_cmd}; exec {} -l", shell_login_name(&user_shell));
+            cmd.arg("-lc");
+            cmd.arg(wrapped);
+            cmd
+        } else {
+            let mut cmd = CommandBuilder::new(&user_shell);
+            if supports_login_flag(&user_shell) {
+                cmd.arg("-l");
+            }
+            cmd
+        }
+    }
+
+    #[cfg(not(any(windows, unix)))]
+    {
+        let _ = initial_command;
+        CommandBuilder::new("/bin/sh")
+    }
+}
+
 fn resolve_shell() -> String {
-    if let Ok(p) = which::which("pwsh") {
-        return p.to_string_lossy().to_string();
+    #[cfg(windows)]
+    {
+        if let Ok(p) = which::which("pwsh") {
+            return p.to_string_lossy().to_string();
+        }
+        if let Ok(p) = which::which("powershell") {
+            return p.to_string_lossy().to_string();
+        }
+        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe".into()
     }
-    if let Ok(p) = which::which("powershell") {
-        return p.to_string_lossy().to_string();
+
+    #[cfg(unix)]
+    {
+        use std::path::Path;
+        if let Ok(shell) = std::env::var("SHELL") {
+            let trimmed = shell.trim();
+            if !trimmed.is_empty() && Path::new(trimmed).exists() {
+                return trimmed.to_string();
+            }
+        }
+        for candidate in ["bash", "zsh", "fish", "sh"] {
+            if let Ok(p) = which::which(candidate) {
+                return p.to_string_lossy().to_string();
+            }
+        }
+        "/bin/sh".into()
     }
-    // Fallback typical Windows path
-    r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe".into()
+
+    #[cfg(not(any(windows, unix)))]
+    {
+        "/bin/sh".into()
+    }
+}
+
+#[cfg(unix)]
+fn shell_basename(shell: &str) -> &str {
+    use std::path::Path;
+    Path::new(shell)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(shell)
+}
+
+#[cfg(unix)]
+fn supports_login_flag(shell: &str) -> bool {
+    matches!(shell_basename(shell), "bash" | "zsh" | "fish" | "ksh")
+}
+
+#[cfg(unix)]
+fn shell_login_name(shell: &str) -> String {
+    let base = shell_basename(shell);
+    if supports_login_flag(shell) {
+        base.to_string()
+    } else if which::which("bash").is_ok() {
+        "bash".into()
+    } else {
+        "sh".into()
+    }
 }
 
 pub type SharedPty = Arc<PtyManager>;

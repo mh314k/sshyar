@@ -375,8 +375,17 @@ fn load_or_create_dpapi_key(dir: &Path) -> AppResult<[u8; 32]> {
 
 #[cfg(not(windows))]
 fn load_or_create_dpapi_key(dir: &Path) -> AppResult<[u8; 32]> {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    #[cfg(unix)]
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
     let path = dir.join("vault.key.raw");
     if path.exists() {
+        #[cfg(unix)]
+        {
+            let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+        }
         let bytes = fs::read(&path)?;
         if bytes.len() != 32 {
             return Err(AppError::msg("Invalid key file"));
@@ -387,6 +396,17 @@ fn load_or_create_dpapi_key(dir: &Path) -> AppResult<[u8; 32]> {
     }
     let mut key = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut key);
-    fs::write(&path, key)?;
+
+    let mut opts = OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        opts.mode(0o600);
+    }
+    let mut file = opts
+        .open(&path)
+        .map_err(|e| AppError::msg(format!("Create vault key: {e}")))?;
+    file.write_all(&key)
+        .map_err(|e| AppError::msg(format!("Write vault key: {e}")))?;
     Ok(key)
 }

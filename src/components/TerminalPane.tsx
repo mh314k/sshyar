@@ -19,9 +19,11 @@ interface Props {
   onDisconnected?: () => void;
 }
 
+const PTY_NL = navigator.userAgent.includes("Windows") ? "\r" : "\n";
+
 function toPtyText(text: string) {
-  // ConPTY / SSH expect CR as line ending for typed input.
-  return text.replace(/\r\n/g, "\n").replace(/\n/g, "\r");
+  // Windows ConPTY expects CR; Unix PTYs expect LF.
+  return text.replace(/\r\n/g, "\n").replace(/\n/g, PTY_NL);
 }
 
 export function TerminalPane({ ptyId, active, theme, onConnected, onDisconnected }: Props) {

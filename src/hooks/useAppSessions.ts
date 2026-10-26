@@ -28,7 +28,7 @@ export function useAppSessions({ profiles, onOpenSftp }: Options) {
         const { sessionId } = await api.ptyCreate(120, 30, profile?.id ?? null);
         const tab: SessionTab = {
           id: crypto.randomUUID(),
-          title: profile?.name ?? "PowerShell",
+          title: profile?.name ?? "Terminal",
           profileId: profile?.id,
           hostLabel: profile ? hostLabelFor(profile) : undefined,
           ptyId: sessionId,

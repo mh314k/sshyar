@@ -1,7 +1,7 @@
 [package]
 name = "sshyar"
 version = "0.2.0"
-description = "SSHyar - SSH helper with embedded PowerShell"
+description = "SSHyar - SSH helper with embedded terminal (Windows & Linux)"
 authors = ["SSHyar"]
 edition = "2021"
 license = "GPL-3.0-or-later"

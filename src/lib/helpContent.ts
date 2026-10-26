@@ -23,9 +23,9 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "what",
         title: "What is SSHyar?",
-        keywords: ["what", "ssh", "helper", "windows", "desktop"],
+        keywords: ["what", "ssh", "helper", "windows", "linux", "desktop"],
         steps: [
-          "SSHyar is a Windows desktop SSH helper: saved profiles in an encrypted vault, an embedded terminal (ConPTY + PowerShell wrapping OpenSSH), graphical SFTP, snippets, and optional master-password lock.",
+          "SSHyar is a desktop SSH helper for Windows and Linux: saved profiles in an encrypted vault, an embedded terminal (PowerShell on Windows, your login shell on Linux) wrapping OpenSSH, graphical SFTP, snippets, and optional master-password lock.",
           "It is designed for day-to-day server work — connect fast, browse files, edit configs, reuse commands — without leaving one window.",
         ],
       },
@@ -35,7 +35,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["layout", "sidebar", "terminal", "sftp", "panels", "resize"],
         steps: [
           "Left sidebar: brand, search, profile list by group, and toolbar icons (snippets, theme, vault, about, help, new profile).",
-          "Center: session tabs and the embedded terminal for local PowerShell or SSH.",
+          "Center: session tabs and the embedded terminal for a local shell or SSH.",
           "Right panel: SFTP browser for the active SSH-backed tab (opens when you Connect to a profile).",
           "Drag the vertical splitters between panes to resize sidebar and SFTP.",
           "Collapse the left sidebar with the panel icon when you need more terminal width.",
@@ -120,9 +120,9 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Search filters profiles by name, host, tag, or group.",
           "Click a row to select; click the same row again to deselect.",
           "Right-click a profile (or use Actions when selected): Connect, Open external, Copy SSH command, Edit, Duplicate, Generate key, Install key, Delete.",
-          "Connect — embedded ConPTY session in a new tab.",
-          "Open external — launches your system PowerShell with the same ssh command line.",
-          "Copy SSH — copies a ready-to-paste OpenSSH command (PowerShell-safe quoting).",
+          "Connect — embedded terminal session in a new tab.",
+          "Open external — launches your system terminal with the same ssh command line.",
+          "Copy SSH — copies a ready-to-paste OpenSSH command (quoted for your local shell).",
         ],
       },
       {
@@ -150,16 +150,17 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     id: "terminal",
     title: "Terminal",
-    summary: "Embedded ConPTY, local PowerShell or SSH, clipboard, tabs, and shortcuts.",
-    keywords: ["terminal", "shell", "powershell", "pty", "copy", "paste", "ctrl", "tab"],
+    summary: "Embedded PTY, local shell or SSH, clipboard, tabs, and shortcuts.",
+    keywords: ["terminal", "shell", "powershell", "bash", "pty", "copy", "paste", "ctrl", "tab"],
     blocks: [
       {
         id: "how-it-works",
         title: "How the embedded terminal works",
-        keywords: ["conpty", "powershell", "openssh", "embed"],
+        keywords: ["conpty", "powershell", "bash", "openssh", "embed", "linux"],
         steps: [
-          "SSHyar opens a ConPTY hosted PowerShell, then runs the OpenSSH client command for profile sessions.",
-          "Local tabs are plain PowerShell (-NoLogo -NoExit) without SSH.",
+          "On Windows, SSHyar opens PowerShell in a ConPTY, then runs the OpenSSH client for profile sessions.",
+          "On Linux, it opens your login shell ($SHELL, usually bash/zsh) in a PTY and runs the same OpenSSH client.",
+          "Local tabs are a plain interactive shell without SSH.",
           "Output streams into xterm.js; your keystrokes are written to the PTY.",
         ],
       },
@@ -168,8 +169,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "Sessions and tabs",
         keywords: ["tab", "session", "new", "reconnect", "close", "status"],
         steps: [
-          "Connect (or New PowerShell / empty-state button) opens a center tab.",
-          "Tab bar + creates a local PowerShell; × closes the tab and kills that PTY.",
+          "Connect (or New Terminal / empty-state button) opens a center tab.",
+          "Tab bar + creates a local terminal; × closes the tab and kills that PTY.",
           "Status dot: amber (connecting), green (connected), red (disconnected), grey (local). Hover the tab for status · user@host:port.",
           "Reconnect (rotate icon) kills the old PTY and starts a fresh SSH session for that profile.",
           "Multiple tabs can stay open; only one is focused for typing at a time.",
@@ -192,7 +193,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "Keyboard shortcuts",
         keywords: ["shortcut", "hotkey", "ctrl+t", "ctrl+w", "ctrl+tab"],
         steps: [
-          "Ctrl+T — new local PowerShell tab.",
+          "Ctrl+T — new local terminal tab.",
           "Ctrl+W — close the active tab.",
           "Ctrl+Tab / Ctrl+Shift+Tab — cycle forward / backward through tabs.",
         ],
@@ -200,10 +201,10 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "empty-state",
         title: "No sessions yet",
-        keywords: ["empty", "new powershell", "welcome"],
+        keywords: ["empty", "new terminal", "welcome"],
         steps: [
           "With no tabs open, the center pane shows a short empty state.",
-          "Use New PowerShell there, or Connect from a profile on the left.",
+          "Use New Terminal there, or Connect from a profile on the left.",
         ],
       },
     ],
@@ -295,7 +296,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Open Snippets from the zap icon.",
           "Add a display name and the exact command text to send.",
-          "Run injects into the active tab; if none exists, SSHyar can open a local PowerShell first then inject shortly after.",
+          "Run injects into the active tab; if none exists, SSHyar can open a local terminal first then inject shortly after.",
           "Snippets live in the same encrypted vault as profiles.",
           "Delete removes a snippet permanently from the vault.",
         ],
@@ -306,7 +307,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["tips", "newline", "multiline"],
         steps: [
           "Prefer one logical command per snippet; use && or ; for chains the remote shell understands.",
-          "Remember the active session’s shell (bash vs PowerShell local tab) when writing the snippet body.",
+          "Remember the active session’s shell (remote bash vs local PowerShell/bash) when writing the snippet body.",
         ],
       },
     ],

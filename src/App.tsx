@@ -166,9 +166,9 @@ export default function App() {
               {!sessions.tabs.length && (
                 <div className="empty-terminal">
                   <BrandLogo size={52} />
-                  <p>Pick a profile on the left, or open a local PowerShell session.</p>
+                  <p>Pick a profile on the left, or open a local terminal session.</p>
                   <button type="button" onClick={() => void sessions.createLocalTab()}>
-                    New PowerShell
+                    New Terminal
                   </button>
                 </div>
               )}

@@ -61,8 +61,8 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
       </div>
 
       <p className="muted about-copy">
-        A desktop SSH helper with embedded PowerShell (ConPTY), profile vault, SFTP browser,
-        snippets, and key management — built for fast day-to-day server work on Windows.
+        A desktop SSH helper with an embedded terminal, profile vault, SFTP browser,
+        snippets, and key management — for Windows and Linux.
         Free software under the GNU General Public License v3 or later.
       </p>
 

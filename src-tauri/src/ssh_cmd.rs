@@ -36,7 +36,7 @@ pub fn build_ssh_args(profile: &Profile) -> Vec<String> {
     if let Some(remote) = remote_cmd {
         args.push("-t".into());
         args.push(target);
-        // Avoid $SHELL: PowerShell expands $vars before ssh sees them.
+        // Avoid $SHELL: local shells may expand $vars before ssh sees them.
         args.push(remote);
     } else {
         args.push(target);
@@ -77,12 +77,28 @@ pub fn build_ssh_command_line(profile: &Profile) -> String {
     let args = build_ssh_args(profile);
     let mut parts = vec!["ssh".to_string()];
     for a in args {
-        parts.push(powershell_quote(&a));
+        parts.push(shell_quote(&a));
     }
     parts.join(" ")
 }
 
+fn shell_quote(s: &str) -> String {
+    #[cfg(windows)]
+    {
+        powershell_quote(s)
+    }
+    #[cfg(unix)]
+    {
+        posix_quote(s)
+    }
+    #[cfg(not(any(windows, unix)))]
+    {
+        posix_quote(s)
+    }
+}
+
 /// Quote for PowerShell so `$VAR` is never expanded (use single quotes).
+#[cfg(windows)]
 fn powershell_quote(s: &str) -> String {
     if s.is_empty() {
         return "''".into();
@@ -96,7 +112,22 @@ fn powershell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
 
-/// Command to type into an already-open PowerShell session.
+/// POSIX single-quote escaping for bash/zsh/`sh -c`.
+#[cfg(any(unix, not(any(windows, unix))))]
+fn posix_quote(s: &str) -> String {
+    if s.is_empty() {
+        return "''".into();
+    }
+    if s.chars()
+        .all(|c| c.is_ascii_alphanumeric() || "-_./:@=".contains(c))
+    {
+        return s.to_string();
+    }
+    // Wrap in single quotes; close/reopen around embedded quotes: 'foo'\''bar'
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+/// Command used when spawning an embedded session (passed to the local shell).
 pub fn embed_connect_command(profile: &Profile) -> String {
     build_ssh_command_line(profile)
 }
@@ -107,7 +138,7 @@ mod tests {
     use crate::profiles::Profile;
 
     #[test]
-    fn post_connect_avoids_shell_var_and_uses_ps_quotes() {
+    fn post_connect_avoids_shell_var_and_quotes() {
         let mut p = Profile::new("t".into(), "1.2.3.4".into(), "u".into());
         p.post_connect_command = "ls -la".into();
         p.remote_shell = "bash".into();
