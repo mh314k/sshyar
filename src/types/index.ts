@@ -4,6 +4,12 @@ export type { RemoteEntry, UploadItem, TransferProgressEvent } from "./sftp";
 export type { SessionStatus, SessionTab } from "./session";
 export type {
   DockerStatus,
+  DockerDfRow,
+  DockerDfResult,
+  DockerPruneImageItem,
+  DockerPruneVolumeItem,
+  DockerPrunePreview,
+  DockerPruneResult,
   DockerContainer,
   DockerImage,
   DockerVolume,

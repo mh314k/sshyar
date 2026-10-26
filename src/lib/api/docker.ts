@@ -4,14 +4,36 @@ import type {
   DockerComposeResult,
   DockerContainer,
   DockerContainerAction,
+  DockerDfResult,
   DockerImage,
   DockerNetwork,
+  DockerPrunePreview,
+  DockerPruneResult,
   DockerStatus,
   DockerVolume,
 } from "../../types";
 
 export const dockerApi = {
   probe: (profileId: string) => invoke<DockerStatus>("docker_probe", { profileId }),
+  systemDf: (profileId: string) => invoke<DockerDfResult>("docker_system_df", { profileId }),
+  prunePreview: (profileId: string, unusedImages: boolean, unusedVolumes: boolean) =>
+    invoke<DockerPrunePreview>("docker_prune_preview", {
+      profileId,
+      unusedImages,
+      unusedVolumes,
+    }),
+  prune: (
+    profileId: string,
+    unusedImages: boolean,
+    unusedVolumes: boolean,
+    jobId?: string | null,
+  ) =>
+    invoke<DockerPruneResult>("docker_prune", {
+      profileId,
+      unusedImages,
+      unusedVolumes,
+      jobId: jobId ?? null,
+    }),
   listContainers: (profileId: string) =>
     invoke<DockerContainer[]>("docker_list_containers", { profileId }),
   containerAction: (profileId: string, id: string, action: DockerContainerAction) =>

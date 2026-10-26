@@ -571,6 +571,341 @@ pub async fn docker_compose_run(
     })
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerDfRow {
+    pub type_name: String,
+    pub total_count: String,
+    pub active: String,
+    pub size: String,
+    pub reclaimable: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerDfResult {
+    pub rows: Vec<DockerDfRow>,
+    pub raw: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DfJsonLine {
+    #[serde(rename = "Type", default)]
+    type_name: String,
+    #[serde(rename = "TotalCount", default)]
+    total_count: serde_json::Value,
+    #[serde(rename = "Active", default)]
+    active: serde_json::Value,
+    #[serde(rename = "Size", default)]
+    size: serde_json::Value,
+    #[serde(rename = "Reclaimable", default)]
+    reclaimable: serde_json::Value,
+}
+
+fn json_val_str(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Remote `docker system df` — disk usage / reclaimable space.
+#[tauri::command]
+pub async fn docker_system_df(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<DockerDfResult> {
+    let profile = load_docker_profile(&state, &profile_id)?;
+    let json_result = docker_cli(&state, &profile, "system df --format '{{json .}}'").await?;
+    let raw_fallback = docker_cli(&state, &profile, "system df").await?;
+    let raw = {
+        let t = combined_output(&raw_fallback);
+        if t.trim().is_empty() {
+            combined_output(&json_result)
+        } else {
+            t
+        }
+    };
+
+    if json_result.exit_code != 0 && raw_fallback.exit_code != 0 {
+        return Err(AppError::msg(if raw.is_empty() {
+            format!("docker system df failed (exit {})", json_result.exit_code)
+        } else {
+            raw
+        }));
+    }
+
+    let mut rows = Vec::new();
+    if json_result.exit_code == 0 {
+        for line in json_result.stdout.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            if let Ok(parsed) = serde_json::from_str::<DfJsonLine>(line) {
+                if parsed.type_name.is_empty() {
+                    continue;
+                }
+                rows.push(DockerDfRow {
+                    type_name: parsed.type_name,
+                    total_count: json_val_str(&parsed.total_count),
+                    active: json_val_str(&parsed.active),
+                    size: json_val_str(&parsed.size),
+                    reclaimable: json_val_str(&parsed.reclaimable),
+                });
+            }
+        }
+    }
+
+    Ok(DockerDfResult { rows, raw })
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerPruneImageItem {
+    pub id: String,
+    pub reference: String,
+    pub size: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerPruneVolumeItem {
+    pub name: String,
+    pub driver: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerPrunePreview {
+    pub images: Vec<DockerPruneImageItem>,
+    pub volumes: Vec<DockerPruneVolumeItem>,
+}
+
+fn normalize_image_id(id: &str) -> String {
+    id.trim()
+        .trim_start_matches("sha256:")
+        .to_ascii_lowercase()
+}
+
+fn short_image_id(id: &str) -> String {
+    let n = normalize_image_id(id);
+    n.chars().take(12).collect()
+}
+
+fn image_reference(repository: &str, tag: &str) -> String {
+    let repo = repository.trim();
+    let tag = tag.trim();
+    if repo.is_empty() || repo == "<none>" {
+        if tag.is_empty() || tag == "<none>" {
+            "<none>:<none>".into()
+        } else {
+            format!("<none>:{tag}")
+        }
+    } else if tag.is_empty() || tag == "<none>" {
+        format!("{repo}:<none>")
+    } else {
+        format!("{repo}:{tag}")
+    }
+}
+
+fn collect_used_image_keys(ps_stdout: &str) -> std::collections::HashSet<String> {
+    let mut used = std::collections::HashSet::new();
+    for line in ps_stdout.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(row) = serde_json::from_str::<PsRow>(line) {
+            let img = row.image.trim();
+            if img.is_empty() {
+                continue;
+            }
+            used.insert(img.to_string());
+            let norm = normalize_image_id(img);
+            if !norm.is_empty() {
+                used.insert(norm.clone());
+                if norm.len() >= 12 {
+                    used.insert(norm.chars().take(12).collect());
+                }
+            }
+        }
+    }
+    used
+}
+
+fn image_is_used(row: &ImageRow, used: &std::collections::HashSet<String>) -> bool {
+    let id_norm = normalize_image_id(&row.id);
+    let id_short = short_image_id(&row.id);
+    let reference = image_reference(&row.repository, &row.tag);
+    let repo = row.repository.trim();
+
+    if !id_norm.is_empty() && (used.contains(&id_norm) || used.contains(&id_short)) {
+        return true;
+    }
+    if used.contains(&row.id) || used.contains(&reference) {
+        return true;
+    }
+    // Containers often reference repo without tag (implies :latest) or repo:tag.
+    if !repo.is_empty() && repo != "<none>" {
+        if used.contains(repo) {
+            return true;
+        }
+        if row.tag == "latest" && used.contains(&format!("{repo}:latest")) {
+            return true;
+        }
+    }
+    // Prefix match: container Image may be a truncated id.
+    used.iter().any(|u| {
+        let un = normalize_image_id(u);
+        (!un.is_empty() && !id_norm.is_empty() && (id_norm.starts_with(&un) || un.starts_with(&id_norm)))
+            || u == &reference
+    })
+}
+
+/// Preview what selective prune would delete (unused images / dangling volumes).
+#[tauri::command]
+pub async fn docker_prune_preview(
+    state: State<'_, AppState>,
+    profile_id: String,
+    unused_images: bool,
+    unused_volumes: bool,
+) -> AppResult<DockerPrunePreview> {
+    let profile = load_docker_profile(&state, &profile_id)?;
+    if !unused_images && !unused_volumes {
+        return Err(AppError::msg("select at least one prune target"));
+    }
+
+    let mut images = Vec::new();
+    let mut volumes = Vec::new();
+
+    if unused_images {
+        let imgs = docker_cli(&state, &profile, "images --no-trunc --format '{{json .}}'").await?;
+        ensure_ok(&imgs, "docker images")?;
+        let ps = docker_cli(&state, &profile, "ps -a --no-trunc --format '{{json .}}'").await?;
+        ensure_ok(&ps, "docker ps")?;
+        let used = collect_used_image_keys(&ps.stdout);
+
+        for line in imgs.stdout.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let row: ImageRow = serde_json::from_str(line)
+                .map_err(|e| AppError::msg(format!("parse docker images: {e}")))?;
+            if image_is_used(&row, &used) {
+                continue;
+            }
+            images.push(DockerPruneImageItem {
+                id: short_image_id(&row.id),
+                reference: image_reference(&row.repository, &row.tag),
+                size: row.size,
+            });
+        }
+        images.sort_by(|a, b| a.reference.cmp(&b.reference));
+    }
+
+    if unused_volumes {
+        let vols = docker_cli(
+            &state,
+            &profile,
+            "volume ls -f dangling=true --format '{{json .}}'",
+        )
+        .await?;
+        ensure_ok(&vols, "docker volume ls")?;
+        for line in vols.stdout.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let row: VolumeRow = serde_json::from_str(line)
+                .map_err(|e| AppError::msg(format!("parse docker volume ls: {e}")))?;
+            if row.name.is_empty() {
+                continue;
+            }
+            volumes.push(DockerPruneVolumeItem {
+                name: row.name,
+                driver: row.driver,
+            });
+        }
+        volumes.sort_by(|a, b| a.name.cmp(&b.name));
+    }
+
+    Ok(DockerPrunePreview { images, volumes })
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerPruneResult {
+    pub ok: bool,
+    pub output: String,
+}
+
+/// Selective safe prune: unused images and/or unused volumes only (never system prune -a --volumes).
+#[tauri::command]
+pub async fn docker_prune(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    profile_id: String,
+    unused_images: bool,
+    unused_volumes: bool,
+    job_id: Option<String>,
+) -> AppResult<DockerPruneResult> {
+    let profile = load_docker_profile(&state, &profile_id)?;
+    if !unused_images && !unused_volumes {
+        return Err(AppError::msg("select at least one prune target"));
+    }
+
+    let mut cmds: Vec<&str> = Vec::new();
+    if unused_images {
+        // All images not used by at least one container (not dangling-only).
+        cmds.push("docker image prune -a -f");
+    }
+    if unused_volumes {
+        // Volumes not referenced by any container.
+        cmds.push("docker volume prune -f");
+    }
+    let cmd = cmds.join(" && ");
+
+    let result = if let Some(ref job_id) = job_id {
+        state
+            .docker_sessions
+            .exec_streaming(&app, job_id, &profile, &cmd)
+            .await?
+    } else {
+        state.docker_sessions.exec(&profile, &cmd).await?
+    };
+
+    let mut output = String::new();
+    if !result.stdout.is_empty() {
+        output.push_str(&result.stdout);
+    }
+    if !result.stderr.is_empty() {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(&result.stderr);
+    }
+    if result.exit_code != 0 {
+        return Err(AppError::msg(if output.is_empty() {
+            format!("docker prune failed (exit {})", result.exit_code)
+        } else {
+            output
+        }));
+    }
+    Ok(DockerPruneResult {
+        ok: true,
+        output: if output.is_empty() {
+            "prune completed".into()
+        } else {
+            output
+        },
+    })
+}
+
 /// Start live `docker logs -f` streaming; returns stream id. Emits `docker-logs` events.
 #[tauri::command]
 pub async fn docker_logs_start(

@@ -4,6 +4,40 @@ export interface DockerStatus {
   detail: string;
 }
 
+export interface DockerDfRow {
+  typeName: string;
+  totalCount: string;
+  active: string;
+  size: string;
+  reclaimable: string;
+}
+
+export interface DockerDfResult {
+  rows: DockerDfRow[];
+  raw: string;
+}
+
+export interface DockerPruneImageItem {
+  id: string;
+  reference: string;
+  size: string;
+}
+
+export interface DockerPruneVolumeItem {
+  name: string;
+  driver: string;
+}
+
+export interface DockerPrunePreview {
+  images: DockerPruneImageItem[];
+  volumes: DockerPruneVolumeItem[];
+}
+
+export interface DockerPruneResult {
+  ok: boolean;
+  output: string;
+}
+
 export interface DockerContainer {
   id: string;
   name: string;

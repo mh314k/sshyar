@@ -1400,6 +1400,110 @@ body.is-resizing * {
   word-break: break-word;
 }
 
+.docker-df-card {
+  gap: 0.65rem;
+}
+
+.docker-df-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.docker-df-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+
+.docker-df-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.docker-df-table th,
+.docker-df-table td {
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+
+.docker-df-table th {
+  color: var(--muted);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.docker-df-table tr:last-child td {
+  border-bottom: none;
+}
+
+.docker-df-raw {
+  margin: 0;
+  padding: 0.45rem 0.5rem;
+  max-height: 9rem;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.docker-prune {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.docker-prune-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.docker-prune-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.docker-prune-check input {
+  width: auto;
+  margin: 0;
+}
+
+.docker-prune-cmd {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.docker-prune-actions {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 0.15rem;
+}
+
+.docker-prune-out {
+  max-height: 11rem;
+}
+
 .docker-groups {
   display: flex;
   flex-direction: column;
@@ -2820,6 +2924,19 @@ body.is-resizing * {
   gap: 0.55rem;
 }
 
+.app-modal:has(.app-modal-message.is-pre) {
+  width: min(520px, 94vw);
+  max-height: min(85vh, 640px);
+}
+
+.app-modal:has(.app-modal-message.is-pre) .app-modal-message.is-pre {
+  max-height: min(42vh, 320px);
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 .app-modal-title {
   margin: 0;
   font-size: 1.05rem;
@@ -2830,6 +2947,11 @@ body.is-resizing * {
 .app-modal-message {
   margin: 0;
   line-height: 1.45;
+}
+
+.app-modal-message.is-pre {
+  white-space: pre-wrap;
+  font-size: 0.82rem;
 }
 
 .app-modal-form {

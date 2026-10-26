@@ -102,6 +102,7 @@ export function DockerPanel({ profileId, enabled }: Props) {
 
       {tab === "status" ? (
         <StatusTab
+          profileId={profileId}
           status={status}
           busy={busy}
           error={error}

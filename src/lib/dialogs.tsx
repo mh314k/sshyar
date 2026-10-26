@@ -35,17 +35,32 @@ type ConfirmReq = {
   message?: string;
   confirmLabel?: string;
   danger?: boolean;
+  /** When set, user must type this exact phrase to enable confirm (strong confirm). */
+  confirmText?: string;
+  confirmTextPlaceholder?: string;
   resolve: (ok: boolean) => void;
 };
 
 type Req = PromptReq | PasswordPromptReq | ConfirmReq;
 
-let queue: Req[] = [];
-let notify: (() => void) | null = null;
+/** Survive Vite HMR so push() and DialogHost share one queue (avoids hung confirms). */
+type DialogGlobals = {
+  queue: Req[];
+  notify: (() => void) | null;
+};
+
+function dialogGlobals(): DialogGlobals {
+  const w = window as Window & { __sshyarDialogs?: DialogGlobals };
+  if (!w.__sshyarDialogs) {
+    w.__sshyarDialogs = { queue: [], notify: null };
+  }
+  return w.__sshyarDialogs;
+}
 
 function push(req: Req) {
-  queue = [...queue, req];
-  notify?.();
+  const g = dialogGlobals();
+  g.queue = [...g.queue, req];
+  g.notify?.();
 }
 
 export function appPrompt(options: {
@@ -79,6 +94,9 @@ export function appConfirm(options: {
   message?: string;
   confirmLabel?: string;
   danger?: boolean;
+  /** Exact phrase the user must type (e.g. PRUNE) before confirm is enabled. */
+  confirmText?: string;
+  confirmTextPlaceholder?: string;
 }): Promise<boolean> {
   return new Promise((resolve) => {
     push({ kind: "confirm", ...options, resolve });
@@ -86,8 +104,9 @@ export function appConfirm(options: {
 }
 
 function advance(setCurrent: (r: Req | null) => void) {
-  const [next, ...rest] = queue;
-  queue = rest;
+  const g = dialogGlobals();
+  const [next, ...rest] = g.queue;
+  g.queue = rest;
   setCurrent(next ?? null);
 }
 
@@ -98,17 +117,21 @@ export function DialogHost() {
   const [currentPassword, setCurrentPassword] = useState("");
 
   useEffect(() => {
-    notify = () => {
+    const g = dialogGlobals();
+    g.notify = () => {
       setCurrent((cur) => {
         if (cur) return cur;
-        const [next, ...rest] = queue;
-        queue = rest;
+        const gg = dialogGlobals();
+        const [next, ...rest] = gg.queue;
+        gg.queue = rest;
         return next ?? null;
       });
     };
-    notify();
+    g.notify();
     return () => {
-      notify = null;
+      if (dialogGlobals().notify === g.notify) {
+        dialogGlobals().notify = null;
+      }
     };
   }, []);
 
@@ -117,6 +140,11 @@ export function DialogHost() {
     setConfirmValue("");
     setCurrentPassword("");
   }, [current]);
+
+  const confirmPhrase =
+    current?.kind === "confirm" && current.confirmText ? current.confirmText : null;
+  const phraseOk = !confirmPhrase || confirmValue.trim() === confirmPhrase;
+  const canSubmitConfirm = current?.kind === "confirm" && phraseOk;
 
   function finishPrompt(result: string | null) {
     if (!current || current.kind !== "prompt") return;
@@ -180,7 +208,15 @@ export function DialogHost() {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <h2 className="app-modal-title">{current.title}</h2>
-        {current.message ? <p className="muted app-modal-message">{current.message}</p> : null}
+        {current.message ? (
+          <p
+            className={`muted app-modal-message${
+              current.kind === "confirm" && current.confirmText ? " is-pre" : ""
+            }`}
+          >
+            {current.message}
+          </p>
+        ) : null}
 
         {current.kind === "prompt" ? (
           <form
@@ -257,19 +293,42 @@ export function DialogHost() {
             </div>
           </form>
         ) : (
-          <div className="app-modal-actions">
-            <button type="button" className="ghost" onClick={() => finishConfirm(false)}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={current.danger ? "danger" : undefined}
-              onClick={() => finishConfirm(true)}
-              autoFocus
-            >
-              {current.confirmLabel ?? "OK"}
-            </button>
-          </div>
+          <form
+            className="app-modal-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!canSubmitConfirm) return;
+              finishConfirm(true);
+            }}
+          >
+            {confirmPhrase ? (
+              <input
+                autoFocus
+                type="text"
+                value={confirmValue}
+                placeholder={
+                  current.confirmTextPlaceholder ?? `Type ${confirmPhrase} to confirm`
+                }
+                onChange={(e) => setConfirmValue(e.target.value)}
+                spellCheck={false}
+                autoComplete="off"
+                aria-label={`Type ${confirmPhrase} to confirm`}
+              />
+            ) : null}
+            <div className="app-modal-actions">
+              <button type="button" className="ghost" onClick={() => finishConfirm(false)}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className={current.danger ? "danger" : undefined}
+                disabled={!canSubmitConfirm}
+                autoFocus={!confirmPhrase}
+              >
+                {current.confirmLabel ?? "OK"}
+              </button>
+            </div>
+          </form>
         )}
       </div>
     </div>,
