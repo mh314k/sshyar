@@ -59,6 +59,8 @@ export const api = {
   dockerListNetworks: dockerApi.listNetworks,
   dockerNetworkRemove: dockerApi.networkRemove,
   dockerComposeRun: dockerApi.composeRun,
+  dockerLogsStart: dockerApi.logsStart,
+  dockerLogsStop: dockerApi.logsStop,
 };
 
 export { vaultApi, profilesApi, snippetsApi, ptyApi, keysApi, sftpApi, dockerApi };

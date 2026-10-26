@@ -11,5 +11,7 @@ export type {
   DockerContainerAction,
   DockerComposeAction,
   DockerComposeResult,
+  DockerLogEvent,
+  DockerLogEventKind,
 } from "./docker";
 export { DOCKER_STANDALONE_GROUP, COMPOSE_FILE_CANDIDATES } from "./docker";

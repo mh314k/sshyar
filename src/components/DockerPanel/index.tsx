@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { toastError } from "../../lib/toast";
 import type { DockerStatus } from "../../types";
+import { DockerLogsModal } from "../DockerLogsModal";
 import { ContainersTab } from "./ContainersTab";
 import { ImagesTab } from "./ImagesTab";
 import { NetworksTab } from "./NetworksTab";
@@ -28,6 +29,9 @@ export function DockerPanel({ profileId, enabled }: Props) {
   const [status, setStatus] = useState<DockerStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [logsTarget, setLogsTarget] = useState<{ id: string; name: string } | null>(
+    null,
+  );
 
   const probe = useCallback(async () => {
     if (!profileId || !enabled) {
@@ -100,7 +104,11 @@ export function DockerPanel({ profileId, enabled }: Props) {
         />
       ) : null}
       {tab === "containers" ? (
-        <ContainersTab profileId={profileId} dockerInstalled={installed} />
+        <ContainersTab
+          profileId={profileId}
+          dockerInstalled={installed}
+          onOpenLogs={(c) => setLogsTarget({ id: c.id, name: c.name })}
+        />
       ) : null}
       {tab === "images" ? (
         <ImagesTab profileId={profileId} dockerInstalled={installed} />
@@ -110,6 +118,15 @@ export function DockerPanel({ profileId, enabled }: Props) {
       ) : null}
       {tab === "networks" ? (
         <NetworksTab profileId={profileId} dockerInstalled={installed} />
+      ) : null}
+
+      {logsTarget ? (
+        <DockerLogsModal
+          profileId={profileId}
+          containerId={logsTarget.id}
+          containerName={logsTarget.name}
+          onClose={() => setLogsTarget(null)}
+        />
       ) : null}
     </div>
   );

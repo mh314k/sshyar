@@ -38,4 +38,11 @@ export const dockerApi = {
       fileName,
       action,
     }),
+  logsStart: (profileId: string, containerId: string, tail?: number) =>
+    invoke<string>("docker_logs_start", {
+      profileId,
+      containerId,
+      tail: tail ?? null,
+    }),
+  logsStop: (streamId: string) => invoke<void>("docker_logs_stop", { streamId }),
 };

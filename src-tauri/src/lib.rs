@@ -1,4 +1,5 @@
 mod commands;
+mod docker_logs;
 mod error;
 mod host_key;
 mod keys;
@@ -76,6 +77,8 @@ pub fn run() {
             docker_list_networks,
             docker_network_remove,
             docker_compose_run,
+            docker_logs_start,
+            docker_logs_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

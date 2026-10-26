@@ -6,6 +6,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SubjectIcon from "@mui/icons-material/Subject";
 import { api } from "../../lib/api";
 import { appConfirm } from "../../lib/dialogs";
 import { toastError } from "../../lib/toast";
@@ -20,6 +21,7 @@ import { IconButton, iconProps, iconSizeSm } from "../IconButton";
 interface Props {
   profileId: string;
   dockerInstalled: boolean | null;
+  onOpenLogs?: (container: DockerContainer) => void;
 }
 
 function isRunning(state: string, status: string) {
@@ -32,7 +34,7 @@ function groupLabel(key: string) {
   return key === DOCKER_STANDALONE_GROUP ? "Standalone" : key;
 }
 
-export function ContainersTab({ profileId, dockerInstalled }: Props) {
+export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props) {
   const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerContainer[]>([]);
   const [busy, setBusy] = useState(false);
@@ -202,6 +204,13 @@ export function ContainersTab({ profileId, dockerInstalled }: Props) {
                           </div>
                         </div>
                         <div className="docker-row-actions">
+                          <IconButton
+                            variant="icon"
+                            title="Logs"
+                            disabled={rowBusy}
+                            onClick={() => onOpenLogs?.(c)}
+                            icon={<SubjectIcon {...iconProps(iconSizeSm)} />}
+                          />
                           <IconButton
                             variant="icon"
                             title="Start"

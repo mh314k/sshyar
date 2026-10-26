@@ -1,6 +1,9 @@
-use serde::{Deserialize, Serialize};
-use tauri::State;
+use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, State};
+
+use crate::docker_logs;
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
 use crate::ssh_session::{self, ExecResult};
@@ -549,4 +552,32 @@ pub async fn docker_compose_run(
             output
         },
     })
+}
+
+/// Start live `docker logs -f` streaming; returns stream id. Emits `docker-logs` events.
+#[tauri::command]
+pub async fn docker_logs_start(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    profile_id: String,
+    container_id: String,
+    tail: Option<u32>,
+) -> AppResult<String> {
+    let profile = load_docker_profile(&state, &profile_id)?;
+    // Stop any previous streams so only one live viewer runs.
+    state.docker_logs.stop_all().await;
+    docker_logs::start_stream(
+        app,
+        Arc::clone(&state.docker_logs),
+        profile,
+        container_id,
+        tail.unwrap_or(200),
+    )
+    .await
+}
+
+/// Stop a live log stream by id.
+#[tauri::command]
+pub async fn docker_logs_stop(state: State<'_, AppState>, stream_id: String) -> AppResult<()> {
+    state.docker_logs.stop(&stream_id).await
 }

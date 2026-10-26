@@ -47,6 +47,14 @@ export interface DockerComposeResult {
   output: string;
 }
 
+export type DockerLogEventKind = "data" | "ended" | "error";
+
+export interface DockerLogEvent {
+  streamId: string;
+  kind: DockerLogEventKind;
+  text: string;
+}
+
 export const DOCKER_STANDALONE_GROUP = "__standalone__";
 
 /** Preferred compose filenames (first match wins). */

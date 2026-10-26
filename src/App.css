@@ -2362,6 +2362,62 @@ body.is-resizing * {
   backdrop-filter: blur(5px);
 }
 
+.docker-logs-modal {
+  width: min(920px, 96vw);
+  height: min(860px, 92vh);
+}
+
+.docker-logs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+
+.docker-logs-tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  margin-inline-end: 0.25rem;
+}
+
+.docker-logs-tail select {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.docker-logs-error {
+  margin: 0;
+  padding: 0.45rem 1rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+
+.docker-logs-body {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: color-mix(in srgb, var(--bg) 70%, #000 8%);
+  color: var(--text);
+}
+
 .help-modal {
   width: min(720px, 94vw);
   height: min(820px, 90vh);
