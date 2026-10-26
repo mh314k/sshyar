@@ -128,8 +128,8 @@ export function DockerPanel({ profileId, enabled }: Props) {
       {logsTarget ? (
         <DockerLogsModal
           profileId={profileId}
-          containerId={logsTarget.id}
-          containerName={logsTarget.name}
+          source={{ kind: "container", containerId: logsTarget.id }}
+          subtitle={logsTarget.name}
           onClose={() => setLogsTarget(null)}
         />
       ) : null}

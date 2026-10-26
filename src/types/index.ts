@@ -11,6 +11,7 @@ export type {
   DockerContainerAction,
   DockerComposeAction,
   DockerComposeResult,
+  DockerLogsSource,
   DockerLogEvent,
   DockerLogEventKind,
 } from "./docker";

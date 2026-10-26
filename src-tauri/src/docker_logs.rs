@@ -96,6 +96,18 @@ pub async fn start_stream(
 ) -> AppResult<String> {
     let tail = tail.clamp(1, 5000);
     let qid = shell_quote_id(&container_id)?;
+    let cmd = format!("docker logs -f --tail {tail} {qid} 2>&1");
+    start_stream_cmd(app, manager, sessions, profile, cmd).await
+}
+
+/// Start a live log stream from an arbitrary remote command (must follow until killed).
+pub async fn start_stream_cmd(
+    app: AppHandle,
+    manager: SharedDockerLogs,
+    sessions: SharedDockerSessions,
+    profile: Profile,
+    cmd: String,
+) -> AppResult<String> {
     let stream_id = Uuid::new_v4().to_string();
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
     let cancel_slot: SharedCancel = Arc::new(Mutex::new(Some(cancel_tx)));
@@ -111,7 +123,7 @@ pub async fn start_stream(
     let mgr = Arc::clone(&manager);
 
     tauri::async_runtime::spawn(async move {
-        let result = run_logs_loop(&app, &sid, &sessions, &profile, &qid, tail, cancel_rx).await;
+        let result = run_logs_loop(&app, &sid, &sessions, &profile, &cmd, cancel_rx).await;
 
         {
             let mut map = mgr.streams.lock().await;
@@ -133,12 +145,10 @@ async fn run_logs_loop(
     stream_id: &str,
     sessions: &SharedDockerSessions,
     profile: &Profile,
-    qid: &str,
-    tail: u32,
+    cmd: &str,
     mut cancel_rx: oneshot::Receiver<()>,
 ) -> AppResult<()> {
-    let cmd = format!("docker logs -f --tail {tail} {qid} 2>&1");
-    let mut channel = sessions.open_exec_channel(profile, &cmd).await?;
+    let mut channel = sessions.open_exec_channel(profile, cmd).await?;
 
     loop {
         tokio::select! {
@@ -164,7 +174,7 @@ async fn run_logs_loop(
                     Some(ChannelMsg::ExitStatus { exit_status }) => {
                         if exit_status != 0 {
                             return Err(AppError::msg(format!(
-                                "docker logs exited with status {exit_status}"
+                                "log stream exited with status {exit_status}"
                             )));
                         }
                     }

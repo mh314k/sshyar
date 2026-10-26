@@ -521,6 +521,8 @@ pub async fn docker_compose_run(
         "up" => "up -d".to_string(),
         "down" => "down".to_string(),
         "restart" => "restart".to_string(),
+        "recreate" => "up -d --force-recreate".to_string(),
+        "build" => "build".to_string(),
         "pull" => "pull".to_string(),
         "ps" => "ps".to_string(),
         other => {
@@ -588,6 +590,39 @@ pub async fn docker_logs_start(
         profile,
         container_id,
         tail.unwrap_or(200),
+    )
+    .await
+}
+
+/// Start live `docker compose logs -f` for a compose file in a remote directory.
+#[tauri::command]
+pub async fn docker_compose_logs_start(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    profile_id: String,
+    workdir: String,
+    file_name: String,
+    tail: Option<u32>,
+) -> AppResult<String> {
+    let profile = load_docker_profile(&state, &profile_id)?;
+    if !is_allowed_compose_file(&file_name) {
+        return Err(AppError::msg(format!(
+            "unsupported compose file name: {file_name}"
+        )));
+    }
+    let tail = tail.unwrap_or(200).clamp(1, 5000);
+    let qdir = shell_single_quote(&workdir)?;
+    let qfile = shell_single_quote(&file_name)?;
+    let cmd = format!(
+        "cd {qdir} && if docker compose version >/dev/null 2>&1; then docker compose -f {qfile} logs -f --tail {tail} 2>&1; else docker-compose -f {qfile} logs -f --tail {tail} 2>&1; fi"
+    );
+    state.docker_logs.stop_all().await;
+    docker_logs::start_stream_cmd(
+        app,
+        Arc::clone(&state.docker_logs),
+        Arc::clone(&state.docker_sessions),
+        profile,
+        cmd,
     )
     .await
 }

@@ -79,6 +79,7 @@ pub fn run() {
             docker_network_remove,
             docker_compose_run,
             docker_logs_start,
+            docker_compose_logs_start,
             docker_logs_stop,
             docker_session_ensure,
             docker_session_close,

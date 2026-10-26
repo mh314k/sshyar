@@ -40,7 +40,19 @@ export interface DockerNetwork {
 
 export type DockerContainerAction = "start" | "stop" | "restart" | "remove";
 
-export type DockerComposeAction = "up" | "down" | "restart" | "pull" | "ps";
+export type DockerComposeAction =
+  | "up"
+  | "down"
+  | "restart"
+  | "recreate"
+  | "build"
+  | "pull"
+  | "ps";
+
+/** Source for the shared live logs popup. */
+export type DockerLogsSource =
+  | { kind: "container"; containerId: string }
+  | { kind: "compose"; workdir: string; fileName: string };
 
 export interface DockerComposeResult {
   ok: boolean;

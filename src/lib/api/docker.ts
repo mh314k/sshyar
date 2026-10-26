@@ -46,6 +46,18 @@ export const dockerApi = {
       containerId,
       tail: tail ?? null,
     }),
+  composeLogsStart: (
+    profileId: string,
+    workdir: string,
+    fileName: string,
+    tail?: number,
+  ) =>
+    invoke<string>("docker_compose_logs_start", {
+      profileId,
+      workdir,
+      fileName,
+      tail: tail ?? null,
+    }),
   logsStop: (streamId: string) => invoke<void>("docker_logs_stop", { streamId }),
   sessionEnsure: (profileId: string) =>
     invoke<void>("docker_session_ensure", { profileId }),

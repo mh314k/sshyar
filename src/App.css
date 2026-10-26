@@ -1641,7 +1641,7 @@ body.is-resizing * {
 .sftp-compose-output {
   margin: 0;
   padding: 0.45rem 0.65rem 0.55rem;
-  max-height: 9rem;
+  max-height: 14rem;
   overflow: auto;
   font-family: var(--mono);
   font-size: 0.68rem;

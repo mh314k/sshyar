@@ -9,7 +9,7 @@ import VerticalAlignBottomIcon from "@mui/icons-material/VerticalAlignBottom";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../lib/api";
 import { toastError } from "../lib/toast";
-import type { DockerLogEvent } from "../types";
+import type { DockerLogEvent, DockerLogsSource } from "../types";
 import { IconButton, iconProps, iconSize } from "./IconButton";
 
 const TAIL_OPTIONS = [100, 200, 500, 1000] as const;
@@ -17,17 +17,18 @@ const MAX_CHARS = 800_000;
 
 interface Props {
   profileId: string;
-  containerId: string;
-  containerName: string;
+  source: DockerLogsSource;
+  /** Short label under the title (container name or compose file). */
+  subtitle: string;
   onClose: () => void;
 }
 
-export function DockerLogsModal({
-  profileId,
-  containerId,
-  containerName,
-  onClose,
-}: Props) {
+function sourceKey(source: DockerLogsSource): string {
+  if (source.kind === "container") return `c:${source.containerId}`;
+  return `compose:${source.workdir}/${source.fileName}`;
+}
+
+export function DockerLogsModal({ profileId, source, subtitle, onClose }: Props) {
   const [tail, setTail] = useState<(typeof TAIL_OPTIONS)[number]>(200);
   const [text, setText] = useState("");
   const [streamId, setStreamId] = useState<string | null>(null);
@@ -63,7 +64,15 @@ export function DockerLogsModal({
       setStatus("connecting");
       setFollowing(true);
       try {
-        const id = await api.dockerLogsStart(profileId, containerId, tailLines);
+        const id =
+          source.kind === "container"
+            ? await api.dockerLogsStart(profileId, source.containerId, tailLines)
+            : await api.dockerComposeLogsStart(
+                profileId,
+                source.workdir,
+                source.fileName,
+                tailLines,
+              );
         streamIdRef.current = id;
         setStreamId(id);
         setStatus("live");
@@ -73,17 +82,19 @@ export function DockerLogsModal({
         toastError(e, "Docker logs");
       }
     },
-    [profileId, containerId, stopStream],
+    [profileId, source, stopStream],
   );
+
+  const key = sourceKey(source);
 
   useEffect(() => {
     void startStream(tail);
     return () => {
       void stopStream();
     };
-    // Only on mount / container change — tail changes via Restart
+    // Only on mount / source change — tail changes via Restart
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileId, containerId]);
+  }, [profileId, key]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -149,6 +160,8 @@ export function DockerLogsModal({
     }
   }
 
+  const heading = source.kind === "compose" ? "Compose logs" : "Container logs";
+
   return createPortal(
     <div
       className="help-overlay docker-logs-overlay"
@@ -165,9 +178,16 @@ export function DockerLogsModal({
       >
         <header className="help-header">
           <div className="help-header-text">
-            <h2 id="docker-logs-title">Container logs</h2>
-            <p className="muted" title={containerId}>
-              {containerName}
+            <h2 id="docker-logs-title">{heading}</h2>
+            <p
+              className="muted"
+              title={
+                source.kind === "container"
+                  ? source.containerId
+                  : `${source.workdir}/${source.fileName}`
+              }
+            >
+              {subtitle}
               {status === "live"
                 ? " · live"
                 : status === "connecting"

@@ -60,6 +60,7 @@ export const api = {
   dockerNetworkRemove: dockerApi.networkRemove,
   dockerComposeRun: dockerApi.composeRun,
   dockerLogsStart: dockerApi.logsStart,
+  dockerComposeLogsStart: dockerApi.composeLogsStart,
   dockerLogsStop: dockerApi.logsStop,
   dockerSessionEnsure: dockerApi.sessionEnsure,
   dockerSessionClose: dockerApi.sessionClose,
