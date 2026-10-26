@@ -367,7 +367,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "docker",
     title: "Docker",
     summary:
-      "Optional remote Docker plugin: status, Compose-grouped containers with live logs, images, volumes, networks, SFTP Compose bar, persistent SSH session, and streamed job progress.",
+      "Optional remote Docker plugin: status with disk usage and safe prune, Compose-grouped containers with live logs, images, volumes, networks, SFTP Compose bar, persistent SSH session, and streamed job progress.",
     keywords: [
       "docker",
       "container",
@@ -382,6 +382,9 @@ export const HELP_SECTIONS: HelpSection[] = [
       "plugin",
       "progress",
       "toast",
+      "prune",
+      "disk",
+      "df",
     ],
     blocks: [
       {
@@ -400,11 +403,25 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "probe-status",
         title: "Status",
-        keywords: ["installed", "version", "probe", "status", "refresh", "cli"],
+        keywords: [
+          "installed",
+          "version",
+          "probe",
+          "status",
+          "refresh",
+          "cli",
+          "df",
+          "disk",
+          "prune",
+          "reclaimable",
+        ],
         steps: [
           "Status probes the remote host over SSH (docker --version).",
           "Shows whether Docker is installed and the CLI version when available.",
-          "Use Refresh after installing or upgrading Docker on the host.",
+          "Disk usage runs docker system df (type, total, active, size, reclaimable).",
+          "Safe prune: optionally remove unused images (image prune -a) and/or unused volumes (volume prune) — never system prune -a --volumes.",
+          "Before deleting, SSHyar lists the exact images/volumes that would be removed; you must type PRUNE to confirm.",
+          "Prune jobs show toast + progress; output appears under the prune controls. Refresh updates version and disk usage.",
           "If Docker is missing, the other Docker sub-tabs show a short empty state.",
         ],
       },
