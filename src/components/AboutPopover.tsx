@@ -54,12 +54,14 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
         <div>
           <div className="about-name">SSHyar</div>
           <div className="about-version">Version {APP_VERSION}</div>
+          <div className="about-version">License GPL-3.0-or-later</div>
         </div>
       </div>
 
       <p className="muted about-copy">
         A desktop SSH helper with embedded PowerShell (ConPTY), profile vault, SFTP browser,
         snippets, and key management — built for fast day-to-day server work on Windows.
+        Free software under the GNU General Public License v3 or later.
       </p>
 
       <ul className="about-features muted">
@@ -116,6 +118,12 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
           label="Releases"
           icon={<ExternalLink size={iconSize} strokeWidth={iconStroke} />}
           onClick={() => void open(GITHUB_RELEASES_URL)}
+        />
+        <IconButton
+          variant="ghost"
+          label="GPL-3.0"
+          icon={<ExternalLink size={iconSize} strokeWidth={iconStroke} />}
+          onClick={() => void open("https://www.gnu.org/licenses/gpl-3.0.html")}
         />
       </div>
     </div>

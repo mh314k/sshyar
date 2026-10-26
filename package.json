@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.2.0",
   "description": "SSHyar - SSH helper with embedded PowerShell",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
