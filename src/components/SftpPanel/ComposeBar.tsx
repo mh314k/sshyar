@@ -8,8 +8,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { api } from "../../lib/api";
 import { appConfirm } from "../../lib/dialogs";
-import { toastError, toastSuccess } from "../../lib/toast";
 import type { DockerComposeAction } from "../../types";
+import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
 
 interface Props {
@@ -19,10 +19,19 @@ interface Props {
   disabled?: boolean;
 }
 
+const ACTION_LABEL: Record<DockerComposeAction, string> = {
+  up: "Compose up",
+  down: "Compose down",
+  restart: "Compose restart",
+  pull: "Compose pull",
+  ps: "Compose ps",
+};
+
 export function ComposeBar({ profileId, workdir, fileName, disabled }: Props) {
-  const [busy, setBusy] = useState(false);
+  const { runJob, job } = useDockerJob();
   const [output, setOutput] = useState("");
   const [showOut, setShowOut] = useState(false);
+  const busy = job?.status === "running";
 
   async function run(action: DockerComposeAction) {
     if (action === "down") {
@@ -34,19 +43,21 @@ export function ComposeBar({ profileId, workdir, fileName, disabled }: Props) {
       });
       if (!ok) return;
     }
-    setBusy(true);
     try {
-      const result = await api.dockerComposeRun(profileId, workdir, fileName, action);
+      const result = await runJob(
+        {
+          title: ACTION_LABEL[action],
+          detail: fileName,
+          runningMessage: `${ACTION_LABEL[action]} · ${fileName}`,
+          successMessage: `${ACTION_LABEL[action]} finished`,
+        },
+        () => api.dockerComposeRun(profileId, workdir, fileName, action),
+      );
       setOutput(result.output);
       if (action === "ps") setShowOut(true);
-      toastSuccess(`Compose ${action} ok`, fileName);
     } catch (e) {
-      const msg = String(e);
-      setOutput(msg);
+      setOutput(String(e));
       setShowOut(true);
-      toastError(e, `Compose ${action}`);
-    } finally {
-      setBusy(false);
     }
   }
 

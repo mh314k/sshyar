@@ -1062,10 +1062,102 @@ body.is-resizing * {
   min-height: 0;
 }
 
+.right-plugins-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .right-plugins .sftp-panel,
 .right-plugins .docker-panel {
   flex: 1;
   min-height: 0;
+}
+
+.docker-job-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--hairline);
+  padding: 0.45rem 0.65rem 0.55rem;
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+}
+
+.docker-job-bar.status-success {
+  background: color-mix(in srgb, #22c55e 10%, var(--bg-elev));
+}
+
+.docker-job-bar.status-error {
+  background: color-mix(in srgb, #ef4444 12%, var(--bg-elev));
+}
+
+.docker-job-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.docker-job-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.docker-job-title {
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.docker-job-detail {
+  font-size: 0.7rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.docker-job-track {
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  overflow: hidden;
+}
+
+.docker-job-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.docker-job-fill.is-full {
+  width: 100%;
+}
+
+.docker-job-bar.status-error .docker-job-fill {
+  background: #ef4444;
+}
+
+.docker-job-bar.status-success .docker-job-fill {
+  background: #22c55e;
+}
+
+.docker-job-fill.is-indeterminate {
+  width: 38%;
+  animation: docker-job-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes docker-job-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
 }
 
 .plugin-header {

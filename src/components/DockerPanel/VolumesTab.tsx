@@ -3,8 +3,9 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../lib/api";
 import { appConfirm } from "../../lib/dialogs";
-import { toastError, toastSuccess } from "../../lib/toast";
+import { toastError } from "../../lib/toast";
 import type { DockerVolume } from "../../types";
+import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
 
 interface Props {
@@ -13,10 +14,12 @@ interface Props {
 }
 
 export function VolumesTab({ profileId, dockerInstalled }: Props) {
+  const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerVolume[]>([]);
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const jobRunning = job?.status === "running";
 
   const refresh = useCallback(async () => {
     if (dockerInstalled === false) {
@@ -50,11 +53,18 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
     if (!ok) return;
     setActing(vol.name);
     try {
-      await api.dockerVolumeRemove(profileId, vol.name);
-      toastSuccess(`Removed ${vol.name}`);
+      await runJob(
+        {
+          title: "Remove volume",
+          detail: vol.name,
+          runningMessage: `Removing volume · ${vol.name}`,
+          successMessage: `Removed ${vol.name}`,
+        },
+        () => api.dockerVolumeRemove(profileId, vol.name),
+      );
       await refresh();
-    } catch (e) {
-      toastError(e, "Docker");
+    } catch {
+      /* handled by runJob */
     } finally {
       setActing(null);
     }
@@ -75,7 +85,7 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
         <IconButton
           variant="icon"
           title="Refresh"
-          disabled={busy || !!acting}
+          disabled={busy || !!acting || jobRunning}
           onClick={() => void refresh()}
           icon={<RefreshIcon {...iconProps(iconSizeSm)} />}
         />
@@ -89,7 +99,7 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
 
       <ul className="docker-list">
         {items.map((vol) => {
-          const rowBusy = acting === vol.name || busy;
+          const rowBusy = acting === vol.name || busy || jobRunning;
           return (
             <li key={vol.name} className="docker-row">
               <div className="docker-row-main">

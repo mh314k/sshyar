@@ -3,8 +3,9 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../lib/api";
 import { appConfirm } from "../../lib/dialogs";
-import { toastError, toastSuccess } from "../../lib/toast";
+import { toastError } from "../../lib/toast";
 import type { DockerImage } from "../../types";
+import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
 
 interface Props {
@@ -13,10 +14,12 @@ interface Props {
 }
 
 export function ImagesTab({ profileId, dockerInstalled }: Props) {
+  const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerImage[]>([]);
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const jobRunning = job?.status === "running";
 
   const refresh = useCallback(async () => {
     if (dockerInstalled === false) {
@@ -54,11 +57,18 @@ export function ImagesTab({ profileId, dockerInstalled }: Props) {
     if (!ok) return;
     setActing(img.id);
     try {
-      await api.dockerImageRemove(profileId, img.id);
-      toastSuccess(`Removed ${label}`);
+      await runJob(
+        {
+          title: "Remove image",
+          detail: label,
+          runningMessage: `Removing image · ${label}`,
+          successMessage: `Removed ${label}`,
+        },
+        () => api.dockerImageRemove(profileId, img.id),
+      );
       await refresh();
-    } catch (e) {
-      toastError(e, "Docker");
+    } catch {
+      /* handled by runJob */
     } finally {
       setActing(null);
     }
@@ -79,7 +89,7 @@ export function ImagesTab({ profileId, dockerInstalled }: Props) {
         <IconButton
           variant="icon"
           title="Refresh"
-          disabled={busy || !!acting}
+          disabled={busy || !!acting || jobRunning}
           onClick={() => void refresh()}
           icon={<RefreshIcon {...iconProps(iconSizeSm)} />}
         />
@@ -97,7 +107,7 @@ export function ImagesTab({ profileId, dockerInstalled }: Props) {
             img.repository && img.repository !== "<none>"
               ? `${img.repository}:${img.tag || "latest"}`
               : img.id.slice(0, 12);
-          const rowBusy = acting === img.id || busy;
+          const rowBusy = acting === img.id || busy || jobRunning;
           return (
             <li key={img.id} className="docker-row">
               <div className="docker-row-main">

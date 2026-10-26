@@ -3,8 +3,9 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../lib/api";
 import { appConfirm } from "../../lib/dialogs";
-import { toastError, toastSuccess } from "../../lib/toast";
+import { toastError } from "../../lib/toast";
 import type { DockerNetwork } from "../../types";
+import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
 
 interface Props {
@@ -15,10 +16,12 @@ interface Props {
 const BUILTIN = new Set(["bridge", "host", "none"]);
 
 export function NetworksTab({ profileId, dockerInstalled }: Props) {
+  const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerNetwork[]>([]);
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const jobRunning = job?.status === "running";
 
   const refresh = useCallback(async () => {
     if (dockerInstalled === false) {
@@ -52,11 +55,18 @@ export function NetworksTab({ profileId, dockerInstalled }: Props) {
     if (!ok) return;
     setActing(net.id);
     try {
-      await api.dockerNetworkRemove(profileId, net.name);
-      toastSuccess(`Removed ${net.name}`);
+      await runJob(
+        {
+          title: "Remove network",
+          detail: net.name,
+          runningMessage: `Removing network · ${net.name}`,
+          successMessage: `Removed ${net.name}`,
+        },
+        () => api.dockerNetworkRemove(profileId, net.name),
+      );
       await refresh();
-    } catch (e) {
-      toastError(e, "Docker");
+    } catch {
+      /* handled by runJob */
     } finally {
       setActing(null);
     }
@@ -77,7 +87,7 @@ export function NetworksTab({ profileId, dockerInstalled }: Props) {
         <IconButton
           variant="icon"
           title="Refresh"
-          disabled={busy || !!acting}
+          disabled={busy || !!acting || jobRunning}
           onClick={() => void refresh()}
           icon={<RefreshIcon {...iconProps(iconSizeSm)} />}
         />
@@ -92,7 +102,7 @@ export function NetworksTab({ profileId, dockerInstalled }: Props) {
       <ul className="docker-list">
         {items.map((net) => {
           const builtin = BUILTIN.has(net.name.toLowerCase());
-          const rowBusy = acting === net.id || busy;
+          const rowBusy = acting === net.id || busy || jobRunning;
           return (
             <li key={net.id} className="docker-row">
               <div className="docker-row-main">

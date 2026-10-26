@@ -8,12 +8,13 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../lib/api";
 import { appConfirm } from "../../lib/dialogs";
-import { toastError, toastSuccess } from "../../lib/toast";
+import { toastError } from "../../lib/toast";
 import {
   DOCKER_STANDALONE_GROUP,
   type DockerContainer,
   type DockerContainerAction,
 } from "../../types";
+import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
 
 interface Props {
@@ -32,11 +33,13 @@ function groupLabel(key: string) {
 }
 
 export function ContainersTab({ profileId, dockerInstalled }: Props) {
+  const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerContainer[]>([]);
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const jobRunning = job?.status === "running";
 
   const refresh = useCallback(async () => {
     if (dockerInstalled === false) {
@@ -86,15 +89,25 @@ export function ContainersTab({ profileId, dockerInstalled }: Props) {
       });
       if (!ok) return;
     }
+    const title =
+      action === "remove"
+        ? "Remove container"
+        : `${action.charAt(0).toUpperCase()}${action.slice(1)} container`;
     setActing(c.id);
     try {
-      await api.dockerContainerAction(profileId, c.id, action);
-      toastSuccess(
-        action === "remove" ? `Removed ${c.name}` : `${action} ${c.name}`,
+      await runJob(
+        {
+          title,
+          detail: c.name,
+          runningMessage: `${title} · ${c.name}`,
+          successMessage:
+            action === "remove" ? `Removed ${c.name}` : `${action} ${c.name}`,
+        },
+        () => api.dockerContainerAction(profileId, c.id, action),
       );
       await refresh();
-    } catch (e) {
-      toastError(e, "Docker");
+    } catch {
+      /* toast + bar handled by runJob */
     } finally {
       setActing(null);
     }
@@ -124,7 +137,7 @@ export function ContainersTab({ profileId, dockerInstalled }: Props) {
         <IconButton
           variant="icon"
           title="Refresh"
-          disabled={busy || !!acting}
+          disabled={busy || !!acting || jobRunning}
           onClick={() => void refresh()}
           icon={<RefreshIcon {...iconProps(iconSizeSm)} />}
         />
@@ -166,7 +179,7 @@ export function ContainersTab({ profileId, dockerInstalled }: Props) {
                 <ul className="docker-list">
                   {g.items.map((c) => {
                     const running = isRunning(c.state, c.status);
-                    const rowBusy = acting === c.id || busy;
+                    const rowBusy = acting === c.id || busy || jobRunning;
                     return (
                       <li key={c.id} className="docker-row">
                         <div className="docker-row-main">
