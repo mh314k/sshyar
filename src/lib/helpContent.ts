@@ -25,19 +25,20 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "What is SSHyar?",
         keywords: ["what", "ssh", "helper", "windows", "linux", "desktop"],
         steps: [
-          "SSHyar is a desktop SSH helper for Windows and Linux: saved profiles in an encrypted vault, an embedded terminal (PowerShell on Windows, your login shell on Linux) wrapping OpenSSH, graphical SFTP, snippets, and optional master-password lock.",
-          "It is designed for day-to-day server work — connect fast, browse files, edit configs, reuse commands — without leaving one window.",
+          "SSHyar is a desktop SSH helper for Windows and Linux: saved profiles in an encrypted vault, an embedded terminal (PowerShell on Windows, your login shell on Linux) wrapping OpenSSH, graphical SFTP, optional Docker management, snippets, and optional master-password lock.",
+          "It is designed for day-to-day server work — connect fast, browse files, check Docker, edit configs, reuse commands — without leaving one window.",
         ],
       },
       {
         id: "layout",
         title: "Main layout",
-        keywords: ["layout", "sidebar", "terminal", "sftp", "panels", "resize"],
+        keywords: ["layout", "sidebar", "terminal", "sftp", "docker", "panels", "resize", "plugins"],
         steps: [
           "Left sidebar: brand, search, profile list by group, and toolbar icons (snippets, theme, vault, about, help, new profile).",
           "Center: session tabs and the embedded terminal for a local shell or SSH.",
-          "Right panel: SFTP browser for the active SSH-backed tab (opens when you Connect to a profile).",
-          "Drag the vertical splitters between panes to resize sidebar and SFTP.",
+          "Right panel: session plugins for the active SSH-backed tab — SFTP always, plus Docker when enabled on the profile (opens when you Connect).",
+          "Use the SFTP / Docker tabs at the top of the right panel to switch plugins.",
+          "Drag the vertical splitters between panes to resize sidebar and the right panel.",
           "Collapse the left sidebar with the panel icon when you need more terminal width.",
         ],
       },
@@ -71,13 +72,24 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     id: "profiles",
     title: "Profiles",
-    summary: "SSH targets with groups, tags, auth, remote shell, keepalive, and post-connect hooks.",
-    keywords: ["profile", "host", "ssh", "group", "tag", "password", "key", "remote shell"],
+    summary:
+      "SSH targets with groups, tags, auth, remote shell, keepalive, post-connect hooks, and optional Docker management.",
+    keywords: [
+      "profile",
+      "host",
+      "ssh",
+      "group",
+      "tag",
+      "password",
+      "key",
+      "remote shell",
+      "docker",
+    ],
     blocks: [
       {
         id: "create-edit",
         title: "Create and edit",
-        keywords: ["create", "edit", "new", "form", "port", "username", "notes"],
+        keywords: ["create", "edit", "new", "form", "port", "username", "notes", "docker"],
         steps: [
           "Click + for a new profile, or right-click a profile → Edit (also available from Actions when selected).",
           "Double-click a profile in the list to connect quickly (hint appears on hover).",
@@ -87,6 +99,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Key auth: set the private key path (e.g. C:\\Users\\…\\.ssh\\id_ed25519).",
           "Group organizes the sidebar; Tags (comma-separated) are searchable.",
           "Notes are free-form reminders on the profile.",
+          "Check Docker management to show the Docker plugin tab next to SFTP for sessions of this profile.",
           "Save writes into the encrypted vault immediately.",
         ],
       },
@@ -218,9 +231,10 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "open-panel",
         title: "Opening the panel",
-        keywords: ["panel", "right", "toggle", "connect"],
+        keywords: ["panel", "right", "toggle", "connect", "tabs", "plugins"],
         steps: [
-          "Connecting to a profile opens the right SFTP panel for that session.",
+          "Connecting to a profile opens the right plugin panel for that session (SFTP tab by default).",
+          "If Docker management is enabled on the profile, a Docker tab appears next to SFTP.",
           "You can collapse/expand the panel with the panel control; width is resizable and remembered with layout prefs.",
         ],
       },
@@ -279,6 +293,38 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Folder copy pastes the whole tree (subfolders and files) into the current directory.",
           "New folder, Rename, and Delete are on the toolbar and context menu.",
           "Destructive actions ask for confirmation where appropriate.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "docker",
+    title: "Docker",
+    summary:
+      "Optional remote Docker plugin: enable per profile, then probe install status and CLI version on the server.",
+    keywords: ["docker", "container", "engine", "version", "management", "plugin", "probe"],
+    blocks: [
+      {
+        id: "enable-docker",
+        title: "Enable on a profile",
+        keywords: ["enable", "checkbox", "profile", "management", "tab"],
+        steps: [
+          "Edit the profile and check Docker management, then Save.",
+          "Connect to that profile — the right panel shows a Docker tab next to SFTP.",
+          "Profiles without the checkbox keep only the SFTP plugin (no Docker tab).",
+          "Duplicate copies the Docker management flag along with the rest of the profile.",
+        ],
+      },
+      {
+        id: "probe-status",
+        title: "Check install and version",
+        keywords: ["installed", "version", "probe", "status", "refresh", "cli"],
+        steps: [
+          "Open the Docker tab while an SSH-backed session for that profile is active.",
+          "SSHyar connects briefly over SSH and runs a remote probe (docker --version) on the server.",
+          "The panel reports whether Docker is installed and the CLI version when available.",
+          "Use Refresh to run the probe again after installing or upgrading Docker on the host.",
+          "This first stage only detects the Docker CLI; container lists and compose actions are not included yet.",
         ],
       },
     ],
@@ -393,8 +439,8 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     id: "troubleshooting",
     title: "Troubleshooting",
-    summary: "Common connection, paste, vault, and SFTP issues.",
-    keywords: ["error", "timeout", "fix", "troubleshoot", "problem", "debug"],
+    summary: "Common connection, paste, vault, SFTP, and Docker issues.",
+    keywords: ["error", "timeout", "fix", "troubleshoot", "problem", "debug", "docker"],
     blocks: [
       {
         id: "connect-errors",
@@ -435,6 +481,17 @@ export const HELP_SECTIONS: HelpSection[] = [
           "SFTP needs a successful SSH profile session; reconnect if the channel dropped.",
           "Permission denied — your SSH user cannot read/write that path.",
           "Follow shell path not updating — use bash (or compatible) remote shell, or browse manually with Follow off.",
+        ],
+      },
+      {
+        id: "docker-issues",
+        title: "Docker plugin",
+        keywords: ["docker", "not installed", "tab missing", "probe", "management"],
+        steps: [
+          "No Docker tab — edit the profile, enable Docker management, Save, then reconnect or switch to that session.",
+          "Probe says not installed — the remote user has no docker binary on PATH (install Docker Engine, or use a login that can see it).",
+          "Probe errors — confirm the profile can still SSH (same host/auth as the terminal); try Refresh after fixing connectivity.",
+          "Version shown is the Docker CLI string from docker --version, not a full daemon/health report.",
         ],
       },
     ],
