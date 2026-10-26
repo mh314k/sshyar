@@ -263,10 +263,6 @@ impl VaultState {
     pub fn keys_dir(&self) -> PathBuf {
         self.dir.join("keys")
     }
-
-    pub fn app_dir_path(&self) -> &Path {
-        &self.dir
-    }
 }
 
 pub fn app_dir() -> AppResult<PathBuf> {

@@ -27,13 +27,7 @@ impl client::Handler for ClientHandler {
     ) -> Result<bool, Self::Error> {
         let fp = match server_public_key.to_bytes() {
             Ok(blob) => fingerprint_sha256(&blob),
-            Err(_) => {
-                // Fallback to ssh-key fingerprint formatting
-                format!(
-                    "{}",
-                    server_public_key.fingerprint(HashAlg::Sha256)
-                )
-            }
+            Err(_) => format!("{}", server_public_key.fingerprint(HashAlg::Sha256)),
         };
         match host_key::check_fingerprint(&self.host, self.port, &fp) {
             Ok(()) => Ok(true),
