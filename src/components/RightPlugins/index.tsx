@@ -26,10 +26,17 @@ export function RightPlugins({
   theme = "dark",
 }: Props) {
   const [tab, setTab] = useState<PluginTab>("sftp");
+  const [sftpJumpPath, setSftpJumpPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (!dockerEnabled && tab === "docker") setTab("sftp");
   }, [dockerEnabled, tab]);
+
+  function openComposeInSftp(path: string) {
+    const normalized = path.trim().replace(/\/+$/, "") || "/";
+    setSftpJumpPath(normalized);
+    setTab("sftp");
+  }
 
   useEffect(() => {
     if (!dockerEnabled || !profileId) return;
@@ -83,9 +90,15 @@ export function RightPlugins({
               theme={theme}
               showChrome={false}
               dockerEnabled={dockerEnabled}
+              jumpPath={sftpJumpPath}
+              onJumpPathConsumed={() => setSftpJumpPath(null)}
             />
           ) : (
-            <DockerPanel profileId={profileId} enabled={dockerEnabled} />
+            <DockerPanel
+              profileId={profileId}
+              enabled={dockerEnabled}
+              onOpenComposeInSftp={openComposeInSftp}
+            />
           )}
         </div>
 

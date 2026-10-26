@@ -7,6 +7,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SubjectIcon from "@mui/icons-material/Subject";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { api } from "../../lib/api";
 import { appConfirm } from "../../lib/dialogs";
 import { toastError } from "../../lib/toast";
@@ -23,6 +24,7 @@ interface Props {
   profileId: string;
   dockerInstalled: boolean | null;
   onOpenLogs?: (container: DockerContainer) => void;
+  onOpenComposeInSftp?: (path: string) => void;
 }
 
 type StateFilter = "all" | "running" | "stopped";
@@ -55,7 +57,20 @@ function matchesQuery(c: DockerContainer, q: string) {
   return hay.includes(q);
 }
 
-export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props) {
+function groupWorkingDir(items: DockerContainer[]): string | null {
+  for (const c of items) {
+    const d = c.composeWorkingDir?.trim();
+    if (d) return d.replace(/\/+$/, "") || "/";
+  }
+  return null;
+}
+
+export function ContainersTab({
+  profileId,
+  dockerInstalled,
+  onOpenLogs,
+  onOpenComposeInSftp,
+}: Props) {
   const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerContainer[]>([]);
   const [busy, setBusy] = useState(false);
@@ -217,29 +232,41 @@ export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props)
       <div className="docker-groups">
         {groups.map((g) => {
           const open = !collapsed.has(g.key);
+          const workdir =
+            g.key === DOCKER_STANDALONE_GROUP ? null : groupWorkingDir(g.items);
           return (
             <section key={g.key} className="docker-group">
-              <button
-                type="button"
-                className="docker-group-head"
-                onClick={() => toggleGroup(g.key)}
-              >
-                <span className="docker-group-title">
-                  {g.key === DOCKER_STANDALONE_GROUP ? (
-                    g.label
+              <div className="docker-group-head">
+                <button
+                  type="button"
+                  className="docker-group-toggle"
+                  onClick={() => toggleGroup(g.key)}
+                >
+                  <span className="docker-group-title">
+                    {g.key === DOCKER_STANDALONE_GROUP ? (
+                      g.label
+                    ) : (
+                      <>
+                        Compose · <strong>{g.label}</strong>
+                      </>
+                    )}
+                  </span>
+                  <span className="docker-group-count">{g.items.length}</span>
+                  {open ? (
+                    <ExpandLessIcon {...iconProps(16)} />
                   ) : (
-                    <>
-                      Compose · <strong>{g.label}</strong>
-                    </>
+                    <ExpandMoreIcon {...iconProps(16)} />
                   )}
-                </span>
-                <span className="docker-group-count">{g.items.length}</span>
-                {open ? (
-                  <ExpandLessIcon {...iconProps(16)} />
-                ) : (
-                  <ExpandMoreIcon {...iconProps(16)} />
-                )}
-              </button>
+                </button>
+                {workdir && onOpenComposeInSftp ? (
+                  <IconButton
+                    variant="icon"
+                    title={`Open in SFTP · ${workdir}`}
+                    onClick={() => onOpenComposeInSftp(workdir)}
+                    icon={<FolderOpenIcon {...iconProps(iconSizeSm)} />}
+                  />
+                ) : null}
+              </div>
               {open ? (
                 <ul className="docker-list">
                   {g.items.map((c) => {

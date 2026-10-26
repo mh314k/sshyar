@@ -31,6 +31,8 @@ pub struct DockerContainer {
     pub ports: String,
     pub compose_project: Option<String>,
     pub compose_service: Option<String>,
+    /// From `com.docker.compose.project.working_dir` (or parent of absolute config file).
+    pub compose_working_dir: Option<String>,
     /// Group key for UI: compose project name, or `__standalone__`.
     pub group_key: String,
 }
@@ -173,6 +175,42 @@ fn first_name(names: &str) -> String {
         .to_string()
 }
 
+fn unix_parent_dir(path: &str) -> Option<String> {
+    let path = path.trim().trim_end_matches('/');
+    if path.is_empty() || path == "/" {
+        return None;
+    }
+    let idx = path.rfind('/')?;
+    if idx == 0 {
+        Some("/".into())
+    } else {
+        Some(path[..idx].to_string())
+    }
+}
+
+fn compose_working_dir_from_labels(
+    labels: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    if let Some(wd) = labels.get("com.docker.compose.project.working_dir") {
+        let t = wd.trim();
+        if !t.is_empty() {
+            return Some(t.trim_end_matches('/').to_string());
+        }
+    }
+    // Fallback: first absolute compose config file → its directory.
+    if let Some(cf) = labels.get("com.docker.compose.project.config_files") {
+        for part in cf.split(',') {
+            let p = part.trim();
+            if p.starts_with('/') {
+                if let Some(parent) = unix_parent_dir(p) {
+                    return Some(parent);
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Probe whether Docker CLI is installed on the remote host and report its version.
 #[tauri::command]
 pub async fn docker_probe(state: State<'_, AppState>, profile_id: String) -> AppResult<DockerStatus> {
@@ -277,6 +315,7 @@ pub async fn docker_list_containers(
             .get("com.docker.compose.service")
             .cloned()
             .filter(|s| !s.is_empty());
+        let compose_working_dir = compose_working_dir_from_labels(&labels);
         let group_key = compose_project
             .clone()
             .unwrap_or_else(|| STANDALONE_GROUP.to_string());
@@ -294,6 +333,7 @@ pub async fn docker_list_containers(
             ports: row.ports,
             compose_project,
             compose_service,
+            compose_working_dir,
             group_key,
         });
     }

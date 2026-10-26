@@ -1512,23 +1512,37 @@ body.is-resizing * {
 }
 
 .docker-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.35rem 0.15rem 0;
+  background: color-mix(in srgb, var(--bg-elev) 55%, transparent);
+  border-block: 1px solid var(--hairline);
+}
+
+.docker-group-toggle {
   appearance: none;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.4rem;
   border: none;
-  background: color-mix(in srgb, var(--bg-elev) 55%, transparent);
+  background: transparent;
   color: var(--text);
   font: inherit;
-  padding: 0.4rem 0.7rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.7rem;
   cursor: pointer;
-  border-block: 1px solid var(--hairline);
   text-align: start;
 }
 
-.docker-group-head:hover {
+.docker-group-head:hover,
+.docker-group-toggle:hover {
   background: var(--selected-bg);
+}
+
+.docker-group-toggle:hover {
+  border-radius: 6px;
 }
 
 .docker-group-title {

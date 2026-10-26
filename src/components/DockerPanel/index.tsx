@@ -14,6 +14,8 @@ type DockerTab = "status" | "containers" | "images" | "volumes" | "networks";
 interface Props {
   profileId: string | null;
   enabled: boolean;
+  /** Jump to a Compose project directory in the SFTP plugin. */
+  onOpenComposeInSftp?: (path: string) => void;
 }
 
 const TABS: { id: DockerTab; label: string }[] = [
@@ -24,7 +26,7 @@ const TABS: { id: DockerTab; label: string }[] = [
   { id: "networks", label: "Networks" },
 ];
 
-export function DockerPanel({ profileId, enabled }: Props) {
+export function DockerPanel({ profileId, enabled, onOpenComposeInSftp }: Props) {
   const [tab, setTab] = useState<DockerTab>("status");
   const [status, setStatus] = useState<DockerStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,6 +116,7 @@ export function DockerPanel({ profileId, enabled }: Props) {
           profileId={profileId}
           dockerInstalled={installed}
           onOpenLogs={(c) => setLogsTarget({ id: c.id, name: c.name })}
+          onOpenComposeInSftp={onOpenComposeInSftp}
         />
       ) : null}
       {tab === "images" ? (

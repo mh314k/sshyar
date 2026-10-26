@@ -37,6 +37,9 @@ interface Props {
   showChrome?: boolean;
   /** When true, show Compose controls if the cwd has a compose file. */
   dockerEnabled?: boolean;
+  /** Navigate here once SFTP is connected (e.g. Compose project from Docker). */
+  jumpPath?: string | null;
+  onJumpPathConsumed?: () => void;
 }
 
 export function SftpPanel({
@@ -47,6 +50,8 @@ export function SftpPanel({
   theme = "dark",
   showChrome = true,
   dockerEnabled = false,
+  jumpPath = null,
+  onJumpPathConsumed,
 }: Props) {
   const [sftpId, setSftpId] = useState<string | null>(null);
   const [cwd, setCwd] = useState("");
@@ -73,6 +78,8 @@ export function SftpPanel({
   const busyRef = useRef(false);
   const followWasOnRef = useRef(false);
   const followPtyRef = useRef<string | null>(null);
+  const jumpPathRef = useRef<string | null>(jumpPath);
+  const onJumpConsumedRef = useRef(onJumpPathConsumed);
 
   useEffect(() => {
     sftpIdRef.current = sftpId;
@@ -86,6 +93,12 @@ export function SftpPanel({
   useEffect(() => {
     busyRef.current = busy;
   }, [busy]);
+  useEffect(() => {
+    jumpPathRef.current = jumpPath;
+  }, [jumpPath]);
+  useEffect(() => {
+    onJumpConsumedRef.current = onJumpPathConsumed;
+  }, [onJumpPathConsumed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,8 +245,25 @@ export function SftpPanel({
           return;
         }
         setSftpId(id);
-        setCwd(c);
-        await refresh(id, c);
+        const jump = jumpPathRef.current?.trim().replace(/\/+$/, "") || "";
+        const target = jump || c;
+        setCwd(target);
+        try {
+          await refresh(id, target);
+          if (jump) {
+            toast(jump, { kind: "info", title: "SFTP", durationMs: 2200 });
+            onJumpConsumedRef.current?.();
+          }
+        } catch (listErr) {
+          if (jump) {
+            // Fall back to home cwd if compose path is missing/inaccessible.
+            await refresh(id, c).catch(() => undefined);
+            if (!cancelled) toastError(listErr, "Open Compose project");
+            onJumpConsumedRef.current?.();
+          } else {
+            throw listErr;
+          }
+        }
       } catch (err) {
         if (!cancelled) toastError(err, "SFTP connect");
         setSftpId(null);
@@ -247,6 +277,31 @@ export function SftpPanel({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, profileId]);
+
+  // Jump while SFTP is already connected (panel stayed mounted).
+  useEffect(() => {
+    if (!jumpPath || !sftpId || busy) return;
+    const normalized = jumpPath.replace(/\/+$/, "") || "/";
+    if (normalized === cwdRef.current) {
+      onJumpPathConsumed?.();
+      return;
+    }
+    let cancelled = false;
+    void refresh(sftpId, normalized)
+      .then(() => {
+        if (cancelled) return;
+        toast(normalized, { kind: "info", title: "SFTP", durationMs: 2200 });
+        onJumpPathConsumed?.();
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toastError(err, "Open Compose project");
+        onJumpPathConsumed?.();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jumpPath, sftpId, busy, refresh, onJumpPathConsumed]);
 
   function beginTransfer(state: TransferState) {
     transferIdRef.current = state.id;

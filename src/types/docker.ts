@@ -47,6 +47,8 @@ export interface DockerContainer {
   ports: string;
   composeProject: string | null;
   composeService: string | null;
+  /** Compose project working dir from labels, when present. */
+  composeWorkingDir: string | null;
   /** Compose project name, or `__standalone__`. */
   groupKey: string;
 }
