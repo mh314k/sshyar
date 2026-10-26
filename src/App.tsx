@@ -11,6 +11,7 @@ import { readStoredTheme, toggleTheme, type ThemeMode } from "./lib/theme";
 import { DialogHost } from "./lib/dialogs";
 import { ToastHost, toastError } from "./lib/toast";
 import { BrandLogo } from "./components/BrandLogo";
+import { APP_VERSION } from "./lib/version";
 import "./App.css";
 
 export default function App() {
@@ -180,7 +181,10 @@ export default function App() {
           <div className="unlock-card">
             <div className="brand-title">
               <BrandLogo size={36} />
-              <h1>SSHyar</h1>
+              <div className="brand-text">
+                <h1>SSHyar</h1>
+                <span className="brand-version">v{APP_VERSION}</span>
+              </div>
             </div>
             <p className="error">{bootError}</p>
           </div>
@@ -197,7 +201,10 @@ export default function App() {
           <div className="unlock-card">
             <div className="brand-title">
               <BrandLogo size={36} />
-              <h1>SSHyar</h1>
+              <div className="brand-text">
+                <h1>SSHyar</h1>
+                <span className="brand-version">v{APP_VERSION}</span>
+              </div>
             </div>
             <p className="muted">Loading…</p>
           </div>

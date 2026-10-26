@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { VaultStatus } from "../types";
+import { APP_VERSION } from "../lib/version";
 import { BrandLogo } from "./BrandLogo";
 
 interface Props {
@@ -32,7 +33,10 @@ export function UnlockGate({ status, onUnlocked }: Props) {
       <div className="unlock-card">
         <div className="brand-title">
           <BrandLogo size={36} />
-          <h1>SSHyar</h1>
+          <div className="brand-text">
+            <h1>SSHyar</h1>
+            <span className="brand-version">v{APP_VERSION}</span>
+          </div>
         </div>
         <p className="muted">Vault is locked. Enter your master password to continue.</p>
         <form onSubmit={unlock}>

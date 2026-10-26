@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   Copy,
   ExternalLink,
+  Info,
   KeyRound,
   Lock,
   Moon,
@@ -22,8 +23,10 @@ import { api } from "../lib/api";
 import { appConfirm, appPasswordPrompt, appPrompt } from "../lib/dialogs";
 import { toastError, toastSuccess } from "../lib/toast";
 import type { ThemeMode } from "../lib/theme";
+import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "../lib/version";
 import { ProfileForm } from "./ProfileForm";
 import { SnippetList } from "./SnippetList";
+import { AboutPopover } from "./AboutPopover";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { Popover } from "./Popover";
 import { IconButton, iconSize, iconStroke } from "./IconButton";
@@ -44,7 +47,7 @@ interface Props {
   onCollapse?: () => void;
 }
 
-type Panel = "actions" | "snippets" | "security" | null;
+type Panel = "actions" | "snippets" | "security" | "about" | null;
 
 /** Soft hint only — never blocks setting the password. */
 function passwordStrengthHint(password: string): string | null {
@@ -80,10 +83,26 @@ export function ProfileSidebar({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; profile: Profile } | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
 
   const actionsBtnRef = useRef<HTMLButtonElement>(null);
   const snippetsBtnRef = useRef<HTMLButtonElement>(null);
   const securityBtnRef = useRef<HTMLButtonElement>(null);
+  const aboutBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void checkForAppUpdate()
+      .then((info) => {
+        if (!cancelled) setUpdate(info);
+      })
+      .catch(() => {
+        /* ignore background check failures */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -253,7 +272,10 @@ export function ProfileSidebar({
       <div className="brand">
         <div className="brand-title">
           <BrandLogo size={28} />
-          <h1>SSHyar</h1>
+          <div className="brand-text">
+            <h1>SSHyar</h1>
+            <span className="brand-version">v{APP_VERSION}</span>
+          </div>
         </div>
         <div className="brand-actions">
           <IconButton
@@ -283,6 +305,14 @@ export function ProfileSidebar({
             className={panel === "security" ? "is-active" : ""}
             onClick={() => togglePanel("security")}
             icon={<KeyRound size={iconSize} strokeWidth={iconStroke} />}
+          />
+          <IconButton
+            ref={aboutBtnRef}
+            variant="icon"
+            title={update ? `About — update v${update.latest} available` : "About"}
+            className={`about-btn ${panel === "about" ? "is-active" : ""} ${update ? "has-update" : ""}`}
+            onClick={() => togglePanel("about")}
+            icon={<Info size={iconSize} strokeWidth={iconStroke} />}
           />
           <IconButton
             variant="icon"
@@ -463,6 +493,18 @@ export function ProfileSidebar({
         ) : (
           <IconButton variant="ghost" label="Set master password" onClick={() => void setMaster()} />
         )}
+      </Popover>
+
+      <Popover
+        open={panel === "about"}
+        onClose={() => setPanel(null)}
+        anchorRef={aboutBtnRef}
+        width={300}
+        align="end"
+        className="popover-about"
+      >
+        <div className="popover-header">About</div>
+        <AboutPopover update={update} onUpdateChange={setUpdate} />
       </Popover>
 
       {menu && (

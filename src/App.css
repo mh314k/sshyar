@@ -410,6 +410,21 @@ body.is-resizing * {
   min-width: 0;
 }
 
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.brand-version {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
 .brand-logo {
   width: 30px;
   height: 30px;
@@ -619,9 +634,101 @@ body.is-resizing * {
   background: var(--hairline);
 }
 
-.popover-security .ui-btn:not(.ui-btn-icon-only):not(.ui-btn-icon) {
+.popover-security .ui-btn:not(.ui-btn-icon-only):not(.ui-btn-icon),
+.popover-about .ui-btn:not(.ui-btn-icon-only):not(.ui-btn-icon) {
   width: 100%;
   justify-content: flex-start;
+}
+
+.about-btn.has-update {
+  position: relative;
+  color: var(--accent-hover);
+}
+
+.about-btn.has-update::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-elev);
+}
+
+.about-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0 0.15rem 0.2rem;
+}
+
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.about-name {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 1.05rem;
+}
+
+.about-version {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.about-copy {
+  margin: 0;
+  line-height: 1.45;
+  font-size: 0.82rem;
+}
+
+.about-features {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.about-update {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-soft));
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.7rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.about-update-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent-hover);
+}
+
+.about-update p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.about-update-actions,
+.about-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.about-uptodate {
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .snippets {
