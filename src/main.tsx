@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 import App from "./App";
 import { applyTheme, readStoredTheme } from "./lib/theme";
 
@@ -13,8 +14,15 @@ document.addEventListener("contextmenu", (e) => {
 
 applyTheme(readStoredTheme());
 
+/** Minimal MUI theme so SvgIcon / Emotion have a provider (avoids blank white crash). */
+const muiTheme = createTheme({
+  typography: { fontFamily: "inherit" },
+});
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider theme={muiTheme}>
+      <App />
+    </ThemeProvider>
   </React.StrictMode>,
 );
