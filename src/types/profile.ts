@@ -1,5 +1,12 @@
 export type AuthMethod = "Password" | "Key";
 
+/** Local TCP forward: ssh -L localPort:remoteHost:remotePort */
+export interface PortForward {
+  localPort: number;
+  remoteHost: string;
+  remotePort: number;
+}
+
 export interface Profile {
   id: string;
   name: string;
@@ -19,6 +26,8 @@ export interface Profile {
   notes: string;
   /** When true, the Docker management plugin is available for this profile's sessions. */
   dockerManagement: boolean;
+  /** Local port forwards opened with the SSH session. */
+  portForwards: PortForward[];
 }
 
 export interface ProfileInput {
@@ -37,6 +46,7 @@ export interface ProfileInput {
   keepaliveCountMax: number;
   notes: string;
   dockerManagement: boolean;
+  portForwards: PortForward[];
 }
 
 export interface Snippet {

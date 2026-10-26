@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AuthMethod, Profile, ProfileInput } from "../types";
+import type { AuthMethod, PortForward, Profile, ProfileInput } from "../types";
 
 interface Props {
   initial?: Profile | null;
@@ -8,6 +8,15 @@ interface Props {
 }
 
 const SHELL_PRESETS = ["bash", "zsh", "fish", "sh", "dash"] as const;
+
+const FORWARD_PRESETS: { label: string; forward: PortForward }[] = [
+  { label: "HTTP", forward: { localPort: 8080, remoteHost: "127.0.0.1", remotePort: 80 } },
+  { label: "HTTPS", forward: { localPort: 8443, remoteHost: "127.0.0.1", remotePort: 443 } },
+  { label: "Postgres", forward: { localPort: 5432, remoteHost: "127.0.0.1", remotePort: 5432 } },
+  { label: "MySQL", forward: { localPort: 3306, remoteHost: "127.0.0.1", remotePort: 3306 } },
+  { label: "Redis", forward: { localPort: 6379, remoteHost: "127.0.0.1", remotePort: 6379 } },
+  { label: "Mongo", forward: { localPort: 27017, remoteHost: "127.0.0.1", remotePort: 27017 } },
+];
 
 const empty: ProfileInput = {
   name: "",
@@ -25,6 +34,7 @@ const empty: ProfileInput = {
   keepaliveCountMax: 3,
   notes: "",
   dockerManagement: false,
+  portForwards: [],
 };
 
 export function ProfileForm({ initial, onSave, onCancel }: Props) {
@@ -58,6 +68,11 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         keepaliveCountMax: initial.keepaliveCountMax,
         notes: initial.notes,
         dockerManagement: initial.dockerManagement ?? false,
+        portForwards: (initial.portForwards ?? []).map((f) => ({
+          localPort: f.localPort,
+          remoteHost: f.remoteHost || "127.0.0.1",
+          remotePort: f.remotePort,
+        })),
       });
       setShellPreset(preset);
       setTagsText(initial.tags.join(", "));
@@ -82,6 +97,30 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function updateForward(index: number, patch: Partial<PortForward>) {
+    setForm((f) => ({
+      ...f,
+      portForwards: f.portForwards.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    }));
+  }
+
+  function addForward(forward?: PortForward) {
+    const next = forward ?? { localPort: 8080, remoteHost: "127.0.0.1", remotePort: 80 };
+    setForm((f) => {
+      if (f.portForwards.some((row) => row.localPort === next.localPort)) {
+        return f;
+      }
+      return { ...f, portForwards: [...f.portForwards, next] };
+    });
+  }
+
+  function removeForward(index: number) {
+    setForm((f) => ({
+      ...f,
+      portForwards: f.portForwards.filter((_, i) => i !== index),
+    }));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -95,6 +134,9 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
           .filter(Boolean),
         password: form.password || null,
         privateKeyPath: form.privateKeyPath || null,
+        portForwards: form.portForwards.filter(
+          (f) => f.localPort > 0 && f.remotePort > 0 && f.remoteHost.trim(),
+        ),
       });
     } catch (err) {
       setError(String(err));
@@ -229,6 +271,85 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         />
         <span>Docker management</span>
       </label>
+      <div className="profile-forwards">
+        <div className="profile-forwards-head">
+          <span>Local port forwards</span>
+          <span className="profile-forwards-hint">ssh -L local:host:remote</span>
+        </div>
+        <div className="profile-forward-presets">
+          {FORWARD_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              className="ghost"
+              onClick={() => addForward(p.forward)}
+              title={`${p.forward.localPort} → ${p.forward.remoteHost}:${p.forward.remotePort}`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {form.portForwards.length === 0 ? (
+          <p className="profile-forwards-empty">No forwards — add a preset or a custom row.</p>
+        ) : (
+          <ul className="profile-forward-list">
+            {form.portForwards.map((f, i) => (
+              <li key={`${f.localPort}-${i}`} className="profile-forward-row">
+                <div className="profile-forward-ports">
+                  <label>
+                    Local port
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      value={f.localPort || ""}
+                      onChange={(e) => updateForward(i, { localPort: Number(e.target.value) || 0 })}
+                    />
+                  </label>
+                  <span className="profile-forward-arrow" aria-hidden>
+                    →
+                  </span>
+                  <label>
+                    Remote port
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      value={f.remotePort || ""}
+                      onChange={(e) => updateForward(i, { remotePort: Number(e.target.value) || 0 })}
+                    />
+                  </label>
+                </div>
+                <label className="profile-forward-host">
+                  Remote host
+                  <input
+                    value={f.remoteHost}
+                    onChange={(e) => updateForward(i, { remoteHost: e.target.value })}
+                    onBlur={(e) => {
+                      if (!e.target.value.trim()) {
+                        updateForward(i, { remoteHost: "127.0.0.1" });
+                      }
+                    }}
+                    placeholder="127.0.0.1"
+                    spellCheck={false}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="ghost profile-forward-remove"
+                  onClick={() => removeForward(i)}
+                  aria-label="Remove forward"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <button type="button" className="ghost" onClick={() => addForward()}>
+          + Add forward
+        </button>
+      </div>
       {error && <p className="error">{error}</p>}
       <div className="form-actions">
         <button type="button" className="ghost" onClick={onCancel}>

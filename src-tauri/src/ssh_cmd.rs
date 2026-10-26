@@ -17,6 +17,23 @@ pub fn build_ssh_args(profile: &Profile) -> Vec<String> {
     args.push("-o".into());
     args.push("StrictHostKeyChecking=accept-new".into());
 
+    for fwd in &profile.port_forwards {
+        if fwd.local_port == 0 || fwd.remote_port == 0 {
+            continue;
+        }
+        let host = if fwd.remote_host.trim().is_empty() {
+            "127.0.0.1"
+        } else {
+            fwd.remote_host.trim()
+        };
+        // Reject host values that would break -L parsing.
+        if host.contains([' ', ':', '/', '\\']) {
+            continue;
+        }
+        args.push("-L".into());
+        args.push(format!("{}:{}:{}", fwd.local_port, host, fwd.remote_port));
+    }
+
     if profile.auth_method == AuthMethod::Key {
         if let Some(key) = &profile.private_key_path {
             if !key.is_empty() {
@@ -163,5 +180,28 @@ mod tests {
         let args = build_ssh_args(&p);
         assert_eq!(args.last().map(String::as_str), Some("u@1.2.3.4"));
         assert!(!args.iter().any(|a| a == "-t"));
+    }
+
+    #[test]
+    fn local_port_forwards_emit_dash_l() {
+        use crate::profiles::PortForward;
+        let mut p = Profile::new("t".into(), "1.2.3.4".into(), "u".into());
+        p.remote_shell = String::new();
+        p.port_forwards = vec![
+            PortForward {
+                local_port: 5432,
+                remote_host: "127.0.0.1".into(),
+                remote_port: 5432,
+            },
+            PortForward {
+                local_port: 8080,
+                remote_host: "127.0.0.1".into(),
+                remote_port: 80,
+            },
+        ];
+        let args = build_ssh_args(&p);
+        let joined = args.join(" ");
+        assert!(joined.contains("-L 5432:127.0.0.1:5432"), "{joined}");
+        assert!(joined.contains("-L 8080:127.0.0.1:80"), "{joined}");
     }
 }

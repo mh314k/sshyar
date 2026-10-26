@@ -2250,6 +2250,109 @@ body.is-resizing * {
   margin: 0;
 }
 
+.profile-forwards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+}
+
+.profile-forwards-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.profile-forwards-hint {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.profile-forward-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.profile-forward-presets .ghost {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.profile-forwards-empty {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.profile-forward-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-forward-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 0.4rem;
+  align-items: center;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 6px;
+}
+
+.profile-forward-row label {
+  margin: 0;
+  min-width: 0;
+}
+
+.profile-forward-row input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.profile-forward-ports {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.35rem;
+  align-items: end;
+}
+
+.profile-forward-host {
+  grid-column: 1;
+}
+
+.profile-forward-arrow {
+  padding-bottom: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.profile-forward-remove {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  min-width: 1.75rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;

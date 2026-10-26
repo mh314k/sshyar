@@ -14,6 +14,20 @@ impl Default for AuthMethod {
     }
 }
 
+/// Local port forward: `ssh -L local_port:remote_host:remote_port`
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PortForward {
+    pub local_port: u16,
+    #[serde(default = "default_forward_host")]
+    pub remote_host: String,
+    pub remote_port: u16,
+}
+
+fn default_forward_host() -> String {
+    "127.0.0.1".into()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
@@ -46,6 +60,9 @@ pub struct Profile {
     /// When true, the Docker management plugin is available for sessions of this profile.
     #[serde(default)]
     pub docker_management: bool,
+    /// Local TCP forwards opened with the SSH session (`-L`).
+    #[serde(default)]
+    pub port_forwards: Vec<PortForward>,
 }
 
 fn default_remote_shell() -> String {
@@ -77,6 +94,7 @@ impl Profile {
             keepalive_count_max: 3,
             notes: String::new(),
             docker_management: false,
+            port_forwards: vec![],
         }
     }
 
@@ -102,6 +120,7 @@ impl Profile {
         p.keepalive_count_max = input.keepalive_count_max;
         p.notes = input.notes;
         p.docker_management = input.docker_management;
+        p.port_forwards = sanitize_forwards(input.port_forwards);
         p
     }
 
@@ -123,7 +142,23 @@ impl Profile {
         self.keepalive_count_max = input.keepalive_count_max;
         self.notes = input.notes;
         self.docker_management = input.docker_management;
+        self.port_forwards = sanitize_forwards(input.port_forwards);
     }
+}
+
+fn sanitize_forwards(forwards: Vec<PortForward>) -> Vec<PortForward> {
+    forwards
+        .into_iter()
+        .filter(|f| f.local_port > 0 && f.remote_port > 0)
+        .map(|mut f| {
+            if f.remote_host.trim().is_empty() {
+                f.remote_host = default_forward_host();
+            } else {
+                f.remote_host = f.remote_host.trim().to_string();
+            }
+            f
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,4 +202,6 @@ pub struct ProfileInput {
     pub notes: String,
     #[serde(default)]
     pub docker_management: bool,
+    #[serde(default)]
+    pub port_forwards: Vec<PortForward>,
 }
