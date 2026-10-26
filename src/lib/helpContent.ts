@@ -61,7 +61,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Zap — Snippets popover (create/run reusable commands).",
           "Sun / Moon — toggle light and dark theme.",
-          "Key — vault / master password (set, change, remove, lock).",
+          "Key — vault / master password (set, change, remove, lock) plus Export / Import encrypted backup.",
           "i — About (version + update check from GitHub Releases).",
           "? — this Help window.",
           "+ — new profile form.",
@@ -209,13 +209,23 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "sessions",
         title: "Sessions and tabs",
-        keywords: ["tab", "session", "new", "reconnect", "close", "status"],
+        keywords: [
+          "tab",
+          "session",
+          "new",
+          "reconnect",
+          "close",
+          "status",
+          "restore",
+          "previous",
+        ],
         steps: [
           "Connect (or New Terminal / empty-state button) opens a center tab.",
           "Tab bar + creates a local terminal; × closes the tab and kills that PTY.",
           "Status dot: amber (connecting), green (connected), red (disconnected), grey (local). Hover the tab for status · user@host:port.",
           "Reconnect (rotate icon) kills the old PTY and starts a fresh SSH session for that profile.",
           "Multiple tabs can stay open; only one is focused for typing at a time.",
+          "Open tabs are remembered locally. After relaunch (with an empty tab bar), Restore previous offers to reopen those sessions; Dismiss clears the offer.",
         ],
       },
       {
@@ -243,10 +253,11 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "empty-state",
         title: "No sessions yet",
-        keywords: ["empty", "new terminal", "welcome"],
+        keywords: ["empty", "new terminal", "welcome", "restore"],
         steps: [
           "With no tabs open, the center pane shows a short empty state.",
           "Use New Terminal there, or Connect from a profile on the left.",
+          "If a previous session was saved, Restore previous (N) recreates those tabs (profile tabs need the profile still in the vault); Dismiss hides the offer.",
         ],
       },
     ],
@@ -502,6 +513,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "A progress bar at the bottom of the right panel animates while the remote command runs, then turns green on success or red on failure.",
           "Compose jobs stream remote output into the job bar detail so you see live command progress, not only a spinner.",
           "A success or error toast appears when the job finishes; you can dismiss the bar after it completes.",
+          "Jobs that run longer than about 8 seconds also send an OS desktop notification when they finish (permission may be requested once).",
           "Only one Docker job runs at a time from the UI; controls stay disabled while a job is running.",
           "The pooled Docker SSH session closes when you switch away from that profile or lock the vault.",
         ],
@@ -540,8 +552,20 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     id: "security",
     title: "Vault & security",
-    summary: "AES-GCM vault, Windows DPAPI, master password lifecycle, and lock screen.",
-    keywords: ["vault", "password", "lock", "dpapi", "security", "encrypt", "unlock"],
+    summary:
+      "AES-GCM vault, Windows DPAPI, master password lifecycle, portable encrypted backup, and lock screen.",
+    keywords: [
+      "vault",
+      "password",
+      "lock",
+      "dpapi",
+      "security",
+      "encrypt",
+      "unlock",
+      "backup",
+      "export",
+      "import",
+    ],
     blocks: [
       {
         id: "how-vault",
@@ -563,6 +587,26 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Remove master password: confirm with the current password, then return to DPAPI-only protection.",
           "Lock vault: kills open PTYs, clears in-memory plaintext, and shows the unlock gate.",
           "The unlock screen shows how many profiles are in the vault (count stored in public meta while locked).",
+        ],
+      },
+      {
+        id: "vault-backup",
+        title: "Backup export & import",
+        keywords: [
+          "backup",
+          "export",
+          "import",
+          "migrate",
+          "portable",
+          "sshyar-backup",
+          "replace",
+          "merge",
+        ],
+        steps: [
+          "Key icon → Export backup: choose a backup password (can differ from the master password), then save a .sshyar-backup file.",
+          "The file is Argon2 + AES-GCM encrypted and portable across machines — it does not rely on DPAPI or the local vault key.",
+          "Import backup: pick the file, enter the backup password, then Replace (wipe current profiles/snippets) or Merge (keep existing; matching ids overwritten).",
+          "Use export before switching PCs or as recovery if you forget a master password but still have a backup file and its password.",
         ],
       },
       {
@@ -648,8 +692,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["incorrect", "locked", "password", "forgot"],
         steps: [
           "Incorrect master password — retry carefully; there is no in-app reset without the password or a vault backup.",
-          "Forgot master password with no backup of vault.dat / key material generally means starting fresh profiles.",
-          "DPAPI vaults are tied to the Windows user profile on that machine.",
+          "Forgot master password: Import a previously exported .sshyar-backup (with its backup password), or start fresh if you have no backup.",
+          "DPAPI vaults are tied to the Windows user profile on that machine — use Export backup to move to another PC.",
         ],
       },
       {
