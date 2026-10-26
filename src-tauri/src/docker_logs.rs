@@ -6,11 +6,11 @@ use tauri::{AppHandle, Emitter};
 use tokio::sync::{oneshot, Mutex};
 use uuid::Uuid;
 
-use russh::{ChannelMsg, Disconnect};
+use russh::ChannelMsg;
 
+use crate::docker_session::SharedDockerSessions;
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
-use crate::ssh_session;
 
 type SharedCancel = Arc<Mutex<Option<oneshot::Sender<()>>>>;
 
@@ -85,10 +85,11 @@ fn emit(app: &AppHandle, stream_id: &str, kind: &str, text: impl Into<String>) {
     );
 }
 
-/// Start `docker logs -f --tail N` and stream output as `docker-logs` events.
+/// Start `docker logs -f --tail N` on the pooled Docker SSH session.
 pub async fn start_stream(
     app: AppHandle,
     manager: SharedDockerLogs,
+    sessions: SharedDockerSessions,
     profile: Profile,
     container_id: String,
     tail: u32,
@@ -110,9 +111,8 @@ pub async fn start_stream(
     let mgr = Arc::clone(&manager);
 
     tauri::async_runtime::spawn(async move {
-        let result = run_logs_loop(&app, &sid, &profile, &qid, tail, cancel_rx).await;
+        let result = run_logs_loop(&app, &sid, &sessions, &profile, &qid, tail, cancel_rx).await;
 
-        // Drop from map
         {
             let mut map = mgr.streams.lock().await;
             map.remove(&sid);
@@ -131,22 +131,14 @@ pub async fn start_stream(
 async fn run_logs_loop(
     app: &AppHandle,
     stream_id: &str,
+    sessions: &SharedDockerSessions,
     profile: &Profile,
     qid: &str,
     tail: u32,
     mut cancel_rx: oneshot::Receiver<()>,
 ) -> AppResult<()> {
-    let handle = ssh_session::connect_handle(profile).await?;
-    let mut channel = handle
-        .channel_open_session()
-        .await
-        .map_err(|e| AppError::msg(format!("channel: {e}")))?;
-
     let cmd = format!("docker logs -f --tail {tail} {qid} 2>&1");
-    channel
-        .exec(true, cmd)
-        .await
-        .map_err(|e| AppError::msg(format!("exec: {e}")))?;
+    let mut channel = sessions.open_exec_channel(profile, &cmd).await?;
 
     loop {
         tokio::select! {
@@ -182,8 +174,5 @@ async fn run_logs_loop(
         }
     }
 
-    let _ = handle
-        .disconnect(Disconnect::ByApplication, "", "en")
-        .await;
     Ok(())
 }

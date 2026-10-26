@@ -79,7 +79,7 @@ export function NetworksTab({ profileId, dockerInstalled }: Props) {
           runningMessage: `Removing network · ${net.name}`,
           successMessage: `Removed ${net.name}`,
         },
-        () => api.dockerNetworkRemove(profileId, net.name),
+        (_jobId) => api.dockerNetworkRemove(profileId, net.name),
       );
       await refresh();
     } catch {

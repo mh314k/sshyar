@@ -2,6 +2,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::docker_logs::{DockerLogManager, SharedDockerLogs};
+use crate::docker_session::{DockerSessionManager, SharedDockerSessions};
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
 use crate::pty::{PtyManager, SharedPty};
@@ -13,6 +14,7 @@ pub struct AppState {
     pub pty: SharedPty,
     pub sftp: SharedSftp,
     pub docker_logs: SharedDockerLogs,
+    pub docker_sessions: SharedDockerSessions,
 }
 
 impl AppState {
@@ -22,6 +24,7 @@ impl AppState {
             pty: Arc::new(PtyManager::new()),
             sftp: Arc::new(SftpManager::new()),
             docker_logs: Arc::new(DockerLogManager::new()),
+            docker_sessions: Arc::new(DockerSessionManager::new()),
         }
     }
 }

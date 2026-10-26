@@ -31,12 +31,14 @@ export const dockerApi = {
     workdir: string,
     fileName: string,
     action: DockerComposeAction,
+    jobId?: string | null,
   ) =>
     invoke<DockerComposeResult>("docker_compose_run", {
       profileId,
       workdir,
       fileName,
       action,
+      jobId: jobId ?? null,
     }),
   logsStart: (profileId: string, containerId: string, tail?: number) =>
     invoke<string>("docker_logs_start", {
@@ -45,4 +47,8 @@ export const dockerApi = {
       tail: tail ?? null,
     }),
   logsStop: (streamId: string) => invoke<void>("docker_logs_stop", { streamId }),
+  sessionEnsure: (profileId: string) =>
+    invoke<void>("docker_session_ensure", { profileId }),
+  sessionClose: (profileId: string) =>
+    invoke<void>("docker_session_close", { profileId }),
 };

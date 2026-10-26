@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
@@ -33,6 +33,10 @@ export function ComposeBar({ profileId, workdir, fileName, disabled }: Props) {
   const [showOut, setShowOut] = useState(false);
   const busy = job?.status === "running";
 
+  useEffect(() => {
+    void api.dockerSessionEnsure(profileId).catch(() => undefined);
+  }, [profileId]);
+
   async function run(action: DockerComposeAction) {
     if (action === "down") {
       const ok = await appConfirm({
@@ -51,7 +55,7 @@ export function ComposeBar({ profileId, workdir, fileName, disabled }: Props) {
           runningMessage: `${ACTION_LABEL[action]} · ${fileName}`,
           successMessage: `${ACTION_LABEL[action]} finished`,
         },
-        () => api.dockerComposeRun(profileId, workdir, fileName, action),
+        (jobId) => api.dockerComposeRun(profileId, workdir, fileName, action, jobId),
       );
       setOutput(result.output);
       if (action === "ps") setShowOut(true);

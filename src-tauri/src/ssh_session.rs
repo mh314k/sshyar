@@ -118,6 +118,7 @@ pub struct ExecResult {
 }
 
 /// Open a short-lived SSH session and run a non-interactive remote command.
+#[allow(dead_code)]
 pub async fn exec_command(profile: &Profile, command: &str) -> AppResult<ExecResult> {
     let handle = connect_handle(profile).await?;
     let mut channel = handle

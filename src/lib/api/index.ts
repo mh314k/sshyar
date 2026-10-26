@@ -61,6 +61,8 @@ export const api = {
   dockerComposeRun: dockerApi.composeRun,
   dockerLogsStart: dockerApi.logsStart,
   dockerLogsStop: dockerApi.logsStop,
+  dockerSessionEnsure: dockerApi.sessionEnsure,
+  dockerSessionClose: dockerApi.sessionClose,
 };
 
 export { vaultApi, profilesApi, snippetsApi, ptyApi, keysApi, sftpApi, dockerApi };

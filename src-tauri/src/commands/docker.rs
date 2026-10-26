@@ -6,7 +6,7 @@ use tauri::{AppHandle, State};
 use crate::docker_logs;
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
-use crate::ssh_session::{self, ExecResult};
+use crate::ssh_session::ExecResult;
 use crate::state::{find_profile, AppState};
 
 const STANDALONE_GROUP: &str = "__standalone__";
@@ -121,9 +121,13 @@ fn is_allowed_compose_file(name: &str) -> bool {
     )
 }
 
-async fn docker_cli(profile: &Profile, args: &str) -> AppResult<ExecResult> {
+async fn docker_cli(
+    state: &State<'_, AppState>,
+    profile: &Profile,
+    args: &str,
+) -> AppResult<ExecResult> {
     let cmd = format!("docker {args}");
-    ssh_session::exec_command(profile, &cmd).await
+    state.docker_sessions.exec(profile, &cmd).await
 }
 
 fn combined_output(result: &ExecResult) -> String {
@@ -174,11 +178,13 @@ fn first_name(names: &str) -> String {
 pub async fn docker_probe(state: State<'_, AppState>, profile_id: String) -> AppResult<DockerStatus> {
     let profile = load_docker_profile(&state, &profile_id)?;
 
-    let result = ssh_session::exec_command(
-        &profile,
-        "if command -v docker >/dev/null 2>&1; then docker --version; else echo '__DOCKER_NOT_INSTALLED__'; fi",
-    )
-    .await?;
+    let result = state
+        .docker_sessions
+        .exec(
+            &profile,
+            "if command -v docker >/dev/null 2>&1; then docker --version; else echo '__DOCKER_NOT_INSTALLED__'; fi",
+        )
+        .await?;
 
     let out = combined_output(&result);
 
@@ -251,7 +257,7 @@ pub async fn docker_list_containers(
     profile_id: String,
 ) -> AppResult<Vec<DockerContainer>> {
     let profile = load_docker_profile(&state, &profile_id)?;
-    let result = docker_cli(&profile, "ps -a --no-trunc --format '{{json .}}'").await?;
+    let result = docker_cli(&state, &profile, "ps -a --no-trunc --format '{{json .}}'").await?;
     ensure_ok(&result, "docker ps")?;
 
     let mut out = Vec::new();
@@ -314,7 +320,7 @@ pub async fn docker_container_action(
             )))
         }
     };
-    let result = docker_cli(&profile, &args).await?;
+    let result = docker_cli(&state, &profile, &args).await?;
     ensure_ok(&result, &format!("docker {action}"))
 }
 
@@ -341,7 +347,7 @@ pub async fn docker_list_images(
     profile_id: String,
 ) -> AppResult<Vec<DockerImage>> {
     let profile = load_docker_profile(&state, &profile_id)?;
-    let result = docker_cli(&profile, "images --format '{{json .}}'").await?;
+    let result = docker_cli(&state, &profile, "images --format '{{json .}}'").await?;
     ensure_ok(&result, "docker images")?;
 
     let mut out = Vec::new();
@@ -376,7 +382,7 @@ pub async fn docker_image_remove(
 ) -> AppResult<()> {
     let profile = load_docker_profile(&state, &profile_id)?;
     let qid = shell_quote(&id)?;
-    let result = docker_cli(&profile, &format!("rmi {qid}")).await?;
+    let result = docker_cli(&state, &profile, &format!("rmi {qid}")).await?;
     ensure_ok(&result, "docker rmi")
 }
 
@@ -396,7 +402,7 @@ pub async fn docker_list_volumes(
     profile_id: String,
 ) -> AppResult<Vec<DockerVolume>> {
     let profile = load_docker_profile(&state, &profile_id)?;
-    let result = docker_cli(&profile, "volume ls --format '{{json .}}'").await?;
+    let result = docker_cli(&state, &profile, "volume ls --format '{{json .}}'").await?;
     ensure_ok(&result, "docker volume ls")?;
 
     let mut out = Vec::new();
@@ -424,7 +430,7 @@ pub async fn docker_volume_remove(
 ) -> AppResult<()> {
     let profile = load_docker_profile(&state, &profile_id)?;
     let qname = shell_quote(&name)?;
-    let result = docker_cli(&profile, &format!("volume rm {qname}")).await?;
+    let result = docker_cli(&state, &profile, &format!("volume rm {qname}")).await?;
     ensure_ok(&result, "docker volume rm")
 }
 
@@ -446,7 +452,7 @@ pub async fn docker_list_networks(
     profile_id: String,
 ) -> AppResult<Vec<DockerNetwork>> {
     let profile = load_docker_profile(&state, &profile_id)?;
-    let result = docker_cli(&profile, "network ls --format '{{json .}}'").await?;
+    let result = docker_cli(&state, &profile, "network ls --format '{{json .}}'").await?;
     ensure_ok(&result, "docker network ls")?;
 
     let mut out = Vec::new();
@@ -481,7 +487,7 @@ pub async fn docker_network_remove(
     }
     let profile = load_docker_profile(&state, &profile_id)?;
     let q = shell_quote(&id_or_name)?;
-    let result = docker_cli(&profile, &format!("network rm {q}")).await?;
+    let result = docker_cli(&state, &profile, &format!("network rm {q}")).await?;
     ensure_ok(&result, "docker network rm")
 }
 
@@ -495,11 +501,13 @@ pub struct DockerComposeResult {
 /// Run a compose action in a remote directory that contains a compose file.
 #[tauri::command]
 pub async fn docker_compose_run(
+    app: AppHandle,
     state: State<'_, AppState>,
     profile_id: String,
     workdir: String,
     file_name: String,
     action: String,
+    job_id: Option<String>,
 ) -> AppResult<DockerComposeResult> {
     let profile = load_docker_profile(&state, &profile_id)?;
     if !is_allowed_compose_file(&file_name) {
@@ -526,7 +534,14 @@ pub async fn docker_compose_run(
     let cmd = format!(
         "cd {qdir} && if docker compose version >/dev/null 2>&1; then docker compose -f {qfile} {compose_args}; else docker-compose -f {qfile} {compose_args}; fi"
     );
-    let result = ssh_session::exec_command(&profile, &cmd).await?;
+    let result = if let Some(ref job_id) = job_id {
+        state
+            .docker_sessions
+            .exec_streaming(&app, job_id, &profile, &cmd)
+            .await?
+    } else {
+        state.docker_sessions.exec(&profile, &cmd).await?
+    };
     let mut output = String::new();
     if !result.stdout.is_empty() {
         output.push_str(&result.stdout);
@@ -569,6 +584,7 @@ pub async fn docker_logs_start(
     docker_logs::start_stream(
         app,
         Arc::clone(&state.docker_logs),
+        Arc::clone(&state.docker_sessions),
         profile,
         container_id,
         tail.unwrap_or(200),
@@ -580,4 +596,23 @@ pub async fn docker_logs_start(
 #[tauri::command]
 pub async fn docker_logs_stop(state: State<'_, AppState>, stream_id: String) -> AppResult<()> {
     state.docker_logs.stop(&stream_id).await
+}
+
+/// Ensure a persistent Docker SSH session for the profile (idempotent).
+#[tauri::command]
+pub async fn docker_session_ensure(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<()> {
+    let profile = load_docker_profile(&state, &profile_id)?;
+    state.docker_sessions.ensure(&profile).await
+}
+
+/// Close the persistent Docker SSH session for a profile.
+#[tauri::command]
+pub async fn docker_session_close(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<()> {
+    state.docker_sessions.close(&profile_id).await
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
+import { api } from "../../lib/api";
 import type { ThemeMode } from "../../lib/theme";
 import { IconButton, iconProps, iconSize } from "../IconButton";
 import { DockerJobBar } from "../dockerJob/DockerJobBar";
@@ -29,6 +30,14 @@ export function RightPlugins({
   useEffect(() => {
     if (!dockerEnabled && tab === "docker") setTab("sftp");
   }, [dockerEnabled, tab]);
+
+  useEffect(() => {
+    if (!dockerEnabled || !profileId) return;
+    void api.dockerSessionEnsure(profileId).catch(() => undefined);
+    return () => {
+      void api.dockerSessionClose(profileId).catch(() => undefined);
+    };
+  }, [dockerEnabled, profileId]);
 
   return (
     <DockerJobProvider>

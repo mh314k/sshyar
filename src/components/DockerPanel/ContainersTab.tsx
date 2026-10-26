@@ -137,7 +137,7 @@ export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props)
           successMessage:
             action === "remove" ? `Removed ${c.name}` : `${action} ${c.name}`,
         },
-        () => api.dockerContainerAction(profileId, c.id, action),
+        (_jobId) => api.dockerContainerAction(profileId, c.id, action),
       );
       await refresh();
     } catch {

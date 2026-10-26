@@ -56,6 +56,11 @@ export function DockerPanel({ profileId, enabled }: Props) {
     void probe();
   }, [probe]);
 
+  useEffect(() => {
+    if (!enabled || !profileId) return;
+    void api.dockerSessionEnsure(profileId).catch(() => undefined);
+  }, [enabled, profileId]);
+
   if (!enabled) {
     return (
       <div className="docker-panel">

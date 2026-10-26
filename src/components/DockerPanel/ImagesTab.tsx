@@ -80,7 +80,7 @@ export function ImagesTab({ profileId, dockerInstalled }: Props) {
           runningMessage: `Removing image · ${label}`,
           successMessage: `Removed ${label}`,
         },
-        () => api.dockerImageRemove(profileId, img.id),
+        (_jobId) => api.dockerImageRemove(profileId, img.id),
       );
       await refresh();
     } catch {

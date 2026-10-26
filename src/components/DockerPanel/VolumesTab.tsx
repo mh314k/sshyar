@@ -71,7 +71,7 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
           runningMessage: `Removing volume · ${vol.name}`,
           successMessage: `Removed ${vol.name}`,
         },
-        () => api.dockerVolumeRemove(profileId, vol.name),
+        (_jobId) => api.dockerVolumeRemove(profileId, vol.name),
       );
       await refresh();
     } catch {
