@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { FolderOpen, Server } from "lucide-react";
+import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
+import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
+import { iconProps } from "./icons";
 
 const STORAGE_KEY = "sshyar-panel-layout";
 
@@ -158,7 +160,7 @@ export function PanelLayout({
           title="Show sidebar"
           onClick={() => onLeftOpenChange(true)}
         >
-          <Server size={14} strokeWidth={1.75} />
+          <DnsOutlinedIcon {...iconProps(16)} />
           <span>Profiles</span>
         </button>
       )}
@@ -184,7 +186,7 @@ export function PanelLayout({
           title="Show SFTP"
           onClick={() => onRightOpenChange(true)}
         >
-          <FolderOpen size={14} strokeWidth={1.75} />
+          <FolderOpenOutlinedIcon {...iconProps(16)} />
           <span>Files</span>
         </button>
       )}

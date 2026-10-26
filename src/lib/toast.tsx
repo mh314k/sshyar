@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import CloseIcon from "@mui/icons-material/Close";
+import { iconProps } from "../components/icons";
 
 export type ToastKind = "info" | "success" | "error";
 
@@ -103,7 +104,7 @@ export function ToastHost() {
               publish();
             }}
           >
-            <X size={14} strokeWidth={2} />
+            <CloseIcon {...iconProps(14)} />
           </button>
         </div>
       ))}

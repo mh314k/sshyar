@@ -1,38 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import {
-  Copy,
-  ExternalLink,
-  CircleHelp,
-  Info,
-  KeyRound,
-  Lock,
-  Moon,
-  MoreHorizontal,
-  PanelLeftClose,
-  Pencil,
-  Plus,
-  Sun,
-  Trash2,
-  Upload,
-  CopyPlus,
-  Terminal,
-  Zap,
-} from "lucide-react";
+import AddIcon from "@mui/icons-material/Add";
+import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import ControlPointDuplicateOutlinedIcon from "@mui/icons-material/ControlPointDuplicateOutlined";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import HelpOutlinedIcon from "@mui/icons-material/HelpOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import TerminalOutlinedIcon from "@mui/icons-material/TerminalOutlined";
+import UploadIcon from "@mui/icons-material/Upload";
+import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
 import type { Profile, ProfileInput, Snippet } from "../../types";
 import { api } from "../../lib/api";
 import { appConfirm, appPasswordPrompt, appPrompt } from "../../lib/dialogs";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { ThemeMode } from "../../lib/theme";
 import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "../../lib/version";
+import { AboutPopover } from "../AboutPopover";
+import { BrandLogo } from "../BrandLogo";
+import { ContextMenu, type ContextMenuItem } from "../ContextMenu";
+import { HelpModal } from "../HelpModal";
+import { IconButton, iconProps, iconSize } from "../IconButton";
+import { Popover } from "../Popover";
 import { ProfileForm } from "../ProfileForm";
 import { SnippetList } from "../SnippetList";
-import { AboutPopover } from "../AboutPopover";
-import { HelpModal } from "../HelpModal";
-import { ContextMenu, type ContextMenuItem } from "../ContextMenu";
-import { Popover } from "../Popover";
-import { IconButton, iconSize, iconStroke } from "../IconButton";
-import { BrandLogo } from "../BrandLogo";
 import { passwordStrengthHint } from "./passwordStrength";
 import { ProfileList } from "./ProfileList";
 
@@ -274,7 +272,7 @@ export function ProfileSidebar({
             title="Snippets"
             className={panel === "snippets" ? "is-active" : ""}
             onClick={() => togglePanel("snippets")}
-            icon={<Zap size={iconSize} strokeWidth={iconStroke} />}
+            icon={<BoltOutlinedIcon {...iconProps(iconSize)} />}
           />
           <IconButton
             variant="icon"
@@ -282,9 +280,9 @@ export function ProfileSidebar({
             onClick={onToggleTheme}
             icon={
               theme === "dark" ? (
-                <Sun size={iconSize} strokeWidth={iconStroke} />
+                <LightModeOutlinedIcon {...iconProps(iconSize)} />
               ) : (
-                <Moon size={iconSize} strokeWidth={iconStroke} />
+                <DarkModeOutlinedIcon {...iconProps(iconSize)} />
               )
             }
           />
@@ -294,7 +292,7 @@ export function ProfileSidebar({
             title="Master password"
             className={panel === "security" ? "is-active" : ""}
             onClick={() => togglePanel("security")}
-            icon={<KeyRound size={iconSize} strokeWidth={iconStroke} />}
+            icon={<KeyOutlinedIcon {...iconProps(iconSize)} />}
           />
           <IconButton
             ref={aboutBtnRef}
@@ -302,7 +300,7 @@ export function ProfileSidebar({
             title={update ? `About — update v${update.latest} available` : "About"}
             className={`about-btn ${panel === "about" ? "is-active" : ""} ${update ? "has-update" : ""}`}
             onClick={() => togglePanel("about")}
-            icon={<Info size={iconSize} strokeWidth={iconStroke} />}
+            icon={<InfoOutlinedIcon {...iconProps(iconSize)} />}
           />
           <IconButton
             variant="icon"
@@ -312,20 +310,20 @@ export function ProfileSidebar({
               setPanel(null);
               setHelpOpen(true);
             }}
-            icon={<CircleHelp size={iconSize} strokeWidth={iconStroke} />}
+            icon={<HelpOutlinedIcon {...iconProps(iconSize)} />}
           />
           <IconButton
             variant="icon"
             title="New profile"
             onClick={() => setEditing(null)}
-            icon={<Plus size={iconSize} strokeWidth={iconStroke} />}
+            icon={<AddIcon {...iconProps(iconSize)} />}
           />
           {onCollapse && (
             <IconButton
               variant="icon"
               title="Hide sidebar"
               onClick={onCollapse}
-              icon={<PanelLeftClose size={iconSize} strokeWidth={iconStroke} />}
+              icon={<ViewSidebarOutlinedIcon {...iconProps(iconSize)} />}
             />
           )}
         </div>
@@ -366,7 +364,7 @@ export function ProfileSidebar({
           <IconButton
             variant="primary"
             label="Connect"
-            icon={<Terminal size={14} strokeWidth={iconStroke} />}
+            icon={<TerminalOutlinedIcon {...iconProps(16)} />}
             onClick={() => onConnect(selected)}
           />
           <IconButton
@@ -375,7 +373,7 @@ export function ProfileSidebar({
             title="More actions"
             className={panel === "actions" ? "is-active" : ""}
             onClick={() => togglePanel("actions")}
-            icon={<MoreHorizontal size={iconSize} strokeWidth={iconStroke} />}
+            icon={<MoreHorizIcon {...iconProps(iconSize)} />}
           />
         </div>
       )}
@@ -391,23 +389,23 @@ export function ProfileSidebar({
         {selected && (
           <div className="popover-list">
             <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "external")}>
-              <ExternalLink size={14} strokeWidth={iconStroke} /> External terminal
+              <OpenInNewIcon {...iconProps(16)} /> External terminal
             </button>
             <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "copy")}>
-              <Copy size={14} strokeWidth={iconStroke} /> Copy SSH
+              <ContentCopyIcon {...iconProps(16)} /> Copy SSH
             </button>
             <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "edit")}>
-              <Pencil size={14} strokeWidth={iconStroke} /> Edit
+              <EditOutlinedIcon {...iconProps(16)} /> Edit
             </button>
             <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "duplicate")}>
-              <CopyPlus size={14} strokeWidth={iconStroke} /> Duplicate
+              <ControlPointDuplicateOutlinedIcon {...iconProps(16)} /> Duplicate
             </button>
             <div className="popover-sep" />
             <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "genkey")}>
-              <KeyRound size={14} strokeWidth={iconStroke} /> Generate key
+              <KeyOutlinedIcon {...iconProps(16)} /> Generate key
             </button>
             <button type="button" className="popover-item" onClick={() => void runProfileAction(selected, "install")}>
-              <Upload size={14} strokeWidth={iconStroke} /> Install key
+              <UploadIcon {...iconProps(16)} /> Install key
             </button>
             <div className="popover-sep" />
             <button
@@ -415,7 +413,7 @@ export function ProfileSidebar({
               className="popover-item danger"
               onClick={() => void runProfileAction(selected, "delete")}
             >
-              <Trash2 size={14} strokeWidth={iconStroke} /> Delete
+              <DeleteOutlinedIcon {...iconProps(16)} /> Delete
             </button>
           </div>
         )}
@@ -459,7 +457,7 @@ export function ProfileSidebar({
             <IconButton
               variant="ghost"
               label="Lock vault"
-              icon={<Lock size={iconSize} strokeWidth={iconStroke} />}
+              icon={<LockOutlinedIcon {...iconProps(iconSize)} />}
               onClick={lockVault}
             />
             <IconButton variant="ghost" label="Change password" onClick={() => void changeMaster()} />

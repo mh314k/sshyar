@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Download, ExternalLink, RefreshCw } from "lucide-react";
+import DownloadIcon from "@mui/icons-material/Download";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   APP_VERSION,
@@ -10,7 +12,7 @@ import {
 } from "../lib/version";
 import { toastError } from "../lib/toast";
 import { BrandLogo } from "./BrandLogo";
-import { IconButton, iconSize, iconStroke } from "./IconButton";
+import { IconButton, iconProps, iconSize } from "./IconButton";
 
 interface Props {
   update: UpdateInfo | null;
@@ -83,14 +85,14 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
               <IconButton
                 variant="primary"
                 label="Download update"
-                icon={<Download size={iconSize} strokeWidth={iconStroke} />}
+                icon={<DownloadIcon {...iconProps(iconSize)} />}
                 onClick={() => void open(update.downloadUrl!)}
               />
             ) : null}
             <IconButton
               variant="ghost"
               label="Open release"
-              icon={<ExternalLink size={iconSize} strokeWidth={iconStroke} />}
+              icon={<OpenInNewIcon {...iconProps(iconSize)} />}
               onClick={() => void open(update.htmlUrl)}
             />
           </div>
@@ -103,26 +105,26 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
         <IconButton
           variant="ghost"
           label={checking ? "Checking…" : "Check for updates"}
-          icon={<RefreshCw size={iconSize} strokeWidth={iconStroke} />}
+          icon={<RefreshIcon {...iconProps(iconSize)} />}
           disabled={checking}
           onClick={() => void runCheck()}
         />
         <IconButton
           variant="ghost"
           label="GitHub"
-          icon={<ExternalLink size={iconSize} strokeWidth={iconStroke} />}
+          icon={<OpenInNewIcon {...iconProps(iconSize)} />}
           onClick={() => void open(`https://github.com/${GITHUB_REPO}`)}
         />
         <IconButton
           variant="ghost"
           label="Releases"
-          icon={<ExternalLink size={iconSize} strokeWidth={iconStroke} />}
+          icon={<OpenInNewIcon {...iconProps(iconSize)} />}
           onClick={() => void open(GITHUB_RELEASES_URL)}
         />
         <IconButton
           variant="ghost"
           label="GPL-3.0"
-          icon={<ExternalLink size={iconSize} strokeWidth={iconStroke} />}
+          icon={<OpenInNewIcon {...iconProps(iconSize)} />}
           onClick={() => void open("https://www.gnu.org/licenses/gpl-3.0.html")}
         />
       </div>

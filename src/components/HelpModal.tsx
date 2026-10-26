@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X } from "lucide-react";
+import CloseIcon from "@mui/icons-material/Close";
+import SearchIcon from "@mui/icons-material/Search";
 import { HELP_SECTIONS, filterHelpSections } from "../lib/helpContent";
 import { APP_VERSION } from "../lib/version";
-import { iconStroke } from "./IconButton";
+import { iconProps } from "./IconButton";
 
 interface Props {
   open: boolean;
@@ -60,12 +61,12 @@ export function HelpModal({ open, onClose }: Props) {
             <p className="muted">SSHyar v{APP_VERSION} — features and how to use them</p>
           </div>
           <button type="button" className="help-close" onClick={onClose} title="Close" aria-label="Close">
-            <X size={18} strokeWidth={iconStroke} />
+            <CloseIcon {...iconProps(18)} />
           </button>
         </header>
 
         <div className="help-search">
-          <Search size={15} strokeWidth={iconStroke} className="help-search-icon" aria-hidden />
+          <SearchIcon {...iconProps(15)} className="help-search-icon" aria-hidden />
           <input
             ref={inputRef}
             type="search"

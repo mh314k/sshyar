@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import type { Snippet } from "../types";
 import { api } from "../lib/api";
-import { IconButton, iconSize, iconStroke } from "./IconButton";
+import { IconButton, iconProps, iconSize, iconSizeSm } from "./IconButton";
 
 interface Props {
   snippets: Snippet[];
@@ -42,7 +43,7 @@ export function SnippetList({ snippets, onChange, onRun }: Props) {
             <IconButton
               variant="ghost"
               title="Delete"
-              icon={<Trash2 size={13} strokeWidth={iconStroke} />}
+              icon={<DeleteOutlinedIcon {...iconProps(iconSizeSm)} />}
               onClick={async () => {
                 await api.deleteSnippet(s.id);
                 onChange();
@@ -68,7 +69,7 @@ export function SnippetList({ snippets, onChange, onRun }: Props) {
           type="submit"
           variant="soft"
           label="Add"
-          icon={<Plus size={iconSize} strokeWidth={iconStroke} />}
+          icon={<AddIcon {...iconProps(iconSize)} />}
         />
       </form>
       {error && <p className="error">{error}</p>}

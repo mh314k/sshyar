@@ -1,8 +1,9 @@
-import { Copy, Check } from "lucide-react";
+import CheckIcon from "@mui/icons-material/Check";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toastError, toastSuccess } from "../../lib/toast";
-import { IconButton, iconStroke } from "../IconButton";
+import { IconButton, iconProps, iconSizeSm } from "../IconButton";
 
 type Crumb = { label: string; path: string };
 
@@ -28,6 +29,7 @@ type Props = {
 export function SftpPathBar({ cwd, disabled, onNavigate }: Props) {
   const [copied, setCopied] = useState(false);
   const crumbs = crumbsFor(cwd || "/");
+  const ip = iconProps(iconSizeSm);
 
   async function copyPath() {
     if (!cwd) return;
@@ -68,13 +70,7 @@ export function SftpPathBar({ cwd, disabled, onNavigate }: Props) {
         title="Copy path"
         disabled={!cwd}
         onClick={() => void copyPath()}
-        icon={
-          copied ? (
-            <Check size={13} strokeWidth={iconStroke} />
-          ) : (
-            <Copy size={13} strokeWidth={iconStroke} />
-          )
-        }
+        icon={copied ? <CheckIcon {...ip} /> : <ContentCopyIcon {...ip} />}
       />
     </div>
   );

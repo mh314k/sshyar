@@ -1,6 +1,8 @@
-import { ArrowDown, ArrowUp, File, Folder } from "lucide-react";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import type { RemoteEntry } from "../../types";
-import { iconStroke } from "../IconButton";
+import { iconProps, iconSizeSm } from "../icons";
+import { FileTypeIcon } from "./fileIcon";
 import { formatSize } from "./format";
 import type { SortDir, SortKey } from "./sort";
 
@@ -38,9 +40,9 @@ function SortLabel({
       {label}
       {active &&
         (dir === "asc" ? (
-          <ArrowUp size={11} strokeWidth={iconStroke} />
+          <ArrowUpwardIcon {...iconProps(12)} />
         ) : (
-          <ArrowDown size={11} strokeWidth={iconStroke} />
+          <ArrowDownwardIcon {...iconProps(12)} />
         ))}
     </button>
   );
@@ -122,13 +124,7 @@ export function SftpFileList({
                 }}
               />
             </label>
-            <span className="sftp-icon">
-              {e.isDir ? (
-                <Folder size={15} strokeWidth={iconStroke} />
-              ) : (
-                <File size={15} strokeWidth={iconStroke} />
-              )}
-            </span>
+            <FileTypeIcon name={e.name} isDir={e.isDir} size={iconSizeSm} />
             <span className="sftp-name">{e.name}</span>
             <span className="sftp-meta">{e.isDir ? "" : formatSize(e.size)}</span>
           </div>

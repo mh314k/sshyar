@@ -177,6 +177,19 @@ button:disabled {
 
 .ui-btn-icon svg {
   display: block;
+  /* Material SvgIcon defaults to 1em; size comes from sx.fontSize */
+  width: 1em;
+  height: 1em;
+}
+
+.sftp-icon svg,
+.popover-item svg,
+.help-search-icon,
+.toast-close svg,
+.follow-shell svg {
+  width: 1em;
+  height: 1em;
+  display: block;
 }
 
 .ui-btn-primary {
@@ -1359,6 +1372,65 @@ body.is-resizing * {
   justify-content: center;
 }
 
+.sftp-icon-folder {
+  color: #ca8a04;
+}
+.sftp-icon-code {
+  color: #38bdf8;
+}
+.sftp-icon-config {
+  color: #a78bfa;
+}
+.sftp-icon-data {
+  color: #34d399;
+}
+.sftp-icon-doc {
+  color: #94a3b8;
+}
+.sftp-icon-media {
+  color: #f472b6;
+}
+.sftp-icon-archive {
+  color: #fb923c;
+}
+.sftp-icon-secret {
+  color: #fbbf24;
+}
+.sftp-icon-package {
+  color: #2dd4bf;
+}
+.sftp-icon-default {
+  color: var(--muted);
+}
+
+[data-theme="light"] .sftp-icon-folder {
+  color: #a16207;
+}
+[data-theme="light"] .sftp-icon-code {
+  color: #0284c7;
+}
+[data-theme="light"] .sftp-icon-config {
+  color: #7c3aed;
+}
+[data-theme="light"] .sftp-icon-data {
+  color: #059669;
+}
+[data-theme="light"] .sftp-icon-doc {
+  color: #64748b;
+}
+[data-theme="light"] .sftp-icon-media {
+  color: #db2777;
+}
+[data-theme="light"] .sftp-icon-archive {
+  color: #ea580c;
+}
+[data-theme="light"] .sftp-icon-secret {
+  color: #d97706;
+}
+[data-theme="light"] .sftp-icon-package {
+  color: #0f766e;
+}
+
 .sftp-row:hover {
   background: var(--selected-bg);
 }
@@ -1368,7 +1440,7 @@ body.is-resizing * {
 }
 
 .sftp-row.selected .sftp-icon {
-  color: var(--accent-hover);
+  filter: brightness(1.08);
 }
 
 .sftp-name {

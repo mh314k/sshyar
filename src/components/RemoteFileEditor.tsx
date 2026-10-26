@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { Eye, Pencil, RotateCcw, Save, X } from "lucide-react";
+import CloseIcon from "@mui/icons-material/Close";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { api } from "../lib/api";
 import { appConfirm } from "../lib/dialogs";
 import { languageForPath } from "../lib/editorLang";
 import type { ThemeMode } from "../lib/theme";
-import { IconButton, iconStroke } from "./IconButton";
+import { IconButton, iconProps } from "./IconButton";
 
 export type FileEditorMode = "view" | "edit";
 
@@ -134,9 +138,9 @@ export function RemoteFileEditor({
           <div className="file-editor-title">
             <strong className="file-editor-mode">
               {mode === "view" ? (
-                <Eye size={14} strokeWidth={iconStroke} />
+                <VisibilityOutlinedIcon {...iconProps(16)} />
               ) : (
-                <Pencil size={14} strokeWidth={iconStroke} />
+                <EditOutlinedIcon {...iconProps(16)} />
               )}
               {mode === "view" ? "View" : "Edit"}
             </strong>
@@ -151,7 +155,7 @@ export function RemoteFileEditor({
               <IconButton
                 variant="ghost"
                 label="Edit"
-                icon={<Pencil size={14} strokeWidth={iconStroke} />}
+                  icon={<EditOutlinedIcon {...iconProps(16)} />}
                 onClick={() => setMode("edit")}
               />
             ) : (
@@ -160,14 +164,14 @@ export function RemoteFileEditor({
                   variant="ghost"
                   label="Revert"
                   disabled={!dirty}
-                  icon={<RotateCcw size={14} strokeWidth={iconStroke} />}
+                  icon={<RestartAltIcon {...iconProps(16)} />}
                   onClick={() => setContent(original)}
                 />
                 <IconButton
                   variant="primary"
                   label={saving ? "Saving…" : "Save"}
                   disabled={saving || !dirty}
-                  icon={<Save size={14} strokeWidth={iconStroke} />}
+                  icon={<SaveOutlinedIcon {...iconProps(16)} />}
                   onClick={() => void save()}
                 />
               </>
@@ -175,7 +179,7 @@ export function RemoteFileEditor({
             <IconButton
               variant="icon"
               title="Close"
-              icon={<X size={15} strokeWidth={iconStroke} />}
+              icon={<CloseIcon {...iconProps(16)} />}
               onClick={() => void requestClose()}
             />
           </div>

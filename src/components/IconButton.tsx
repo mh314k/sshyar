@@ -1,5 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
+export { iconProps, iconSize, iconSizeLg, iconSizeSm } from "./icons";
+
 type Variant = "primary" | "ghost" | "danger" | "soft" | "icon";
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -28,6 +30,3 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButt
     </button>
   );
 });
-
-export const iconSize = 15;
-export const iconStroke = 1.75;

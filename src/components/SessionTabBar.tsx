@@ -1,6 +1,8 @@
-import { Plus, RotateCcw, X } from "lucide-react";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import type { SessionStatus, SessionTab } from "../types";
-import { IconButton, iconSize, iconStroke } from "./IconButton";
+import { IconButton, iconProps, iconSize, iconSizeSm } from "./IconButton";
 
 interface Props {
   tabs: SessionTab[];
@@ -37,6 +39,7 @@ export function SessionTabBar({
   onNew,
   onReconnect,
 }: Props) {
+  const sm = iconProps(iconSizeSm);
   return (
     <div className="tab-bar">
       <div className="tab-list">
@@ -64,7 +67,7 @@ export function SessionTabBar({
                 className="tab-icon-btn"
                 variant="icon"
                 title="Reconnect"
-                icon={<RotateCcw size={13} strokeWidth={iconStroke} />}
+                icon={<RestartAltIcon {...sm} />}
                 onClick={(e) => {
                   e.stopPropagation();
                   onReconnect(t.id);
@@ -75,7 +78,7 @@ export function SessionTabBar({
               className="tab-icon-btn"
               variant="icon"
               title="Close"
-              icon={<X size={14} strokeWidth={iconStroke} />}
+              icon={<CloseIcon {...sm} />}
               onClick={(e) => {
                 e.stopPropagation();
                 onClose(t.id);
@@ -88,7 +91,7 @@ export function SessionTabBar({
         className="tab-new"
         variant="ghost"
         title="New local shell (Ctrl+T)"
-        icon={<Plus size={iconSize} strokeWidth={iconStroke} />}
+        icon={<AddIcon {...iconProps(iconSize)} />}
         onClick={onNew}
       />
     </div>

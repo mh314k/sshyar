@@ -1,18 +1,16 @@
-import {
-  ArrowUp,
-  ClipboardPaste,
-  Copy,
-  Download,
-  FolderPlus,
-  Pencil,
-  RefreshCw,
-  Scissors,
-  Trash2,
-  Upload,
-} from "lucide-react";
-import { IconButton, iconStroke } from "../IconButton";
-import type { ClipboardState } from "./types";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import ContentCutIcon from "@mui/icons-material/ContentCut";
+import ContentPasteIcon from "@mui/icons-material/ContentPaste";
+import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import DownloadIcon from "@mui/icons-material/Download";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import UploadIcon from "@mui/icons-material/Upload";
 import type { RemoteEntry } from "../../types";
+import { IconButton, iconProps, iconSizeSm } from "../IconButton";
+import type { ClipboardState } from "./types";
 
 type Props = {
   sftpId: string | null;
@@ -52,6 +50,7 @@ export function SftpToolbar({
   onPaste,
 }: Props) {
   const navOff = !sftpId || busy;
+  const ip = iconProps(iconSizeSm);
   return (
     <div className="sftp-toolbar">
       <div className="sftp-toolbar-group" title="Navigate">
@@ -60,14 +59,14 @@ export function SftpToolbar({
           title="Up"
           disabled={navOff}
           onClick={onUp}
-          icon={<ArrowUp size={14} strokeWidth={iconStroke} />}
+          icon={<ArrowUpwardIcon {...ip} />}
         />
         <IconButton
           variant="soft"
           title="Refresh"
           disabled={navOff}
           onClick={onRefresh}
-          icon={<RefreshCw size={14} strokeWidth={iconStroke} />}
+          icon={<RefreshIcon {...ip} />}
         />
       </div>
       <span className="sftp-toolbar-divider" aria-hidden />
@@ -78,14 +77,14 @@ export function SftpToolbar({
           label="Upload"
           disabled={navOff}
           onClick={onUpload}
-          icon={<Upload size={14} strokeWidth={iconStroke} />}
+          icon={<UploadIcon {...ip} />}
         />
         <IconButton
           variant="soft"
           title={hasFileSelection ? "Download selected" : "Select file(s) to download"}
           disabled={!hasFileSelection || busy}
           onClick={onDownload}
-          icon={<Download size={14} strokeWidth={iconStroke} />}
+          icon={<DownloadIcon {...ip} />}
         />
       </div>
       <span className="sftp-toolbar-divider" aria-hidden />
@@ -95,42 +94,42 @@ export function SftpToolbar({
           title="New folder"
           disabled={navOff}
           onClick={onMkdir}
-          icon={<FolderPlus size={14} strokeWidth={iconStroke} />}
+          icon={<CreateNewFolderOutlinedIcon {...ip} />}
         />
         <IconButton
           variant="soft"
           title="Rename"
           disabled={!single || busy}
           onClick={onRename}
-          icon={<Pencil size={14} strokeWidth={iconStroke} />}
+          icon={<EditOutlinedIcon {...ip} />}
         />
         <IconButton
           variant="soft"
           title="Delete selected"
           disabled={!hasSelection || busy}
           onClick={onDelete}
-          icon={<Trash2 size={14} strokeWidth={iconStroke} />}
+          icon={<DeleteOutlinedIcon {...ip} />}
         />
         <IconButton
           variant="soft"
           title="Copy selected"
           disabled={!hasSelection}
           onClick={onCopy}
-          icon={<Copy size={14} strokeWidth={iconStroke} />}
+          icon={<ContentCopyIcon {...ip} />}
         />
         <IconButton
           variant="soft"
           title="Cut selected"
           disabled={!hasSelection}
           onClick={onCut}
-          icon={<Scissors size={14} strokeWidth={iconStroke} />}
+          icon={<ContentCutIcon {...ip} />}
         />
         <IconButton
           variant="soft"
           title="Paste"
           disabled={!clipboard || busy}
           onClick={onPaste}
-          icon={<ClipboardPaste size={14} strokeWidth={iconStroke} />}
+          icon={<ContentPasteIcon {...ip} />}
         />
       </div>
     </div>

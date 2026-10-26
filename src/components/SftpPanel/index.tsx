@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
-import { Link2, PanelRightClose } from "lucide-react";
+import LinkIcon from "@mui/icons-material/Link";
+import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
 import { api } from "../../lib/api";
 import { appConfirm, appPrompt } from "../../lib/dialogs";
 import { toast, toastError, toastSuccess } from "../../lib/toast";
 import type { ThemeMode } from "../../lib/theme";
 import type { RemoteEntry, TransferProgressEvent } from "../../types";
 import { ContextMenu } from "../ContextMenu";
-import { IconButton, iconSize, iconStroke } from "../IconButton";
+import { IconButton, iconProps, iconSize } from "../IconButton";
 import { RemoteFileEditor, type FileEditorMode } from "../RemoteFileEditor";
 import { buildSftpMenuItems } from "./buildMenuItems";
 import { SftpFileList } from "./FileList";
@@ -596,7 +597,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
           variant="icon"
           title="Hide SFTP"
           onClick={onToggle}
-          icon={<PanelRightClose size={iconSize} strokeWidth={iconStroke} />}
+          icon={<ViewSidebarOutlinedIcon {...iconProps(iconSize)} />}
         />
       </div>
       {!profileId ? (
@@ -613,7 +614,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
               disabled={!ptyId}
               onChange={(e) => setFollowShell(e.target.checked)}
             />
-            <Link2 size={13} strokeWidth={iconStroke} />
+            <LinkIcon {...iconProps(14)} />
             <span>Follow shell</span>
           </label>
           <SftpToolbar
