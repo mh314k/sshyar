@@ -59,6 +59,8 @@ export function Popover({
       const t = e.target as Node;
       if (ref.current?.contains(t)) return;
       if (anchorRef.current?.contains(t)) return;
+      // Keep popover open while an app modal is up (modals portal to body).
+      if (t instanceof Element && t.closest(".app-modal-overlay")) return;
       onClose();
     }
     function onReposition() {

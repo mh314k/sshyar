@@ -73,8 +73,17 @@ fn vault_set_master_password(state: State<AppState>, password: String) -> AppRes
 }
 
 #[tauri::command]
-fn vault_remove_master_password(state: State<AppState>) -> AppResult<()> {
-    state.vault.lock().remove_master_password()
+fn vault_change_master_password(
+    state: State<AppState>,
+    current: String,
+    next: String,
+) -> AppResult<()> {
+    state.vault.lock().change_master_password(&current, &next)
+}
+
+#[tauri::command]
+fn vault_remove_master_password(state: State<AppState>, password: String) -> AppResult<()> {
+    state.vault.lock().remove_master_password(&password)
 }
 
 #[tauri::command]
@@ -477,6 +486,7 @@ pub fn run() {
             vault_unlock,
             vault_lock,
             vault_set_master_password,
+            vault_change_master_password,
             vault_remove_master_password,
             list_profiles,
             upsert_profile,

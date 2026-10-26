@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="SSHyar">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#083936"/>
+      <stop offset="45%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#3dceb9"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="64" y1="0" x2="64" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#042f2c" flood-opacity=".35"/>
+    </filter>
+  </defs>
+
+  <rect width="128" height="128" rx="32" fill="url(#bg)"/>
+  <rect width="128" height="128" rx="32" fill="url(#sheen)"/>
+
+  <g filter="url(#soft)">
+    <!-- Prompt chevron -->
+    <path
+      d="M34 40 L58 64 L34 88"
+      fill="none"
+      stroke="#fff"
+      stroke-width="11"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Lock shackle -->
+    <path
+      d="M76 55 V50.5 C76 42.8 82 37 89.5 37 C97 37 103 42.8 103 50.5 V55"
+      fill="none"
+      stroke="#fff"
+      stroke-width="9"
+      stroke-linecap="round"
+    />
+
+    <!-- Lock body -->
+    <rect x="70" y="53" width="39" height="32" rx="9" fill="#fff"/>
+
+    <!-- Keyhole -->
+    <circle cx="89.5" cy="65" r="4.4" fill="#0c5f58"/>
+    <path d="M87.4 67.8 h4.2 v8.2 c0 1.1-.9 2-2.1 2s-2.1-.9-2.1-2z" fill="#0c5f58"/>
+  </g>
+</svg>

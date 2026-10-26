@@ -10,6 +10,7 @@ import { PanelLayout, usePanelLayout } from "./components/PanelLayout";
 import { readStoredTheme, toggleTheme, type ThemeMode } from "./lib/theme";
 import { DialogHost } from "./lib/dialogs";
 import { ToastHost, toastError } from "./lib/toast";
+import { BrandLogo } from "./components/BrandLogo";
 import "./App.css";
 
 export default function App() {
@@ -158,7 +159,7 @@ export default function App() {
         <div className="unlock-gate">
           <div className="unlock-card">
             <div className="brand-title">
-              <img src="/app-icon.png" alt="" className="brand-logo" width={36} height={36} />
+              <BrandLogo size={36} />
               <h1>SSHyar</h1>
             </div>
             <p className="error">{bootError}</p>
@@ -175,7 +176,7 @@ export default function App() {
         <div className="unlock-gate">
           <div className="unlock-card">
             <div className="brand-title">
-              <img src="/app-icon.png" alt="" className="brand-logo" width={36} height={36} />
+              <BrandLogo size={36} />
               <h1>SSHyar</h1>
             </div>
             <p className="muted">Loading…</p>
@@ -242,7 +243,7 @@ export default function App() {
           <div className="terminal-stack">
             {!tabs.length && (
               <div className="empty-terminal">
-                <img src="/app-icon.png" alt="" className="brand-logo" width={48} height={48} />
+                <BrandLogo size={52} />
                 <p>Pick a profile on the left, or open a local PowerShell session.</p>
                 <button type="button" onClick={() => void createLocalTab()}>
                   New PowerShell

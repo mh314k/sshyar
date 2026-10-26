@@ -13,6 +13,22 @@ type PromptReq = {
   resolve: (value: string | null) => void;
 };
 
+type PasswordPromptReq = {
+  kind: "passwordPrompt";
+  title: string;
+  message?: string;
+  /** Soft warning only — never blocks submit. */
+  strengthHint?: (password: string) => string | null;
+  /** If set, require current password as well (change-password flow). */
+  requireCurrent?: boolean;
+  resolve: (value: PasswordPromptResult | null) => void;
+};
+
+export type PasswordPromptResult = {
+  password: string;
+  current?: string;
+};
+
 type ConfirmReq = {
   kind: "confirm";
   title: string;
@@ -22,7 +38,7 @@ type ConfirmReq = {
   resolve: (ok: boolean) => void;
 };
 
-type Req = PromptReq | ConfirmReq;
+type Req = PromptReq | PasswordPromptReq | ConfirmReq;
 
 let queue: Req[] = [];
 let notify: (() => void) | null = null;
@@ -46,6 +62,18 @@ export function appPrompt(options: {
   });
 }
 
+/** One dialog: new password + confirm (+ optional current). Soft strength warning. */
+export function appPasswordPrompt(options: {
+  title: string;
+  message?: string;
+  strengthHint?: (password: string) => string | null;
+  requireCurrent?: boolean;
+}): Promise<PasswordPromptResult | null> {
+  return new Promise((resolve) => {
+    push({ kind: "passwordPrompt", ...options, resolve });
+  });
+}
+
 export function appConfirm(options: {
   title: string;
   message?: string;
@@ -66,6 +94,8 @@ function advance(setCurrent: (r: Req | null) => void) {
 export function DialogHost() {
   const [current, setCurrent] = useState<Req | null>(null);
   const [value, setValue] = useState("");
+  const [confirmValue, setConfirmValue] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
 
   useEffect(() => {
     notify = () => {
@@ -83,21 +113,30 @@ export function DialogHost() {
   }, []);
 
   useEffect(() => {
-    if (current?.kind === "prompt") {
-      setValue(current.defaultValue ?? "");
-    }
+    setValue(current?.kind === "prompt" ? (current.defaultValue ?? "") : "");
+    setConfirmValue("");
+    setCurrentPassword("");
   }, [current]);
 
   function finishPrompt(result: string | null) {
     if (!current || current.kind !== "prompt") return;
-    current.resolve(result);
+    const resolve = current.resolve;
     advance(setCurrent);
+    queueMicrotask(() => resolve(result));
+  }
+
+  function finishPassword(result: PasswordPromptResult | null) {
+    if (!current || current.kind !== "passwordPrompt") return;
+    const resolve = current.resolve;
+    advance(setCurrent);
+    queueMicrotask(() => resolve(result));
   }
 
   function finishConfirm(ok: boolean) {
     if (!current || current.kind !== "confirm") return;
-    current.resolve(ok);
+    const resolve = current.resolve;
     advance(setCurrent);
+    queueMicrotask(() => resolve(ok));
   }
 
   if (!current) return null;
@@ -107,16 +146,31 @@ export function DialogHost() {
   const tooShort = current.kind === "prompt" && value.length > 0 && value.length < minLen;
   const emptyBlocked =
     current.kind === "prompt" && !allowEmpty && value.trim().length < Math.max(minLen, 1);
-  const canSubmit = current.kind === "prompt" && !tooShort && !emptyBlocked;
+  const canSubmitPrompt = current.kind === "prompt" && !tooShort && !emptyBlocked;
+
+  const requireCurrent = current.kind === "passwordPrompt" && !!current.requireCurrent;
+  const mismatch =
+    current.kind === "passwordPrompt" &&
+    confirmValue.length > 0 &&
+    value !== confirmValue;
+  const weak =
+    current.kind === "passwordPrompt" && value.length > 0
+      ? (current.strengthHint?.(value) ?? null)
+      : null;
+  const canSubmitPassword =
+    current.kind === "passwordPrompt" &&
+    value.length > 0 &&
+    value === confirmValue &&
+    (!requireCurrent || currentPassword.length > 0);
 
   return createPortal(
     <div
       className="app-modal-overlay"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          if (current.kind === "prompt") finishPrompt(null);
-          else finishConfirm(false);
-        }
+        if (e.target !== e.currentTarget) return;
+        if (current.kind === "confirm") finishConfirm(false);
+        else if (current.kind === "passwordPrompt") finishPassword(null);
+        else finishPrompt(null);
       }}
     >
       <div
@@ -133,7 +187,7 @@ export function DialogHost() {
             className="app-modal-form"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!canSubmit) return;
+              if (!canSubmitPrompt) return;
               finishPrompt(value);
             }}
           >
@@ -149,7 +203,55 @@ export function DialogHost() {
               <button type="button" className="ghost" onClick={() => finishPrompt(null)}>
                 Cancel
               </button>
-              <button type="submit" disabled={!canSubmit}>
+              <button type="submit" disabled={!canSubmitPrompt}>
+                OK
+              </button>
+            </div>
+          </form>
+        ) : current.kind === "passwordPrompt" ? (
+          <form
+            className="app-modal-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!canSubmitPassword) return;
+              finishPassword({
+                password: value,
+                current: requireCurrent ? currentPassword : undefined,
+              });
+            }}
+          >
+            {requireCurrent ? (
+              <input
+                autoFocus
+                type="password"
+                value={currentPassword}
+                placeholder="Current password"
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            ) : null}
+            <input
+              autoFocus={!requireCurrent}
+              type="password"
+              value={value}
+              placeholder="New password"
+              onChange={(e) => setValue(e.target.value)}
+              autoComplete="new-password"
+            />
+            <input
+              type="password"
+              value={confirmValue}
+              placeholder="Confirm new password"
+              onChange={(e) => setConfirmValue(e.target.value)}
+              autoComplete="new-password"
+            />
+            {mismatch ? <p className="error">Passwords do not match</p> : null}
+            {!mismatch && weak ? <p className="warn">{weak} You can still use it.</p> : null}
+            <div className="app-modal-actions">
+              <button type="button" className="ghost" onClick={() => finishPassword(null)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={!canSubmitPassword}>
                 OK
               </button>
             </div>

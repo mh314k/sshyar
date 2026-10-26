@@ -29,6 +29,11 @@ struct VaultMeta {
     mode: String,
     password_hash: Option<String>,
     kdf_salt: Option<String>,
+    /// Public counts so the lock screen can show them without decrypting.
+    #[serde(default)]
+    profile_count: usize,
+    #[serde(default)]
+    snippet_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +67,8 @@ impl VaultState {
                 mode: "dpapi".into(),
                 password_hash: None,
                 kdf_salt: None,
+                profile_count: 0,
+                snippet_count: 0,
             };
             fs::write(&meta_path, serde_json::to_string_pretty(&m)?)?;
             m
@@ -83,11 +90,17 @@ impl VaultState {
     }
 
     pub fn status(&self) -> VaultStatus {
+        // When locked, in-memory data is cleared — use meta counts written on last save.
+        let (profile_count, snippet_count) = if self.unlocked {
+            (self.data.profiles.len(), self.data.snippets.len())
+        } else {
+            (self.meta.profile_count, self.meta.snippet_count)
+        };
         VaultStatus {
             unlocked: self.unlocked,
             has_master_password: self.meta.mode == "password",
-            profile_count: self.data.profiles.len(),
-            snippet_count: self.data.snippets.len(),
+            profile_count,
+            snippet_count,
         }
     }
 
@@ -105,11 +118,13 @@ impl VaultState {
         Ok(&mut self.data)
     }
 
-    pub fn save(&self) -> AppResult<()> {
+    pub fn save(&mut self) -> AppResult<()> {
         if !self.unlocked {
             return Err(AppError::msg("Vault is locked"));
         }
         let key = self.key.ok_or_else(|| AppError::msg("Missing vault key"))?;
+        self.meta.profile_count = self.data.profiles.len();
+        self.meta.snippet_count = self.data.snippets.len();
         let plaintext = serde_json::to_vec(&self.data)?;
         let encrypted = encrypt(&key, &plaintext)?;
         fs::write(self.dir.join(VAULT_FILE), encrypted)?;
@@ -144,16 +159,7 @@ impl VaultState {
         if self.meta.mode != "password" {
             return Err(AppError::msg("Vault is not password-protected"));
         }
-        let hash = self
-            .meta
-            .password_hash
-            .as_ref()
-            .ok_or_else(|| AppError::msg("Missing password hash"))?;
-        let parsed = PasswordHash::new(hash)
-            .map_err(|e| AppError::msg(format!("Invalid password hash: {e}")))?;
-        Argon2::default()
-            .verify_password(password.as_bytes(), &parsed)
-            .map_err(|_| AppError::msg("Incorrect master password"))?;
+        self.verify_password(password)?;
 
         let salt_b64 = self
             .meta
@@ -171,8 +177,23 @@ impl VaultState {
         if !self.unlocked {
             return Err(AppError::msg("Vault is locked"));
         }
-        if password.len() < 6 {
-            return Err(AppError::msg("Master password must be at least 6 characters"));
+        self.apply_master_password(password)
+    }
+
+    pub fn change_master_password(&mut self, current: &str, new_password: &str) -> AppResult<()> {
+        if !self.unlocked {
+            return Err(AppError::msg("Vault is locked"));
+        }
+        if self.meta.mode != "password" {
+            return Err(AppError::msg("Vault is not password-protected"));
+        }
+        self.verify_password(current)?;
+        self.apply_master_password(new_password)
+    }
+
+    fn apply_master_password(&mut self, password: &str) -> AppResult<()> {
+        if password.is_empty() {
+            return Err(AppError::msg("Master password cannot be empty"));
         }
 
         let mut salt = [0u8; 16];
@@ -194,10 +215,14 @@ impl VaultState {
         Ok(())
     }
 
-    pub fn remove_master_password(&mut self) -> AppResult<()> {
+    pub fn remove_master_password(&mut self, password: &str) -> AppResult<()> {
         if !self.unlocked {
             return Err(AppError::msg("Vault is locked"));
         }
+        if self.meta.mode != "password" {
+            return Err(AppError::msg("Vault is not password-protected"));
+        }
+        self.verify_password(password)?;
         let key = load_or_create_dpapi_key(&self.dir)?;
         self.key = Some(key);
         self.meta.mode = "dpapi".into();
@@ -207,7 +232,27 @@ impl VaultState {
         Ok(())
     }
 
+    fn verify_password(&self, password: &str) -> AppResult<()> {
+        let hash = self
+            .meta
+            .password_hash
+            .as_ref()
+            .ok_or_else(|| AppError::msg("Missing password hash"))?;
+        let parsed = PasswordHash::new(hash)
+            .map_err(|e| AppError::msg(format!("Invalid password hash: {e}")))?;
+        Argon2::default()
+            .verify_password(password.as_bytes(), &parsed)
+            .map_err(|_| AppError::msg("Incorrect master password"))?;
+        Ok(())
+    }
+
     pub fn lock(&mut self) {
+        // Keep meta counts for the lock screen before wiping plaintext.
+        self.meta.profile_count = self.data.profiles.len();
+        self.meta.snippet_count = self.data.snippets.len();
+        if let Ok(json) = serde_json::to_string_pretty(&self.meta) {
+            let _ = fs::write(self.dir.join(META_FILE), json);
+        }
         if let Some(mut k) = self.key.take() {
             k.zeroize();
         }

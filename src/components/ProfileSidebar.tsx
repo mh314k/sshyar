@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { Profile, ProfileInput, Snippet } from "../types";
 import { api } from "../lib/api";
-import { appConfirm, appPrompt } from "../lib/dialogs";
+import { appConfirm, appPasswordPrompt, appPrompt } from "../lib/dialogs";
 import { toastError, toastSuccess } from "../lib/toast";
 import type { ThemeMode } from "../lib/theme";
 import { ProfileForm } from "./ProfileForm";
@@ -26,6 +26,7 @@ import { SnippetList } from "./SnippetList";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { Popover } from "./Popover";
 import { IconButton, iconSize, iconStroke } from "./IconButton";
+import { BrandLogo } from "./BrandLogo";
 
 interface Props {
   profiles: Profile[];
@@ -42,6 +43,21 @@ interface Props {
 }
 
 type Panel = "actions" | "snippets" | "security" | null;
+
+/** Soft hint only — never blocks setting the password. */
+function passwordStrengthHint(password: string): string | null {
+  const issues: string[] = [];
+  if (password.length < 8) issues.push("shorter than 8 characters");
+  const classes = [
+    /[a-z]/.test(password),
+    /[A-Z]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length;
+  if (classes < 2) issues.push("only one character type");
+  if (!issues.length) return null;
+  return `This password looks weak (${issues.join(", ")}).`;
+}
 
 export function ProfileSidebar({
   profiles,
@@ -135,37 +151,53 @@ export function ProfileSidebar({
   }
 
   async function setMaster() {
-    const pass = await appPrompt({
-      title: "Master password",
-      message: "Used to unlock the vault. Minimum 6 characters.",
-      password: true,
-      minLength: 6,
-      placeholder: "Min 6 characters",
+    setPanel(null);
+    const result = await appPasswordPrompt({
+      title: "Set master password",
+      message: "Used to unlock the vault on next launch.",
+      strengthHint: passwordStrengthHint,
     });
-    if (!pass) return;
+    if (!result) return;
     try {
-      await api.vaultSetMasterPassword(pass);
+      await api.vaultSetMasterPassword(result.password);
       onMasterPasswordChange();
       toastSuccess("Master password set — unlock required next launch");
-      setPanel(null);
+    } catch (e) {
+      toastError(e, "Master password");
+    }
+  }
+
+  async function changeMaster() {
+    setPanel(null);
+    const result = await appPasswordPrompt({
+      title: "Change master password",
+      message: "Enter your current password, then choose a new one.",
+      strengthHint: passwordStrengthHint,
+      requireCurrent: true,
+    });
+    if (!result?.current) return;
+    try {
+      await api.vaultChangeMasterPassword(result.current, result.password);
+      onMasterPasswordChange();
+      toastSuccess("Master password changed");
     } catch (e) {
       toastError(e, "Master password");
     }
   }
 
   async function removeMaster() {
-    const ok = await appConfirm({
-      title: "Remove master password?",
-      message: "Vault will use Windows DPAPI only.",
-      confirmLabel: "Remove",
-      danger: true,
+    setPanel(null);
+    const pass = await appPrompt({
+      title: "Remove master password",
+      message: "Enter your current master password to confirm. Vault will use Windows DPAPI only.",
+      password: true,
+      placeholder: "Current password",
     });
-    if (!ok) return;
+    if (!pass) return;
     try {
-      await api.vaultRemoveMasterPassword();
+      await api.vaultRemoveMasterPassword(pass);
       onMasterPasswordChange();
       toastSuccess("Master password removed");
-      setPanel(null);
     } catch (e) {
       toastError(e, "Master password");
     }
@@ -212,7 +244,7 @@ export function ProfileSidebar({
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-title">
-          <img src="/app-icon.png" alt="" className="brand-logo" width={28} height={28} />
+          <BrandLogo size={28} />
           <h1>SSHyar</h1>
         </div>
         <div className="brand-actions">
@@ -410,7 +442,10 @@ export function ProfileSidebar({
             : "Vault is protected by Windows DPAPI. Optionally add a master password."}
         </p>
         {hasMasterPassword ? (
-          <IconButton variant="ghost" label="Remove master password" onClick={() => void removeMaster()} />
+          <>
+            <IconButton variant="ghost" label="Change password" onClick={() => void changeMaster()} />
+            <IconButton variant="ghost" label="Remove master password" onClick={() => void removeMaster()} />
+          </>
         ) : (
           <IconButton variant="ghost" label="Set master password" onClick={() => void setMaster()} />
         )}

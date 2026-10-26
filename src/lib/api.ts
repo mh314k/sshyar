@@ -13,7 +13,10 @@ export const api = {
   vaultLock: () => invoke<void>("vault_lock"),
   vaultSetMasterPassword: (password: string) =>
     invoke<void>("vault_set_master_password", { password }),
-  vaultRemoveMasterPassword: () => invoke<void>("vault_remove_master_password"),
+  vaultChangeMasterPassword: (current: string, next: string) =>
+    invoke<void>("vault_change_master_password", { current, next }),
+  vaultRemoveMasterPassword: (password: string) =>
+    invoke<void>("vault_remove_master_password", { password }),
 
   listProfiles: () => invoke<Profile[]>("list_profiles"),
   upsertProfile: (id: string | null, input: ProfileInput) =>
