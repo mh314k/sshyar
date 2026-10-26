@@ -332,7 +332,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "docker",
     title: "Docker",
     summary:
-      "Optional remote Docker plugin: status, Compose-grouped containers, images, volumes, networks, SFTP Compose bar, and job progress toasts.",
+      "Optional remote Docker plugin: status, Compose-grouped containers with live logs, images, volumes, networks, SFTP Compose bar, and job progress toasts.",
     keywords: [
       "docker",
       "container",
@@ -340,6 +340,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "volume",
       "network",
       "compose",
+      "logs",
       "engine",
       "version",
       "management",
@@ -374,13 +375,35 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         id: "containers",
         title: "Containers",
-        keywords: ["containers", "compose", "standalone", "start", "stop", "restart", "remove", "ps"],
+        keywords: [
+          "containers",
+          "compose",
+          "standalone",
+          "start",
+          "stop",
+          "restart",
+          "remove",
+          "ps",
+          "logs",
+        ],
         steps: [
           "Lists all containers (docker ps -a), grouped by Docker Compose project when the com.docker.compose.project label is set.",
           "Containers without Compose labels appear under Standalone.",
           "Each group is collapsible; rows show name, state, image, ports, and Compose service when present.",
-          "Actions: Start, Stop, Restart, and Remove (force rm). Remove asks for confirmation.",
+          "Actions: Logs, Start, Stop, Restart, and Remove (force rm). Remove asks for confirmation.",
           "Refresh reloads the list after changes on the server.",
+        ],
+      },
+      {
+        id: "container-logs",
+        title: "Live container logs",
+        keywords: ["logs", "live", "follow", "tail", "stream", "modal", "pause"],
+        steps: [
+          "Click the Logs icon on a container row to open a full-app popup (same overlay style as Help).",
+          "SSHyar streams docker logs -f over SSH, starting with a selectable Tail (100 / 200 / 500 / 1000 lines).",
+          "Pause stops the stream; Live / Restart resumes with the chosen tail. Clear wipes the on-screen buffer.",
+          "Auto-scroll follows new lines until you scroll up; use Scroll to bottom to stick again.",
+          "Closing the popup (or Escape) stops the remote stream. Only one live log stream runs at a time.",
         ],
       },
       {
@@ -579,6 +602,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "List/action errors (permission denied) — the SSH user may need membership in the docker group or root-equivalent access to the daemon.",
           "Compose groups missing — only containers labeled by Docker Compose are grouped; others stay under Standalone.",
           "No Compose bar in SFTP — enable Docker management, and open a folder that contains compose.yaml / compose.yml / docker-compose.yml|.yaml.",
+          "Logs stream fails — the SSH user needs permission to run docker logs on that container; try Restart in the logs popup.",
           "Cannot remove bridge/host/none — those are built-in networks and are blocked on purpose.",
           "Probe or list errors — confirm the profile can still SSH; try Refresh after fixing connectivity.",
         ],
