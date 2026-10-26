@@ -2,7 +2,7 @@
 
 Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted profile vault, graphical SFTP, optional Docker / Nginx / systemd / cron plugins, snippets, and optional master-password lock.
 
-**Version:** 0.4.0 · **License:** [GPL-3.0-or-later](LICENSE)
+**Version:** 0.5.0 · **License:** [GPL-3.0-or-later](LICENSE)
 
 ## Features
 
@@ -65,8 +65,8 @@ Artifacts land under `src-tauri/target/release/bundle/` (`.msi` / `.exe` on Wind
 2. Commit, then tag and push:
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds **Windows** and **Linux** (Ubuntu 24.04) and publishes a GitHub Release.
@@ -74,9 +74,9 @@ Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/rele
 To move an existing tag onto a new commit:
 
 ```bash
-git tag -d v0.4.0
-git tag v0.4.0
-git push origin refs/tags/v0.4.0 --force
+git tag -d v0.5.0
+git tag v0.5.0
+git push origin refs/tags/v0.5.0 --force
 ```
 
 ## Data location

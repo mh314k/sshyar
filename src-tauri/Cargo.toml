@@ -1,6 +1,6 @@
 [package]
 name = "sshyar"
-version = "0.4.0"
+version = "0.5.0"
 description = "SSHyar - SSH helper with embedded terminal (Windows & Linux)"
 authors = ["SSHyar"]
 edition = "2021"

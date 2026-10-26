@@ -1,5 +1,5 @@
 /** Keep in sync with package.json, src-tauri/tauri.conf.json, and Cargo.toml. */
-export const APP_VERSION = "0.4.0";
+export const APP_VERSION = "0.5.0";
 
 export const GITHUB_REPO = "mh314k/sshyar";
 export const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases`;
