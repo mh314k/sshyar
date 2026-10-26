@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../lib/api";
@@ -7,6 +7,7 @@ import { toastError } from "../../lib/toast";
 import type { DockerVolume } from "../../types";
 import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
+import { DockerFilter } from "./DockerFilter";
 
 interface Props {
   profileId: string;
@@ -19,6 +20,7 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
   const jobRunning = job?.status === "running";
 
   const refresh = useCallback(async () => {
@@ -43,6 +45,15 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((vol) => {
+      const hay = [vol.name, vol.driver, vol.mountpoint].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [items, query]);
 
   async function removeVolume(vol: DockerVolume) {
     const ok = await appConfirm({
@@ -80,7 +91,10 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
     <div className="docker-tab-body">
       <div className="docker-toolbar">
         <span className="docker-toolbar-label">
-          Volumes{items.length ? ` (${items.length})` : ""}
+          Volumes
+          {items.length
+            ? ` (${filtered.length}${filtered.length !== items.length ? `/${items.length}` : ""})`
+            : ""}
         </span>
         <IconButton
           variant="icon"
@@ -91,14 +105,23 @@ export function VolumesTab({ profileId, dockerInstalled }: Props) {
         />
       </div>
 
+      <DockerFilter
+        value={query}
+        onChange={setQuery}
+        placeholder="Filter name, driver, mount…"
+      />
+
       {busy && !items.length ? <p className="muted docker-empty">Loading…</p> : null}
       {error ? <p className="error docker-empty">{error}</p> : null}
       {!busy && !error && !items.length ? (
         <p className="muted docker-empty">No volumes.</p>
       ) : null}
+      {!busy && !error && items.length > 0 && filtered.length === 0 ? (
+        <p className="muted docker-empty">No volumes match this filter.</p>
+      ) : null}
 
       <ul className="docker-list">
-        {items.map((vol) => {
+        {filtered.map((vol) => {
           const rowBusy = acting === vol.name || busy || jobRunning;
           return (
             <li key={vol.name} className="docker-row">

@@ -17,12 +17,15 @@ import {
 } from "../../types";
 import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
+import { DockerFilter } from "./DockerFilter";
 
 interface Props {
   profileId: string;
   dockerInstalled: boolean | null;
   onOpenLogs?: (container: DockerContainer) => void;
 }
+
+type StateFilter = "all" | "running" | "stopped";
 
 function isRunning(state: string, status: string) {
   if (state === "running") return true;
@@ -34,6 +37,24 @@ function groupLabel(key: string) {
   return key === DOCKER_STANDALONE_GROUP ? "Standalone" : key;
 }
 
+function matchesQuery(c: DockerContainer, q: string) {
+  if (!q) return true;
+  const hay = [
+    c.name,
+    c.image,
+    c.status,
+    c.state,
+    c.ports,
+    c.id,
+    c.composeProject ?? "",
+    c.composeService ?? "",
+    c.groupKey,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(q);
+}
+
 export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props) {
   const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerContainer[]>([]);
@@ -41,6 +62,8 @@ export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props)
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const [query, setQuery] = useState("");
+  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const jobRunning = job?.status === "running";
 
   const refresh = useCallback(async () => {
@@ -66,9 +89,18 @@ export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props)
     void refresh();
   }, [refresh]);
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((c) => {
+      if (stateFilter === "running" && !isRunning(c.state, c.status)) return false;
+      if (stateFilter === "stopped" && isRunning(c.state, c.status)) return false;
+      return matchesQuery(c, q);
+    });
+  }, [items, query, stateFilter]);
+
   const groups = useMemo(() => {
     const map = new Map<string, DockerContainer[]>();
-    for (const c of items) {
+    for (const c of filtered) {
       const key = c.groupKey || DOCKER_STANDALONE_GROUP;
       const list = map.get(key) ?? [];
       list.push(c);
@@ -80,7 +112,7 @@ export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props)
       return a.localeCompare(b);
     });
     return keys.map((key) => ({ key, label: groupLabel(key), items: map.get(key)! }));
-  }, [items]);
+  }, [filtered]);
 
   async function runAction(c: DockerContainer, action: DockerContainerAction) {
     if (action === "remove") {
@@ -134,7 +166,10 @@ export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props)
     <div className="docker-tab-body">
       <div className="docker-toolbar">
         <span className="docker-toolbar-label">
-          Containers{items.length ? ` (${items.length})` : ""}
+          Containers
+          {items.length
+            ? ` (${filtered.length}${filtered.length !== items.length ? `/${items.length}` : ""})`
+            : ""}
         </span>
         <IconButton
           variant="icon"
@@ -145,10 +180,38 @@ export function ContainersTab({ profileId, dockerInstalled, onOpenLogs }: Props)
         />
       </div>
 
+      <DockerFilter
+        value={query}
+        onChange={setQuery}
+        placeholder="Filter name, image, compose…"
+      />
+      <div className="docker-state-filters" role="group" aria-label="State filter">
+        {(
+          [
+            ["all", "All"],
+            ["running", "Running"],
+            ["stopped", "Stopped"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`docker-state-chip ${stateFilter === id ? "is-active" : ""}`}
+            aria-pressed={stateFilter === id}
+            onClick={() => setStateFilter(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {busy && !items.length ? <p className="muted docker-empty">Loading…</p> : null}
       {error ? <p className="error docker-empty">{error}</p> : null}
       {!busy && !error && !items.length ? (
         <p className="muted docker-empty">No containers.</p>
+      ) : null}
+      {!busy && !error && items.length > 0 && filtered.length === 0 ? (
+        <p className="muted docker-empty">No containers match this filter.</p>
       ) : null}
 
       <div className="docker-groups">

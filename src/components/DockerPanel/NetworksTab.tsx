@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../lib/api";
@@ -7,6 +7,7 @@ import { toastError } from "../../lib/toast";
 import type { DockerNetwork } from "../../types";
 import { useDockerJob } from "../dockerJob/DockerJobContext";
 import { IconButton, iconProps, iconSizeSm } from "../IconButton";
+import { DockerFilter } from "./DockerFilter";
 
 interface Props {
   profileId: string;
@@ -15,12 +16,16 @@ interface Props {
 
 const BUILTIN = new Set(["bridge", "host", "none"]);
 
+type NetworkKind = "all" | "custom" | "builtin";
+
 export function NetworksTab({ profileId, dockerInstalled }: Props) {
   const { runJob, job } = useDockerJob();
   const [items, setItems] = useState<DockerNetwork[]>([]);
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState<NetworkKind>("all");
   const jobRunning = job?.status === "running";
 
   const refresh = useCallback(async () => {
@@ -45,6 +50,18 @@ export function NetworksTab({ profileId, dockerInstalled }: Props) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((net) => {
+      const builtin = BUILTIN.has(net.name.toLowerCase());
+      if (kindFilter === "builtin" && !builtin) return false;
+      if (kindFilter === "custom" && builtin) return false;
+      if (!q) return true;
+      const hay = [net.name, net.driver, net.scope, net.id].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [items, query, kindFilter]);
 
   async function removeNetwork(net: DockerNetwork) {
     const ok = await appConfirm({
@@ -82,7 +99,10 @@ export function NetworksTab({ profileId, dockerInstalled }: Props) {
     <div className="docker-tab-body">
       <div className="docker-toolbar">
         <span className="docker-toolbar-label">
-          Networks{items.length ? ` (${items.length})` : ""}
+          Networks
+          {items.length
+            ? ` (${filtered.length}${filtered.length !== items.length ? `/${items.length}` : ""})`
+            : ""}
         </span>
         <IconButton
           variant="icon"
@@ -93,14 +113,42 @@ export function NetworksTab({ profileId, dockerInstalled }: Props) {
         />
       </div>
 
+      <DockerFilter
+        value={query}
+        onChange={setQuery}
+        placeholder="Filter name, driver, scope…"
+      />
+      <div className="docker-state-filters" role="group" aria-label="Network kind">
+        {(
+          [
+            ["all", "All"],
+            ["custom", "Custom"],
+            ["builtin", "Built-in"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`docker-state-chip ${kindFilter === id ? "is-active" : ""}`}
+            aria-pressed={kindFilter === id}
+            onClick={() => setKindFilter(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {busy && !items.length ? <p className="muted docker-empty">Loading…</p> : null}
       {error ? <p className="error docker-empty">{error}</p> : null}
       {!busy && !error && !items.length ? (
         <p className="muted docker-empty">No networks.</p>
       ) : null}
+      {!busy && !error && items.length > 0 && filtered.length === 0 ? (
+        <p className="muted docker-empty">No networks match this filter.</p>
+      ) : null}
 
       <ul className="docker-list">
-        {items.map((net) => {
+        {filtered.map((net) => {
           const builtin = BUILTIN.has(net.name.toLowerCase());
           const rowBusy = acting === net.id || busy || jobRunning;
           return (
