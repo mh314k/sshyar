@@ -22,6 +22,20 @@ pub struct UploadItem {
     pub remote_path: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CopyItem {
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveItem {
+    pub path: String,
+    pub is_dir: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransferProgressEvent {
@@ -160,13 +174,72 @@ impl SftpManager {
             .get(id)
             .ok_or_else(|| AppError::msg("SFTP session not found"))?;
         if is_dir {
-            remove_dir_recursive(&conn.sftp, path).await?;
+            remove_dir_recursive(&conn.sftp, path, None, &mut 0).await?;
         } else {
             conn.sftp
                 .remove_file(path)
                 .await
                 .map_err(|e| AppError::msg(format!("unlink: {e}")))?;
         }
+        Ok(())
+    }
+
+    /// Delete items with progress — folders report bytes as nested files are removed.
+    pub async fn remove_batch(
+        &self,
+        app: &AppHandle,
+        id: &str,
+        transfer_id: &str,
+        items: &[RemoveItem],
+    ) -> AppResult<()> {
+        if items.is_empty() {
+            return Ok(());
+        }
+
+        let sessions = self.sessions.lock().await;
+        let conn = sessions
+            .get(id)
+            .ok_or_else(|| AppError::msg("SFTP session not found"))?;
+        let sftp = &conn.sftp;
+
+        let mut planned: Vec<(String, bool, String, u64)> = Vec::new();
+        for item in items {
+            let path = item.path.trim_end_matches('/').to_string();
+            let name = path.rsplit('/').next().unwrap_or(path.as_str()).to_string();
+            let size = remote_tree_size(sftp, &path).await?.max(1);
+            planned.push((path, item.is_dir, name, size));
+        }
+
+        let overall_total: u64 = planned.iter().map(|p| p.3).sum();
+        let file_count = planned.len() as u32;
+        let mut overall_base = 0u64;
+
+        for (i, (path, is_dir, name, size)) in planned.iter().enumerate() {
+            let progress = UploadProgressCtx {
+                app: app.clone(),
+                transfer_id: transfer_id.to_string(),
+                sftp_id: id.to_string(),
+                file_name: name.clone(),
+                file_index: i as u32,
+                file_count,
+                bytes_total: *size,
+                overall_total,
+                overall_base,
+            };
+            progress.emit(0);
+            if *is_dir {
+                let mut deleted = 0u64;
+                remove_dir_recursive(sftp, path, Some(&progress), &mut deleted).await?;
+                progress.emit(*size);
+            } else {
+                sftp.remove_file(path.as_str())
+                    .await
+                    .map_err(|e| AppError::msg(format!("unlink: {e}")))?;
+                progress.emit(*size);
+            }
+            overall_base += size;
+        }
+
         Ok(())
     }
 
@@ -265,12 +338,141 @@ impl SftpManager {
     }
 
     pub async fn copy_remote(&self, id: &str, from: &str, to: &str) -> AppResult<()> {
-        let tmp = std::env::temp_dir().join(format!("sshyar-copy-{}", Uuid::new_v4()));
-        let tmp_str = tmp.to_string_lossy().to_string();
-        self.download(id, from, &tmp_str).await?;
-        let result = self.upload(id, &tmp_str, to).await;
-        let _ = tokio::fs::remove_file(&tmp).await;
-        result
+        self.copy_batch(
+            None,
+            id,
+            "",
+            &[CopyItem {
+                from: from.to_string(),
+                to: to.to_string(),
+            }],
+        )
+        .await
+    }
+
+    /// Copy files/folders remotely with the same progress events as upload.
+    pub async fn copy_batch(
+        &self,
+        app: Option<&AppHandle>,
+        id: &str,
+        transfer_id: &str,
+        items: &[CopyItem],
+    ) -> AppResult<()> {
+        if items.is_empty() {
+            return Ok(());
+        }
+
+        let sessions = self.sessions.lock().await;
+        let conn = sessions
+            .get(id)
+            .ok_or_else(|| AppError::msg("SFTP session not found"))?;
+        let sftp = &conn.sftp;
+
+        let mut dirs: Vec<String> = Vec::new();
+        let mut files: Vec<(String, String, String, u64)> = Vec::new();
+        for item in items {
+            let from = item.from.trim_end_matches('/').to_string();
+            let to = item.to.trim_end_matches('/').to_string();
+            if to == from || to.starts_with(&format!("{from}/")) {
+                return Err(AppError::msg("Cannot copy a folder into itself"));
+            }
+            collect_copy_plan(sftp, &from, &to, &mut dirs, &mut files).await?;
+        }
+
+        for dir in &dirs {
+            sftp.create_dir(dir.as_str())
+                .await
+                .map_err(|e| AppError::msg(format!("mkdir {dir}: {e}")))?;
+        }
+
+        if files.is_empty() {
+            return Ok(());
+        }
+
+        let overall_total: u64 = files.iter().map(|f| f.3).sum();
+        let file_count = files.len() as u32;
+        let mut overall_base = 0u64;
+
+        for (i, (from, to, name, size)) in files.iter().enumerate() {
+            let progress = app.map(|app| UploadProgressCtx {
+                app: app.clone(),
+                transfer_id: transfer_id.to_string(),
+                sftp_id: id.to_string(),
+                file_name: name.clone(),
+                file_index: i as u32,
+                file_count,
+                bytes_total: *size,
+                overall_total,
+                overall_base,
+            });
+            if let Some(ctx) = &progress {
+                ctx.emit(0);
+            }
+            stream_copy_remote(sftp, from, to, progress.as_ref()).await?;
+            if let Some(ctx) = &progress {
+                ctx.emit(*size);
+            }
+            overall_base += size;
+        }
+
+        Ok(())
+    }
+
+    /// Move (rename) items with progress — folders move as one unit via SFTP rename.
+    pub async fn move_batch(
+        &self,
+        app: &AppHandle,
+        id: &str,
+        transfer_id: &str,
+        items: &[CopyItem],
+    ) -> AppResult<()> {
+        if items.is_empty() {
+            return Ok(());
+        }
+
+        let sessions = self.sessions.lock().await;
+        let conn = sessions
+            .get(id)
+            .ok_or_else(|| AppError::msg("SFTP session not found"))?;
+        let sftp = &conn.sftp;
+
+        let mut planned: Vec<(String, String, String, u64)> = Vec::new();
+        for item in items {
+            let from = item.from.trim_end_matches('/').to_string();
+            let to = item.to.trim_end_matches('/').to_string();
+            if to == from || to.starts_with(&format!("{from}/")) {
+                return Err(AppError::msg("Cannot move a folder into itself"));
+            }
+            let name = from.rsplit('/').next().unwrap_or(from.as_str()).to_string();
+            let size = remote_tree_size(sftp, &from).await?.max(1);
+            planned.push((from, to, name, size));
+        }
+
+        let overall_total: u64 = planned.iter().map(|p| p.3).sum();
+        let file_count = planned.len() as u32;
+        let mut overall_base = 0u64;
+
+        for (i, (from, to, name, size)) in planned.iter().enumerate() {
+            let progress = UploadProgressCtx {
+                app: app.clone(),
+                transfer_id: transfer_id.to_string(),
+                sftp_id: id.to_string(),
+                file_name: name.clone(),
+                file_index: i as u32,
+                file_count,
+                bytes_total: *size,
+                overall_total,
+                overall_base,
+            };
+            progress.emit(0);
+            sftp.rename(from, to)
+                .await
+                .map_err(|e| AppError::msg(format!("move {from}: {e}")))?;
+            progress.emit(*size);
+            overall_base += size;
+        }
+
+        Ok(())
     }
 
     pub async fn read_text(&self, id: &str, remote_path: &str, max_bytes: usize) -> AppResult<String> {
@@ -351,6 +553,131 @@ impl UploadProgressCtx {
     }
 }
 
+async fn remote_tree_size(sftp: &SftpSession, path: &str) -> AppResult<u64> {
+    let meta = sftp
+        .metadata(path)
+        .await
+        .map_err(|e| AppError::msg(format!("stat {path}: {e}")))?;
+    if !meta.file_type().is_dir() {
+        return Ok(meta.size.unwrap_or(0));
+    }
+    let entries = sftp
+        .read_dir(path)
+        .await
+        .map_err(|e| AppError::msg(format!("readdir {path}: {e}")))?;
+    let mut total = 0u64;
+    for entry in entries {
+        let name = entry.file_name();
+        if name == "." || name == ".." {
+            continue;
+        }
+        let child = if path.ends_with('/') {
+            format!("{path}{name}")
+        } else {
+            format!("{path}/{name}")
+        };
+        if entry.metadata().file_type().is_dir() {
+            total += Box::pin(remote_tree_size(sftp, &child)).await?;
+        } else {
+            total += entry.metadata().size.unwrap_or(0);
+        }
+    }
+    Ok(total)
+}
+
+async fn collect_copy_plan(
+    sftp: &SftpSession,
+    from: &str,
+    to: &str,
+    dirs: &mut Vec<String>,
+    files: &mut Vec<(String, String, String, u64)>,
+) -> AppResult<()> {
+    let meta = sftp
+        .metadata(from)
+        .await
+        .map_err(|e| AppError::msg(format!("stat {from}: {e}")))?;
+    if meta.file_type().is_dir() {
+        dirs.push(to.to_string());
+        let entries = sftp
+            .read_dir(from)
+            .await
+            .map_err(|e| AppError::msg(format!("readdir {from}: {e}")))?;
+        for entry in entries {
+            let name = entry.file_name();
+            if name == "." || name == ".." {
+                continue;
+            }
+            let child_from = if from.ends_with('/') {
+                format!("{from}{name}")
+            } else {
+                format!("{from}/{name}")
+            };
+            let child_to = format!("{to}/{name}");
+            if entry.metadata().file_type().is_dir() {
+                Box::pin(collect_copy_plan(
+                    sftp,
+                    &child_from,
+                    &child_to,
+                    dirs,
+                    files,
+                ))
+                .await?;
+            } else {
+                let size = entry.metadata().size.unwrap_or(0);
+                files.push((child_from, child_to, name, size));
+            }
+        }
+    } else {
+        let name = from.rsplit('/').next().unwrap_or(from).to_string();
+        files.push((from.to_string(), to.to_string(), name, meta.size.unwrap_or(0)));
+    }
+    Ok(())
+}
+
+async fn stream_copy_remote(
+    sftp: &SftpSession,
+    from: &str,
+    to: &str,
+    progress: Option<&UploadProgressCtx>,
+) -> AppResult<()> {
+    let mut src = sftp
+        .open(from)
+        .await
+        .map_err(|e| AppError::msg(format!("open {from}: {e}")))?;
+    let mut dst = sftp
+        .create(to)
+        .await
+        .map_err(|e| AppError::msg(format!("create {to}: {e}")))?;
+
+    let mut buf = vec![0u8; UPLOAD_CHUNK];
+    let mut sent = 0u64;
+    let mut last_emit = 0u64;
+    loop {
+        let n = src
+            .read(&mut buf)
+            .await
+            .map_err(|e| AppError::msg(format!("read {from}: {e}")))?;
+        if n == 0 {
+            break;
+        }
+        dst.write_all(&buf[..n])
+            .await
+            .map_err(|e| AppError::msg(format!("write {to}: {e}")))?;
+        sent += n as u64;
+        if let Some(ctx) = progress {
+            if sent == n as u64 || sent - last_emit >= 512 * 1024 {
+                ctx.emit(sent);
+                last_emit = sent;
+            }
+        }
+    }
+    if let Some(ctx) = progress {
+        ctx.emit(sent);
+    }
+    let _ = dst.shutdown().await;
+    Ok(())
+}
+
 async fn write_local_to_remote(
     sftp: &SftpSession,
     local_path: &str,
@@ -396,7 +723,12 @@ async fn write_local_to_remote(
     Ok(())
 }
 
-async fn remove_dir_recursive(sftp: &SftpSession, path: &str) -> AppResult<()> {
+async fn remove_dir_recursive(
+    sftp: &SftpSession,
+    path: &str,
+    progress: Option<&UploadProgressCtx>,
+    deleted: &mut u64,
+) -> AppResult<()> {
     let entries = sftp
         .read_dir(path)
         .await
@@ -412,11 +744,16 @@ async fn remove_dir_recursive(sftp: &SftpSession, path: &str) -> AppResult<()> {
             format!("{path}/{name}")
         };
         if entry.metadata().file_type().is_dir() {
-            Box::pin(remove_dir_recursive(sftp, &child)).await?;
+            Box::pin(remove_dir_recursive(sftp, &child, progress, deleted)).await?;
         } else {
+            let file_size = entry.metadata().size.unwrap_or(0);
             sftp.remove_file(child.as_str())
                 .await
                 .map_err(|e| AppError::msg(format!("unlink: {e}")))?;
+            if let Some(ctx) = progress {
+                *deleted = deleted.saturating_add(file_size);
+                ctx.emit(*deleted);
+            }
         }
     }
     sftp.remove_dir(path)

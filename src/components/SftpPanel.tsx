@@ -46,6 +46,7 @@ type TransferFile = {
 
 type TransferState = {
   id: string;
+  kind: "upload" | "copy" | "move" | "delete";
   files: TransferFile[];
   overallSent: number;
   overallTotal: number;
@@ -124,18 +125,33 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
       if (!transferIdRef.current || p.transferId !== transferIdRef.current) return;
       setTransfer((prev) => {
         if (!prev || prev.id !== p.transferId) return prev;
-        const files = prev.files.map((f, i) => {
+        const count = Math.max(prev.files.length, p.fileCount || 0, p.fileIndex + 1);
+        const files: TransferFile[] = Array.from({ length: count }, (_, i) => {
+          const existing = prev.files[i];
           if (i !== p.fileIndex) {
-            if (i < p.fileIndex && f.status !== "done") {
-              return { ...f, bytesSent: f.bytesTotal || f.bytesSent, status: "done" as const };
+            if (i < p.fileIndex) {
+              return {
+                name: existing?.name ?? `file ${i + 1}`,
+                bytesSent: existing?.bytesTotal || existing?.bytesSent || 0,
+                bytesTotal: existing?.bytesTotal || 0,
+                status: "done" as const,
+              };
             }
-            return f;
+            return (
+              existing ?? {
+                name: `file ${i + 1}`,
+                bytesSent: 0,
+                bytesTotal: 0,
+                status: "pending" as const,
+              }
+            );
           }
-          const done = p.bytesTotal > 0 && p.bytesSent >= p.bytesTotal;
+          // Empty files emit 0/0 when finished; treat sent >= total as done.
+          const done = p.bytesSent >= p.bytesTotal;
           return {
-            name: p.fileName || f.name,
+            name: p.fileName || existing?.name || `file ${i + 1}`,
             bytesSent: p.bytesSent,
-            bytesTotal: p.bytesTotal || f.bytesTotal,
+            bytesTotal: p.bytesTotal || existing?.bytesTotal || 0,
             status: done ? ("done" as const) : ("active" as const),
           };
         });
@@ -369,6 +385,7 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
     transferIdRef.current = transferId;
     setTransfer({
       id: transferId,
+      kind: "upload",
       files: items.map((it) => ({
         name: it.name,
         bytesSent: 0,
@@ -499,18 +516,48 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
       danger: true,
     });
     if (!ok) return;
+    const transferId = crypto.randomUUID();
+    transferIdRef.current = transferId;
+    setTransfer({
+      id: transferId,
+      kind: "delete",
+      files: list.map((e) => ({
+        name: e.name,
+        bytesSent: 0,
+        bytesTotal: 0,
+        status: "pending",
+      })),
+      overallSent: 0,
+      overallTotal: 0,
+    });
     setBusy(true);
     try {
-      for (const entry of list) {
-        await api.sftpRemove(sftpId, entry.path, entry.isDir);
-      }
+      await api.sftpRemoveBatch(
+        sftpId,
+        transferId,
+        list.map((e) => ({ path: e.path, isDir: e.isDir })),
+      );
       setChecked(new Set());
       await refresh(sftpId, cwd);
       toastSuccess(list.length === 1 ? "Deleted" : `Deleted ${list.length} items`);
     } catch (err) {
       toastError(err, "Delete");
+      setTransfer((prev) =>
+        prev
+          ? {
+              ...prev,
+              files: prev.files.map((f) =>
+                f.status === "active" || f.status === "pending"
+                  ? { ...f, status: "error" as const }
+                  : f,
+              ),
+            }
+          : prev,
+      );
     } finally {
       setBusy(false);
+      transferIdRef.current = null;
+      window.setTimeout(() => setTransfer(null), 1600);
     }
   }
 
@@ -563,37 +610,87 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
 
   async function paste() {
     if (!sftpId || !clipboard?.items.length) return;
+    const items: { from: string; to: string; name: string }[] = [];
+    let skipped = 0;
+    for (const item of clipboard.items) {
+      const dest = `${cwd.replace(/\/$/, "")}/${item.name}`;
+      const fromNorm = item.path.replace(/\/+$/, "");
+      const destNorm = dest.replace(/\/+$/, "");
+      if (fromNorm === destNorm || destNorm.startsWith(`${fromNorm}/`)) {
+        skipped++;
+        continue;
+      }
+      items.push({ from: item.path, to: dest, name: item.name });
+    }
+    if (!items.length) {
+      if (skipped) {
+        toast("Skipped items that would overwrite themselves", {
+          kind: "info",
+          title: "Paste",
+        });
+      }
+      return;
+    }
+
+    const cut = clipboard.cut;
+    const transferId = crypto.randomUUID();
+    transferIdRef.current = transferId;
+    setTransfer({
+      id: transferId,
+      kind: cut ? "move" : "copy",
+      files: items.map((it) => ({
+        name: it.name,
+        bytesSent: 0,
+        bytesTotal: 0,
+        status: "pending",
+      })),
+      overallSent: 0,
+      overallTotal: 0,
+    });
     setBusy(true);
     try {
-      let ok = 0;
-      let skipped = 0;
-      for (const item of clipboard.items) {
-        const dest = `${cwd.replace(/\/$/, "")}/${item.name}`;
-        if (item.path === dest || item.path.replace(/\/+$/, "") === dest.replace(/\/+$/, "")) {
-          skipped++;
-          continue;
-        }
-        if (clipboard.cut) {
-          await api.sftpRename(sftpId, item.path, dest);
-          ok++;
-        } else if (item.isDir) {
-          skipped++;
-        } else {
-          await api.sftpCopyRemote(sftpId, item.path, dest);
-          ok++;
-        }
+      const payload = items.map(({ from, to }) => ({ from, to }));
+      if (cut) {
+        await api.sftpMoveBatch(sftpId, transferId, payload);
+        setClipboard(null);
+      } else {
+        await api.sftpCopyBatch(sftpId, transferId, payload);
       }
-      if (clipboard.cut) setClipboard(null);
       setChecked(new Set());
       await refresh(sftpId, cwd);
-      if (ok) toastSuccess(clipboard.cut ? `Moved ${ok}` : `Pasted ${ok}`);
-      if (skipped && !clipboard.cut) {
-        toast("Folder copy not supported yet — files only", { kind: "info", title: "Paste" });
+      toastSuccess(
+        cut
+          ? items.length === 1
+            ? "Move done"
+            : `Moved ${items.length} items`
+          : items.length === 1
+            ? "Copy done"
+            : `Copied ${items.length} items`,
+      );
+      if (skipped) {
+        toast("Skipped items that would overwrite themselves", {
+          kind: "info",
+          title: "Paste",
+        });
       }
     } catch (err) {
       toastError(err, "Paste");
+      setTransfer((prev) =>
+        prev
+          ? {
+              ...prev,
+              files: prev.files.map((f) =>
+                f.status === "active" || f.status === "pending"
+                  ? { ...f, status: "error" as const }
+                  : f,
+              ),
+            }
+          : prev,
+      );
     } finally {
       setBusy(false);
+      transferIdRef.current = null;
+      window.setTimeout(() => setTransfer(null), 1600);
     }
   }
 
@@ -869,8 +966,15 @@ export function SftpPanel({ profileId, ptyId, open: isOpen, onToggle, theme = "d
             <div className="sftp-transfer">
               <div className="sftp-transfer-head">
                 <span>
-                  Uploading {transfer.files.filter((f) => f.status === "done").length}/
-                  {transfer.files.length}
+                  {transfer.kind === "copy"
+                    ? "Copying"
+                    : transfer.kind === "move"
+                      ? "Moving"
+                      : transfer.kind === "delete"
+                        ? "Deleting"
+                        : "Uploading"}{" "}
+                  {transfer.files.filter((f) => f.status === "done").length}/
+                  {transfer.files.length || "…"}
                 </span>
                 <span className="sftp-transfer-pct">
                   {pct(transfer.overallSent, transfer.overallTotal)}%

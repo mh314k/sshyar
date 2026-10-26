@@ -406,6 +406,20 @@ async fn sftp_remove(
 }
 
 #[tauri::command]
+async fn sftp_remove_batch(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    sftp_id: String,
+    transfer_id: String,
+    items: Vec<sftp::RemoveItem>,
+) -> AppResult<()> {
+    state
+        .sftp
+        .remove_batch(&app, &sftp_id, &transfer_id, &items)
+        .await
+}
+
+#[tauri::command]
 async fn sftp_upload(
     state: State<'_, AppState>,
     sftp_id: String,
@@ -450,6 +464,34 @@ async fn sftp_copy_remote(
     to: String,
 ) -> AppResult<()> {
     state.sftp.copy_remote(&sftp_id, &from, &to).await
+}
+
+#[tauri::command]
+async fn sftp_copy_batch(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    sftp_id: String,
+    transfer_id: String,
+    items: Vec<sftp::CopyItem>,
+) -> AppResult<()> {
+    state
+        .sftp
+        .copy_batch(Some(&app), &sftp_id, &transfer_id, &items)
+        .await
+}
+
+#[tauri::command]
+async fn sftp_move_batch(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    sftp_id: String,
+    transfer_id: String,
+    items: Vec<sftp::CopyItem>,
+) -> AppResult<()> {
+    state
+        .sftp
+        .move_batch(&app, &sftp_id, &transfer_id, &items)
+        .await
 }
 
 #[tauri::command]
@@ -519,10 +561,13 @@ pub fn run() {
             sftp_mkdir,
             sftp_rename,
             sftp_remove,
+            sftp_remove_batch,
             sftp_upload,
             sftp_upload_batch,
             sftp_download,
             sftp_copy_remote,
+            sftp_copy_batch,
+            sftp_move_batch,
             sftp_read_text,
             sftp_write_text,
         ])

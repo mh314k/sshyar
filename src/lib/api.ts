@@ -59,6 +59,11 @@ export const api = {
     invoke<void>("sftp_rename", { sftpId, from, to }),
   sftpRemove: (sftpId: string, path: string, isDir: boolean) =>
     invoke<void>("sftp_remove", { sftpId, path, isDir }),
+  sftpRemoveBatch: (
+    sftpId: string,
+    transferId: string,
+    items: { path: string; isDir: boolean }[],
+  ) => invoke<void>("sftp_remove_batch", { sftpId, transferId, items }),
   sftpUpload: (sftpId: string, localPath: string, remotePath: string) =>
     invoke<void>("sftp_upload", { sftpId, localPath, remotePath }),
   sftpUploadBatch: (
@@ -70,6 +75,16 @@ export const api = {
     invoke<void>("sftp_download", { sftpId, remotePath, localPath }),
   sftpCopyRemote: (sftpId: string, from: string, to: string) =>
     invoke<void>("sftp_copy_remote", { sftpId, from, to }),
+  sftpCopyBatch: (
+    sftpId: string,
+    transferId: string,
+    items: { from: string; to: string }[],
+  ) => invoke<void>("sftp_copy_batch", { sftpId, transferId, items }),
+  sftpMoveBatch: (
+    sftpId: string,
+    transferId: string,
+    items: { from: string; to: string }[],
+  ) => invoke<void>("sftp_move_batch", { sftpId, transferId, items }),
   sftpReadText: (sftpId: string, remotePath: string) =>
     invoke<string>("sftp_read_text", { sftpId, remotePath }),
   sftpWriteText: (sftpId: string, remotePath: string, content: string) =>

@@ -238,7 +238,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Upload picks local files and sends them into the current remote folder (batch supported).",
           "Download saves the selected remote file(s) locally via a save dialog.",
-          "A bottom transfer bar shows per-file and overall progress while uploads run.",
+          "A bottom transfer bar shows per-file and overall progress for uploads, remote copies, moves (cut/paste), and deletes.",
         ],
       },
       {
@@ -269,6 +269,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["copy", "cut", "paste", "rename", "mkdir", "delete", "new folder"],
         steps: [
           "Copy / Cut place selected entries on the SFTP clipboard; Paste applies them in the current folder (move if cut).",
+          "Folder copy pastes the whole tree (subfolders and files) into the current directory.",
           "New folder, Rename, and Delete are on the toolbar and context menu.",
           "Destructive actions ask for confirmation where appropriate.",
         ],
