@@ -17,7 +17,7 @@ Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted pr
 - **Monitor** — optional right-panel tab: CPU / RAM / swap gauges + numbers, disk progress bars with used/free/total, load & uptime; optional CPU/RAM time charts; runtime tick (2s–30s or off)
 - **Snippets** — vault-backed commands injected into the active terminal
 - **Vault** — AES-GCM; Windows DPAPI by default; on Linux a user-only key file (`0600`); optional master password (set / change / remove / lock); **encrypted portable backup** export/import for moving machines
-- **UI** — menu / activity / status chrome; activity bar icons for Profiles, SFTP, and each enabled plugin; terminal↔SFTP center split (Terminal first or SFTP first); dark/light theme; Material icons; in-app Help (searchable); About with GitHub release update check
+- **UI** — frameless window (in-app minimize / maximize / close); menu / activity / status chrome; activity bar icons for Profiles, SFTP, and each enabled plugin (Lock only if a master password is set); terminal↔SFTP center split (Terminal first or SFTP first); dark/light theme; Material icons; in-app Help (searchable); About with GitHub release update check
 - **Remote trust** — no agent, no `.sshyar` folder, no silent file drops on the server. Plugins probe over SSH (read-only). Remote files change only when you explicitly use SFTP mutations, Edit → Save, or Install key; service actions only when you click them
 
 ## Requirements

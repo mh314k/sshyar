@@ -51,7 +51,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         ],
         steps: [
           "Top menu bar: File / View / Help plus the SSHyar brand; drag empty space to move the window; minimize / maximize / close sit on the right (frameless, like VS Code).",
-          "Left activity bar: Profiles, SFTP, then one icon per enabled session plugin (Docker, Nginx, systemd, cron, Monitor), plus theme / help / lock at the bottom.",
+          "Left activity bar: Profiles, SFTP, then one icon per enabled session plugin (Docker, Nginx, systemd, cron, Monitor), plus theme / help at the bottom — Lock appears only when a master password is set.",
           "Left sidebar: search and a scrollable profile list by group, with profile toolbar (snippets, vault, new profile, …).",
           "Center: session tabs and a resizable terminal + SFTP split (Terminal first or SFTP first from View / the swap control).",
           "Click a plugin icon in the activity bar to open that plugin in the right panel (click again to close).",
