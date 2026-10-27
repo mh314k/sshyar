@@ -28,6 +28,16 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .manage(state)
+        .setup(|app| {
+            // Ensure the live window/taskbar uses the current icon (dev rebuilds
+            // sometimes keep a stale embedded .ico until a clean link).
+            use tauri::Manager;
+            if let Some(win) = app.get_webview_window("main") {
+                let icon = tauri::include_image!("icons/128x128.png");
+                let _ = win.set_icon(icon);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             vault_status,
             vault_unlock,
