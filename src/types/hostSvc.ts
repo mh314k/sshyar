@@ -39,3 +39,30 @@ export interface CronSystemFile {
   name: string;
   path: string;
 }
+
+export interface MonitorDisk {
+  mount: string;
+  filesystem: string;
+  totalBytes: number;
+  usedBytes: number;
+  availBytes: number;
+  usedPct: number;
+}
+
+export interface MonitorSnapshot {
+  cpuPct: number;
+  cpuCount: number;
+  load1: number;
+  load5: number;
+  load15: number;
+  memTotalBytes: number;
+  memUsedBytes: number;
+  memAvailBytes: number;
+  memUsedPct: number;
+  swapTotalBytes: number;
+  swapUsedBytes: number;
+  swapUsedPct: number;
+  uptimeSecs: number;
+  disks: MonitorDisk[];
+  collectedAtMs: number;
+}

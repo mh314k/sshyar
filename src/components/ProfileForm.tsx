@@ -37,6 +37,7 @@ const empty: ProfileInput = {
   nginxManagement: false,
   systemdManagement: false,
   cronManagement: false,
+  monitorManagement: false,
   portForwards: [],
 };
 
@@ -74,6 +75,7 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         nginxManagement: initial.nginxManagement ?? false,
         systemdManagement: initial.systemdManagement ?? false,
         cronManagement: initial.cronManagement ?? false,
+        monitorManagement: initial.monitorManagement ?? false,
         portForwards: (initial.portForwards ?? []).map((f) => ({
           localPort: f.localPort,
           remoteHost: f.remoteHost || "127.0.0.1",
@@ -302,6 +304,14 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
             onChange={(e) => set("cronManagement", e.target.checked)}
           />
           <span>cron</span>
+        </label>
+        <label className="profile-check">
+          <input
+            type="checkbox"
+            checked={form.monitorManagement}
+            onChange={(e) => set("monitorManagement", e.target.checked)}
+          />
+          <span>Monitor</span>
         </label>
       </div>
       <div className="profile-forwards">

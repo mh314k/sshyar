@@ -31,4 +31,6 @@ export type {
   CronStatus,
   CronUserTable,
   CronSystemFile,
+  MonitorDisk,
+  MonitorSnapshot,
 } from "./hostSvc";

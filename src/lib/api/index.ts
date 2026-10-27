@@ -81,6 +81,7 @@ export const api = {
   cronUserList: hostSvcApi.cronUserList,
   cronSystemList: hostSvcApi.cronSystemList,
   cronReadSystemFile: hostSvcApi.cronReadSystemFile,
+  monitorSnapshot: hostSvcApi.monitorSnapshot,
 };
 
 export {

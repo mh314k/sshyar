@@ -29,6 +29,8 @@ export interface Profile {
   nginxManagement: boolean;
   systemdManagement: boolean;
   cronManagement: boolean;
+  /** When true, the host monitor plugin (CPU / RAM / disk) is available. */
+  monitorManagement: boolean;
   /** Local port forwards opened with the SSH session. */
   portForwards: PortForward[];
 }
@@ -52,6 +54,7 @@ export interface ProfileInput {
   nginxManagement: boolean;
   systemdManagement: boolean;
   cronManagement: boolean;
+  monitorManagement: boolean;
   portForwards: PortForward[];
 }
 

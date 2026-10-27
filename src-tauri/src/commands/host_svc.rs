@@ -590,6 +590,222 @@ pub async fn cron_read_system_file(
     cmd_result(result, "read cron file")
 }
 
+// ── host monitor ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorDisk {
+    pub mount: String,
+    pub filesystem: String,
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub avail_bytes: u64,
+    pub used_pct: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorSnapshot {
+    pub cpu_pct: f64,
+    pub cpu_count: u32,
+    pub load1: f64,
+    pub load5: f64,
+    pub load15: f64,
+    pub mem_total_bytes: u64,
+    pub mem_used_bytes: u64,
+    pub mem_avail_bytes: u64,
+    pub mem_used_pct: f64,
+    pub swap_total_bytes: u64,
+    pub swap_used_bytes: u64,
+    pub swap_used_pct: f64,
+    pub uptime_secs: u64,
+    pub disks: Vec<MonitorDisk>,
+    pub collected_at_ms: u64,
+}
+
+fn parse_kv_f64(map: &std::collections::HashMap<&str, &str>, key: &str) -> f64 {
+    map.get(key)
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0)
+}
+
+fn parse_kv_u64(map: &std::collections::HashMap<&str, &str>, key: &str) -> u64 {
+    map.get(key)
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0)
+}
+
+fn parse_monitor_output(raw: &str) -> AppResult<MonitorSnapshot> {
+    let mut map: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+    let mut disks: Vec<MonitorDisk> = Vec::new();
+    let mut saw_header = false;
+
+    for line in raw.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line == "SSHYAR_MON_V1" {
+            saw_header = true;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("DISK|") {
+            let parts: Vec<&str> = rest.split('|').collect();
+            if parts.len() >= 5 {
+                let total = parts[2].parse::<u64>().unwrap_or(0);
+                let used = parts[3].parse::<u64>().unwrap_or(0);
+                let avail = parts[4].parse::<u64>().unwrap_or(0);
+                let pct = if total > 0 {
+                    (used as f64 / total as f64) * 100.0
+                } else {
+                    0.0
+                };
+                disks.push(MonitorDisk {
+                    mount: parts[0].to_string(),
+                    filesystem: parts.get(1).unwrap_or(&"").to_string(),
+                    total_bytes: total,
+                    used_bytes: used,
+                    avail_bytes: avail,
+                    used_pct: pct,
+                });
+            }
+            continue;
+        }
+        if let Some((k, v)) = line.split_once('=') {
+            map.insert(k.trim(), v.trim());
+        }
+    }
+
+    if !saw_header {
+        return Err(AppError::msg(format!(
+            "monitor: unexpected remote output\n{}",
+            raw.chars().take(400).collect::<String>()
+        )));
+    }
+
+    let mem_total = parse_kv_u64(&map, "mem_total");
+    let mem_used = parse_kv_u64(&map, "mem_used");
+    let mem_avail = parse_kv_u64(&map, "mem_avail");
+    let swap_total = parse_kv_u64(&map, "swap_total");
+    let swap_used = parse_kv_u64(&map, "swap_used");
+
+    Ok(MonitorSnapshot {
+        cpu_pct: parse_kv_f64(&map, "cpu_pct").clamp(0.0, 100.0),
+        cpu_count: parse_kv_u64(&map, "cpu_n") as u32,
+        load1: parse_kv_f64(&map, "load1"),
+        load5: parse_kv_f64(&map, "load5"),
+        load15: parse_kv_f64(&map, "load15"),
+        mem_total_bytes: mem_total,
+        mem_used_bytes: mem_used,
+        mem_avail_bytes: mem_avail,
+        mem_used_pct: if mem_total > 0 {
+            (mem_used as f64 / mem_total as f64) * 100.0
+        } else {
+            0.0
+        },
+        swap_total_bytes: swap_total,
+        swap_used_bytes: swap_used,
+        swap_used_pct: if swap_total > 0 {
+            (swap_used as f64 / swap_total as f64) * 100.0
+        } else {
+            0.0
+        },
+        uptime_secs: parse_kv_u64(&map, "uptime"),
+        disks,
+        collected_at_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0),
+    })
+}
+
+const MONITOR_SCRIPT: &str = r#"
+printf 'SSHYAR_MON_V1\n'
+# load averages
+if [ -r /proc/loadavg ]; then
+  read -r L1 L5 L15 _ < /proc/loadavg
+  printf 'load1=%s\nload5=%s\nload15=%s\n' "$L1" "$L5" "$L15"
+else
+  printf 'load1=0\nload5=0\nload15=0\n'
+fi
+# cpu count
+NCPU=$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo 1)
+printf 'cpu_n=%s\n' "$NCPU"
+# cpu percent via /proc/stat delta
+if [ -r /proc/stat ]; then
+  T1=$(awk '/^cpu /{s=0; for(i=2;i<=NF;i++) s+=$i; print s}' /proc/stat)
+  I1=$(awk '/^cpu /{print $5+$6}' /proc/stat)
+  sleep 0.35
+  T2=$(awk '/^cpu /{s=0; for(i=2;i<=NF;i++) s+=$i; print s}' /proc/stat)
+  I2=$(awk '/^cpu /{print $5+$6}' /proc/stat)
+  DT=$((T2-T1)); DI=$((I2-I1))
+  if [ "$DT" -gt 0 ] 2>/dev/null; then
+    awk -v dt="$DT" -v di="$DI" 'BEGIN{u=(1-di/dt)*100; if(u<0)u=0; if(u>100)u=100; printf "cpu_pct=%.2f\n", u}'
+  else
+    printf 'cpu_pct=0\n'
+  fi
+else
+  printf 'cpu_pct=0\n'
+fi
+# memory (kB → bytes)
+if [ -r /proc/meminfo ]; then
+  awk '
+    /^MemTotal:/ {t=$2}
+    /^MemAvailable:/ {a=$2}
+    /^MemFree:/ {f=$2}
+    /^Buffers:/ {b=$2}
+    /^Cached:/ {c=$2}
+    /^SwapTotal:/ {st=$2}
+    /^SwapFree:/ {sf=$2}
+    END {
+      if (a=="" || a+0==0) a=f+b+c
+      used=t-a
+      if (used<0) used=0
+      swu=st-sf
+      if (swu<0) swu=0
+      printf "mem_total=%d\nmem_used=%d\nmem_avail=%d\n", t*1024, used*1024, a*1024
+      printf "swap_total=%d\nswap_used=%d\n", st*1024, swu*1024
+    }
+  ' /proc/meminfo
+else
+  printf 'mem_total=0\nmem_used=0\nmem_avail=0\nswap_total=0\nswap_used=0\n'
+fi
+# uptime
+if [ -r /proc/uptime ]; then
+  awk '{printf "uptime=%d\n", $1+0}' /proc/uptime
+else
+  printf 'uptime=0\n'
+fi
+# disks (bytes) — skip virtual/ephemeral mounts
+df -B1 -P -x tmpfs -x devtmpfs -x squashfs -x overlay -x efivarfs 2>/dev/null | awk 'NR>1 {
+  fs=$1; total=$2; used=$3; avail=$4; mount=$6
+  for(i=7;i<=NF;i++) mount=mount" "$i
+  if (total+0 <= 0) next
+  if (mount ~ /^\/(proc|sys|run|dev)(\/|$)/) next
+  gsub(/\|/, "/", mount); gsub(/\|/, "/", fs)
+  printf "DISK|%s|%s|%s|%s|%s\n", mount, fs, total, used, avail
+}'
+"#;
+
+#[tauri::command]
+pub async fn monitor_snapshot(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<MonitorSnapshot> {
+    let profile =
+        load_flagged_profile(&state, &profile_id, |p| p.monitor_management, "Monitor")?;
+    let result = exec(&state, &profile, MONITOR_SCRIPT).await?;
+    let raw = combined_output(&result);
+    if result.exit_code != 0 && !raw.contains("SSHYAR_MON_V1") {
+        return Err(AppError::msg(if raw.is_empty() {
+            format!("monitor failed (exit {})", result.exit_code)
+        } else {
+            raw
+        }));
+    }
+    parse_monitor_output(&raw)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -639,5 +855,32 @@ nginx: configuration file /etc/nginx/nginx.conf test is successful"#;
         assert!(validate_cron_path("/etc/passwd").is_err());
         assert!(validate_cron_path("/etc/cron.d/../passwd").is_err());
         assert!(validate_cron_path("cron.d/backup").is_err());
+    }
+
+    #[test]
+    fn monitor_parses_snapshot() {
+        let raw = r#"SSHYAR_MON_V1
+load1=0.15
+load5=0.20
+load15=0.30
+cpu_n=4
+cpu_pct=12.50
+mem_total=8589934592
+mem_used=2147483648
+mem_avail=6442450944
+swap_total=1073741824
+swap_used=0
+uptime=86400
+DISK|/|/dev/sda1|107374182400|32212254720|75161927680
+DISK|/boot|/dev/sda2|1073741824|268435456|805306368
+"#;
+        let s = parse_monitor_output(raw).expect("parse");
+        assert!((s.cpu_pct - 12.5).abs() < 0.01);
+        assert_eq!(s.cpu_count, 4);
+        assert_eq!(s.mem_total_bytes, 8589934592);
+        assert!((s.mem_used_pct - 25.0).abs() < 0.1);
+        assert_eq!(s.disks.len(), 2);
+        assert_eq!(s.disks[0].mount, "/");
+        assert!((s.disks[0].used_pct - 30.0).abs() < 0.1);
     }
 }

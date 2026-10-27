@@ -59,6 +59,7 @@ export default function App() {
       nginx: on && !!p?.nginxManagement,
       systemd: on && !!p?.systemdManagement,
       cron: on && !!p?.cronManagement,
+      monitor: on && !!p?.monitorManagement,
     };
   }, [profiles, sessions.activeTab?.profileId]);
 

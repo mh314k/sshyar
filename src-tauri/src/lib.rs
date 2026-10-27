@@ -99,6 +99,7 @@ pub fn run() {
             cron_user_list,
             cron_system_list,
             cron_read_system_file,
+            monitor_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

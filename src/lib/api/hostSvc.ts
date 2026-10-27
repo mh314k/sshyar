@@ -4,6 +4,7 @@ import type {
   CronSystemFile,
   CronUserTable,
   HostSvcCmdResult,
+  MonitorSnapshot,
   NginxSite,
   NginxStatus,
   SystemdUnit,
@@ -40,4 +41,7 @@ export const hostSvcApi = {
     invoke<CronSystemFile[]>("cron_system_list", { profileId }),
   cronReadSystemFile: (profileId: string, path: string) =>
     invoke<HostSvcCmdResult>("cron_read_system_file", { profileId, path }),
+
+  monitorSnapshot: (profileId: string) =>
+    invoke<MonitorSnapshot>("monitor_snapshot", { profileId }),
 };

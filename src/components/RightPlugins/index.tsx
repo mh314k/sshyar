@@ -5,20 +5,28 @@ import { CronPanel } from "../CronPanel";
 import { DockerJobBar } from "../dockerJob/DockerJobBar";
 import { DockerPanel } from "../DockerPanel";
 import { IconButton, iconProps, iconSize } from "../IconButton";
+import { MonitorPanel } from "../MonitorPanel";
 import { NginxPanel } from "../NginxPanel";
 import { SystemdPanel } from "../SystemdPanel";
 
-export type PluginTab = "docker" | "nginx" | "systemd" | "cron";
+export type PluginTab = "docker" | "nginx" | "systemd" | "cron" | "monitor";
 
 export type PluginFlags = {
   docker: boolean;
   nginx: boolean;
   systemd: boolean;
   cron: boolean;
+  monitor: boolean;
 };
 
 export function anyPluginEnabled(plugins: PluginFlags): boolean {
-  return plugins.docker || plugins.nginx || plugins.systemd || plugins.cron;
+  return (
+    plugins.docker ||
+    plugins.nginx ||
+    plugins.systemd ||
+    plugins.cron ||
+    plugins.monitor
+  );
 }
 
 function firstEnabledTab(plugins: PluginFlags): PluginTab | null {
@@ -26,6 +34,7 @@ function firstEnabledTab(plugins: PluginFlags): PluginTab | null {
   if (plugins.nginx) return "nginx";
   if (plugins.systemd) return "systemd";
   if (plugins.cron) return "cron";
+  if (plugins.monitor) return "monitor";
   return null;
 }
 
@@ -55,6 +64,7 @@ export function RightPlugins({
     else if (tab === "nginx" && !plugins.nginx) setTab(first);
     else if (tab === "systemd" && !plugins.systemd) setTab(first);
     else if (tab === "cron" && !plugins.cron) setTab(first);
+    else if (tab === "monitor" && !plugins.monitor) setTab(first);
   }, [plugins, tab]);
 
   useEffect(() => {
@@ -133,6 +143,17 @@ export function RightPlugins({
               cron
             </button>
           ) : null}
+          {plugins.monitor ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "monitor"}
+              className={`plugin-tab ${tab === "monitor" ? "is-active" : ""}`}
+              onClick={() => setTab("monitor")}
+            >
+              Monitor
+            </button>
+          ) : null}
         </div>
         <IconButton
           variant="icon"
@@ -158,6 +179,9 @@ export function RightPlugins({
           <SystemdPanel profileId={profileId} ptyId={ptyId} enabled={plugins.systemd} />
         ) : null}
         {tab === "cron" ? <CronPanel profileId={profileId} enabled={plugins.cron} /> : null}
+        {tab === "monitor" ? (
+          <MonitorPanel profileId={profileId} enabled={plugins.monitor} />
+        ) : null}
       </div>
 
       {needsRemoteSession ? <DockerJobBar /> : null}
