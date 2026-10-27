@@ -18,6 +18,7 @@ Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted pr
 - **Snippets** — vault-backed commands injected into the active terminal
 - **Vault** — AES-GCM; Windows DPAPI by default; on Linux a user-only key file (`0600`); optional master password (set / change / remove / lock); **encrypted portable backup** export/import for moving machines
 - **UI** — menu / activity / status chrome; activity bar icons for Profiles, SFTP, and each enabled plugin; terminal↔SFTP center split (Terminal first or SFTP first); dark/light theme; Material icons; in-app Help (searchable); About with GitHub release update check
+- **Remote trust** — no agent, no `.sshyar` folder, no silent file drops on the server. Plugins probe over SSH (read-only). Remote files change only when you explicitly use SFTP mutations, Edit → Save, or Install key; service actions only when you click them
 
 ## Requirements
 
@@ -79,6 +80,10 @@ git tag -d v0.5.0
 git tag v0.5.0
 git push origin refs/tags/v0.5.0 --force
 ```
+
+## Remote footprint
+
+SSHyar does **not** install anything on the SSH host. Profiles, keys, and vault data stay on your desktop (`Data location` below). Session plugins run short read commands over SSH and leave no helper files. Writes happen only for actions you start (SFTP upload/edit/delete, Install public key, Docker/Nginx/systemd controls you click).
 
 ## Data location
 

@@ -650,7 +650,7 @@ fn parse_monitor_output(raw: &str) -> AppResult<MonitorSnapshot> {
         if line.is_empty() {
             continue;
         }
-        if line == "SSHYAR_MON_V1" {
+        if line == "MON_V1" || line == "SSHYAR_MON_V1" {
             saw_header = true;
             continue;
         }
@@ -724,8 +724,9 @@ fn parse_monitor_output(raw: &str) -> AppResult<MonitorSnapshot> {
     })
 }
 
+/// Read-only host snapshot: /proc + df only. No files created or modified on the remote.
 const MONITOR_SCRIPT: &str = r#"
-printf 'SSHYAR_MON_V1\n'
+printf 'MON_V1\n'
 # load averages
 if [ -r /proc/loadavg ]; then
   read -r L1 L5 L15 _ < /proc/loadavg
@@ -801,7 +802,7 @@ pub async fn monitor_snapshot(
         load_flagged_profile(&state, &profile_id, |p| p.monitor_management, "Monitor")?;
     let result = exec(&state, &profile, MONITOR_SCRIPT).await?;
     let raw = combined_output(&result);
-    if result.exit_code != 0 && !raw.contains("SSHYAR_MON_V1") {
+    if result.exit_code != 0 && !raw.contains("MON_V1") {
         return Err(AppError::msg(if raw.is_empty() {
             format!("monitor failed (exit {})", result.exit_code)
         } else {
@@ -864,7 +865,7 @@ nginx: configuration file /etc/nginx/nginx.conf test is successful"#;
 
     #[test]
     fn monitor_parses_snapshot() {
-        let raw = r#"SSHYAR_MON_V1
+        let raw = r#"MON_V1
 load1=0.15
 load5=0.20
 load15=0.30
