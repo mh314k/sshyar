@@ -19,9 +19,18 @@ interface Props {
   onUpdateChange: (info: UpdateInfo | null) => void;
 }
 
+function hostLabel(): string {
+  const p = (navigator.platform || "").toLowerCase();
+  const ua = (navigator.userAgent || "").toLowerCase();
+  if (p.includes("win") || ua.includes("windows")) return "Windows";
+  if (p.includes("linux") || ua.includes("linux")) return "Linux";
+  return "Desktop";
+}
+
 export function AboutPopover({ update, onUpdateChange }: Props) {
   const [checking, setChecking] = useState(false);
   const [checked, setChecked] = useState(false);
+  const platform = hostLabel();
 
   async function runCheck() {
     setChecking(true);
@@ -51,83 +60,105 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
 
   return (
     <div className="about-panel">
-      <div className="about-hero">
+      <header className="about-hero">
         <BrandLogo size={44} />
-        <div>
-          <div className="about-name">SSHyar</div>
-          <div className="about-version">Version {APP_VERSION}</div>
-          <div className="about-version">License GPL-3.0-or-later</div>
+        <div className="about-hero-text">
+          <h1 className="about-name">SSHyar</h1>
+          <p className="about-tagline">
+            SSH, SFTP, and server tools in one window — no agents on the host.
+          </p>
+        </div>
+      </header>
+
+      <div className="about-meta" role="list">
+        <div className="about-meta-item" role="listitem">
+          <span className="about-meta-label">Version</span>
+          <span className="about-meta-value">v{APP_VERSION}</span>
+        </div>
+        <div className="about-meta-item" role="listitem">
+          <span className="about-meta-label">Platform</span>
+          <span className="about-meta-value">{platform}</span>
+        </div>
+        <div className="about-meta-item" role="listitem">
+          <span className="about-meta-label">License</span>
+          <span className="about-meta-value">GPL-3.0+</span>
         </div>
       </div>
 
-      <p className="muted about-copy">
-        A desktop SSH helper with an embedded terminal, profile vault, SFTP browser,
-        snippets, and key management — for Windows and Linux.
-        Free software under the GNU General Public License v3 or later.
-      </p>
-
-      <ul className="about-features muted">
-        <li>Saved SSH profiles with encrypted vault</li>
-        <li>Embedded terminal + external SSH launch</li>
-        <li>Graphical SFTP and remote file editor</li>
-        <li>Optional master password lock screen</li>
-      </ul>
-
       {update ? (
-        <div className="about-update">
-          <div className="about-update-title">Update available</div>
-          <p className="muted">
-            You have <strong>v{update.current}</strong>. Latest release is{" "}
-            <strong>v{update.latest}</strong>.
+        <section className="about-update" aria-live="polite">
+          <div className="about-update-kicker">Update available</div>
+          <p className="about-update-body">
+            <span className="about-ver">v{update.current}</span>
+            <span className="about-update-arrow" aria-hidden>
+              →
+            </span>
+            <span className="about-ver is-latest">v{update.latest}</span>
+          </p>
+          <p className="muted about-update-hint">
+            {update.downloadUrl
+              ? `Installer for ${platform} from GitHub Releases.`
+              : `No ${platform} installer in this release — open the page to pick an asset.`}
           </p>
           <div className="about-update-actions">
             {update.downloadUrl ? (
               <IconButton
                 variant="primary"
-                label="Download update"
+                label={`Download for ${platform}`}
                 icon={<DownloadIcon {...iconProps(iconSize)} />}
                 onClick={() => void open(update.downloadUrl!)}
               />
             ) : null}
             <IconButton
-              variant="ghost"
-              label="Open release"
+              variant="soft"
+              label="Release notes"
               icon={<OpenInNewIcon {...iconProps(iconSize)} />}
               onClick={() => void open(update.htmlUrl)}
             />
           </div>
+        </section>
+      ) : (
+        <div className="about-status" aria-live="polite">
+          <span className="about-status-text muted">
+            {checking
+              ? "Checking for updates…"
+              : checked
+                ? "You're on the latest release."
+                : "Updates not checked yet."}
+          </span>
+          <button
+            type="button"
+            className="about-check-btn"
+            disabled={checking}
+            onClick={() => void runCheck()}
+          >
+            <RefreshIcon {...iconProps(14)} />
+            {checking ? "Checking…" : "Check again"}
+          </button>
         </div>
-      ) : checked ? (
-        <p className="about-uptodate muted">You&apos;re on the latest release.</p>
-      ) : null}
+      )}
 
-      <div className="about-footer">
-        <IconButton
-          variant="ghost"
-          label={checking ? "Checking…" : "Check for updates"}
-          icon={<RefreshIcon {...iconProps(iconSize)} />}
-          disabled={checking}
-          onClick={() => void runCheck()}
-        />
-        <IconButton
-          variant="ghost"
-          label="GitHub"
-          icon={<OpenInNewIcon {...iconProps(iconSize)} />}
-          onClick={() => void open(`https://github.com/${GITHUB_REPO}`)}
-        />
-        <IconButton
-          variant="ghost"
-          label="Releases"
-          icon={<OpenInNewIcon {...iconProps(iconSize)} />}
-          onClick={() => void open(GITHUB_RELEASES_URL)}
-        />
-        <IconButton
-          variant="ghost"
-          label="GPL-3.0"
-          icon={<OpenInNewIcon {...iconProps(iconSize)} />}
+      <footer className="about-footer">
+        <button type="button" className="about-link" onClick={() => void open(`https://github.com/${GITHUB_REPO}`)}>
+          GitHub
+        </button>
+        <span className="about-link-sep" aria-hidden>
+          ·
+        </span>
+        <button type="button" className="about-link" onClick={() => void open(GITHUB_RELEASES_URL)}>
+          Releases
+        </button>
+        <span className="about-link-sep" aria-hidden>
+          ·
+        </span>
+        <button
+          type="button"
+          className="about-link"
           onClick={() => void open("https://www.gnu.org/licenses/gpl-3.0.html")}
-        />
-      </div>
+        >
+          GPL-3.0
+        </button>
+      </footer>
     </div>
   );
 }

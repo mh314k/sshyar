@@ -12,6 +12,8 @@ export type UpdateInfo = {
   downloadUrl: string | null;
 };
 
+type ReleaseAsset = { name: string; browser_download_url: string };
+
 function normalizeVersion(v: string): number[] {
   return v
     .trim()
@@ -36,13 +38,39 @@ export function compareSemver(a: string, b: string): number {
   return 0;
 }
 
-function pickWindowsDownload(assets: { name: string; browser_download_url: string }[]): string | null {
-  const prefer = [/\.msi$/i, /x64-setup\.exe$/i, /setup\.exe$/i, /\.exe$/i];
-  for (const re of prefer) {
-    const hit = assets.find((a) => re.test(a.name) && !/autobuild|pdb/i.test(a.name));
+function detectHostOs(): "windows" | "linux" | "other" {
+  const p = (navigator.platform || "").toLowerCase();
+  const ua = (navigator.userAgent || "").toLowerCase();
+  if (p.includes("win") || ua.includes("windows")) return "windows";
+  if (p.includes("linux") || ua.includes("linux")) return "linux";
+  return "other";
+}
+
+function pickByPatterns(assets: ReleaseAsset[], patterns: RegExp[]): string | null {
+  for (const re of patterns) {
+    const hit = assets.find((a) => re.test(a.name) && !/autobuild|pdb|\.sig$/i.test(a.name));
     if (hit) return hit.browser_download_url;
   }
-  return assets[0]?.browser_download_url ?? null;
+  return null;
+}
+
+/** Prefer the installer matching this OS (Windows MSI/EXE, Linux AppImage/deb). */
+export function pickDownloadForOs(
+  assets: ReleaseAsset[],
+  os: "windows" | "linux" | "other" = detectHostOs(),
+): string | null {
+  if (os === "windows") {
+    return (
+      pickByPatterns(assets, [/\.msi$/i, /x64-setup\.exe$/i, /setup\.exe$/i, /\.exe$/i]) ??
+      null
+    );
+  }
+  if (os === "linux") {
+    return (
+      pickByPatterns(assets, [/\.AppImage$/i, /\.deb$/i, /\.rpm$/i, /\.tar\.gz$/i]) ?? null
+    );
+  }
+  return null;
 }
 
 /** Returns update info when a newer GitHub release exists; otherwise null. */
@@ -59,16 +87,17 @@ export async function checkForAppUpdate(): Promise<UpdateInfo | null> {
     html_url?: string;
     prerelease?: boolean;
     draft?: boolean;
-    assets?: { name: string; browser_download_url: string }[];
+    assets?: ReleaseAsset[];
   };
   if (data.draft || data.prerelease) return null;
   const latest = (data.tag_name ?? "").replace(/^v/i, "");
   if (!latest) return null;
   if (compareSemver(APP_VERSION, latest) >= 0) return null;
+  const assets = data.assets ?? [];
   return {
     latest,
     current: APP_VERSION,
     htmlUrl: data.html_url || `${GITHUB_RELEASES_URL}/tag/v${latest}`,
-    downloadUrl: pickWindowsDownload(data.assets ?? []),
+    downloadUrl: pickDownloadForOs(assets),
   };
 }

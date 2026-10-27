@@ -25,9 +25,9 @@ import {
   readSessionSnapshot,
   type SavedSessionTab,
 } from "./lib/sessionRestore";
-import { ToastHost, toastError } from "./lib/toast";
+import { ToastHost, toast, toastError } from "./lib/toast";
 import { BrandLogo } from "./features/chrome/BrandLogo";
-import { APP_VERSION, type UpdateInfo } from "./lib/version";
+import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "./lib/version";
 import type { Profile } from "./types";
 import { useAppSessions } from "./hooks/useAppSessions";
 import { usePanelLayout } from "./hooks/usePanelLayout";
@@ -43,6 +43,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const updateToastShown = useRef(false);
 
   const panels = usePanelLayout();
   const killAllTabsRef = useRef<() => void>(() => undefined);
@@ -60,6 +61,31 @@ export default function App() {
     onOpenSftp: () => panels.openSftpPane(),
   });
   killAllTabsRef.current = sessions.killAllTabs;
+
+  useEffect(() => {
+    if (!vault?.unlocked) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const info = await checkForAppUpdate();
+        if (cancelled || !info) return;
+        setUpdate(info);
+        if (!updateToastShown.current) {
+          updateToastShown.current = true;
+          toast(`v${info.latest} is ready — click SSHyar or Help → About to download`, {
+            kind: "info",
+            title: "Update available",
+            durationMs: 7000,
+          });
+        }
+      } catch {
+        /* offline / rate-limit — ignore; About can retry */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [vault?.unlocked]);
 
   const {
     pluginFlags,
@@ -298,13 +324,13 @@ export default function App() {
           }}
         >
           <div
-            className="chrome-modal"
+            className="chrome-modal chrome-modal-about"
             role="dialog"
             aria-label="About SSHyar"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="popover-header chrome-modal-header">
-              <span>About</span>
+            <div className="chrome-modal-header">
+              <span>About SSHyar</span>
               <button type="button" className="ghost" onClick={() => setAboutOpen(false)}>
                 Close
               </button>
@@ -332,6 +358,7 @@ export default function App() {
                 }
                 themeLabel={theme === "dark" ? "Switch to Light Theme" : "Switch to Dark Theme"}
                 hasMasterPassword={vault.hasMasterPassword}
+                hasUpdate={Boolean(update)}
                 brand={
                   <>
                     <BrandLogo size={16} />

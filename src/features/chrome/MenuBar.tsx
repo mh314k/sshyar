@@ -29,6 +29,8 @@ interface Props {
   hasMasterPassword?: boolean;
   /** App mark — shown at the start of the menubar (VS Code–style). */
   brand?: ReactNode;
+  /** Teal badge on brand + Help when a newer GitHub release exists. */
+  hasUpdate?: boolean;
 }
 
 const MENUS: { id: MenuId; label: string; items: (ctx: Props) => MenuItem[] }[] = [
@@ -64,9 +66,13 @@ const MENUS: { id: MenuId; label: string; items: (ctx: Props) => MenuItem[] }[] 
   {
     id: "help",
     label: "Help",
-    items: () => [
+    items: (ctx) => [
       { kind: "item", id: "help", label: "Help" },
-      { kind: "item", id: "about", label: "About" },
+      {
+        kind: "item",
+        id: "about",
+        label: ctx.hasUpdate ? "About · Update available" : "About",
+      },
     ],
   },
 ];
@@ -78,10 +84,18 @@ export function MenuBar({
   themeLabel,
   hasMasterPassword = false,
   brand,
+  hasUpdate = false,
 }: Props) {
   const [open, setOpen] = useState<MenuId | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const ctx = { onAction, pluginsAvailable, layoutModeLabel, themeLabel, hasMasterPassword };
+  const ctx = {
+    onAction,
+    pluginsAvailable,
+    layoutModeLabel,
+    themeLabel,
+    hasMasterPassword,
+    hasUpdate,
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -112,8 +126,8 @@ export function MenuBar({
       {brand ? (
         <button
           type="button"
-          className="menu-bar-brand"
-          title="About SSHyar"
+          className={`menu-bar-brand${hasUpdate ? " has-update" : ""}`}
+          title={hasUpdate ? "Update available — open About" : "About SSHyar"}
           onClick={() => onAction("about")}
         >
           {brand}
@@ -124,7 +138,9 @@ export function MenuBar({
           <div key={menu.id} className="menu-bar-item">
             <button
               type="button"
-              className={`menu-bar-trigger ${open === menu.id ? "is-open" : ""}`}
+              className={`menu-bar-trigger ${open === menu.id ? "is-open" : ""}${
+                menu.id === "help" && hasUpdate ? " has-update" : ""
+              }`}
               role="menuitem"
               aria-haspopup="true"
               aria-expanded={open === menu.id}

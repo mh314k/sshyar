@@ -13,13 +13,21 @@ interface Props {
 
 export function HelpModal({ open, onClose }: Props) {
   const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState(HELP_SECTIONS[0]?.id ?? "start");
   const inputRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+
   const sections = useMemo(() => filterHelpSections(query), [query]);
+
+  const active = useMemo(() => {
+    const hit = sections.find((s) => s.id === activeId);
+    return hit ?? sections[0] ?? null;
+  }, [sections, activeId]);
 
   useEffect(() => {
     if (!open) return;
     setQuery("");
+    setActiveId(HELP_SECTIONS[0]?.id ?? "start");
     const t = window.setTimeout(() => inputRef.current?.focus(), 30);
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -31,13 +39,16 @@ export function HelpModal({ open, onClose }: Props) {
     };
   }, [open, onClose]);
 
-  function jumpTo(id: string) {
-    setQuery("");
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`help-${id}`);
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
+  useEffect(() => {
+    if (!sections.length) return;
+    if (!sections.some((s) => s.id === activeId)) {
+      setActiveId(sections[0].id);
+    }
+  }, [sections, activeId]);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [active?.id, query]);
 
   if (!open) return null;
 
@@ -58,62 +69,74 @@ export function HelpModal({ open, onClose }: Props) {
         <header className="help-header">
           <div className="help-header-text">
             <h2 id="help-modal-title">Help</h2>
-            <p className="muted">SSHyar v{APP_VERSION} — features and how to use them</p>
+            <p className="muted">v{APP_VERSION}</p>
+          </div>
+          <div className="help-search">
+            <SearchIcon {...iconProps(15)} className="help-search-icon" aria-hidden />
+            <input
+              ref={inputRef}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search… sftp, vault, docker, paste"
+              autoComplete="off"
+              spellCheck={false}
+              aria-label="Search help"
+            />
+            {query ? (
+              <button type="button" className="help-search-clear" onClick={() => setQuery("")}>
+                Clear
+              </button>
+            ) : null}
           </div>
           <button type="button" className="help-close" onClick={onClose} title="Close" aria-label="Close">
             <CloseIcon {...iconProps(18)} />
           </button>
         </header>
 
-        <div className="help-search">
-          <SearchIcon {...iconProps(15)} className="help-search-icon" aria-hidden />
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search help… e.g. sftp, paste, vault, zsh, timeout"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          {query ? (
-            <button type="button" className="help-search-clear" onClick={() => setQuery("")}>
-              Clear
-            </button>
-          ) : null}
-        </div>
+        <div className="help-layout">
+          <nav className="help-nav" aria-label="Topics">
+            {sections.length === 0 ? (
+              <p className="help-nav-empty muted">No matches</p>
+            ) : (
+              sections.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`help-nav-item${active?.id === s.id ? " is-active" : ""}`}
+                  onClick={() => setActiveId(s.id)}
+                  aria-current={active?.id === s.id ? "page" : undefined}
+                >
+                  <span className="help-nav-title">{s.title}</span>
+                  <span className="help-nav-blurb muted">{s.summary}</span>
+                </button>
+              ))
+            )}
+          </nav>
 
-        {!query ? (
-          <div className="help-toc" aria-label="Topics">
-            {HELP_SECTIONS.map((s) => (
-              <button key={s.id} type="button" className="help-toc-chip" onClick={() => jumpTo(s.id)}>
-                {s.title}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="help-body" ref={bodyRef}>
-          {sections.length === 0 ? (
-            <p className="help-empty muted">No topics match “{query}”.</p>
-          ) : (
-            sections.map((section) => (
-              <section key={section.id} className="help-section" id={`help-${section.id}`}>
-                <h3 className="help-section-title">{section.title}</h3>
-                <p className="help-section-summary muted">{section.summary}</p>
-                {section.blocks.map((block) => (
+          <div className="help-body" ref={bodyRef}>
+            {!active ? (
+              <p className="help-empty muted">No topics match “{query}”.</p>
+            ) : (
+              <>
+                <header className="help-topic-head">
+                  <h3 className="help-section-title">{active.title}</h3>
+                  <p className="help-section-summary muted">{active.summary}</p>
+                </header>
+                {active.blocks.map((block) => (
                   <article key={block.id} className="help-block">
                     <h4 className="help-block-title">{block.title}</h4>
-                    <ol className="help-steps">
+                    <ul className="help-steps">
                       {block.steps.map((step, i) => (
                         <li key={i}>{step}</li>
                       ))}
-                    </ol>
+                    </ul>
+                    {block.tip ? <p className="help-tip">{block.tip}</p> : null}
                   </article>
                 ))}
-              </section>
-            ))
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>,
