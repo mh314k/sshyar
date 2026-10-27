@@ -29,15 +29,15 @@ export function toggleTheme(current: ThemeMode): ThemeMode {
 
 export const terminalThemes = {
   dark: {
-    background: "#101826",
-    foreground: "#eef3fb",
+    background: "#121820",
+    foreground: "#e8eef7",
     cursor: "#45d0bd",
-    selectionBackground: "#324056",
+    selectionBackground: "#2c3648",
   },
   light: {
-    background: "#e9eef5",
+    background: "#f7f9fc",
     foreground: "#132033",
     cursor: "#0f766e",
-    selectionBackground: "#c3cedd",
+    selectionBackground: "#c5ceda",
   },
 } as const;

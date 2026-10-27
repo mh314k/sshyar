@@ -48,7 +48,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Left sidebar: brand, search, profile list by group, and toolbar icons (snippets, theme, vault, about, help, new profile).",
           "Center: session tabs and the embedded terminal for a local shell or SSH.",
-          "Right panel: session plugins for the active SSH-backed tab — SFTP always, plus Docker / Nginx / systemd / cron when enabled on the profile (opens when you Connect).",
+          "Center split: terminal + SFTP for the active session. Right panel: Docker / Nginx / systemd / cron when enabled on the profile.",
           "Use the tabs at the top of the right panel to switch plugins.",
           "Drag the vertical splitters between panes to resize sidebar and the right panel.",
           "Collapse the left sidebar with the panel icon when you need more terminal width.",
@@ -295,7 +295,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "sftp",
     title: "SFTP",
     summary:
-      "Browse, multi-select, transfer with progress, edit with syntax highlight, follow shell cwd, and Compose controls when a compose file is present.",
+      "Icon-grid browse, multi-select, transfer with progress, edit with syntax highlight, follow shell cwd, and Compose controls when a compose file is present.",
     keywords: [
       "sftp",
       "file",
@@ -306,30 +306,33 @@ export const HELP_SECTIONS: HelpSection[] = [
       "editor",
       "compose",
       "docker",
+      "icons",
+      "sort",
     ],
     blocks: [
       {
         id: "open-panel",
         title: "Opening the panel",
-        keywords: ["panel", "right", "toggle", "connect", "tabs", "plugins"],
+        keywords: ["panel", "split", "toggle", "connect", "tabs", "plugins"],
         steps: [
-          "Connecting to a profile opens the right plugin panel for that session (SFTP tab by default).",
-          "Enabled session plugins (Docker, Nginx, systemd, cron) appear as extra tabs next to SFTP.",
-          "You can collapse/expand the panel with the panel control; width is resizable and remembered with layout prefs.",
+          "Connecting to a profile opens SFTP in the main split (with the terminal) for that session tab.",
+          "Enabled session plugins (Docker, Nginx, systemd, cron) appear in the right panel.",
+          "Use the activity bar / layout controls to show or hide SFTP and the plugin panel; widths and split ratios are remembered.",
         ],
       },
       {
         id: "browse",
         title: "Browse and select",
-        keywords: ["browse", "checkbox", "multi", "refresh", "up", "double-click"],
+        keywords: ["browse", "checkbox", "multi", "refresh", "up", "double-click", "icons", "sort", "grid"],
         steps: [
-          "Listing shows the remote cwd; double-click a folder to enter it.",
+          "Files appear as an icon grid for the remote cwd; double-click a folder to enter it.",
+          "Long names are truncated; select a tile to expand the full name.",
           "↑ goes to the parent directory; Refresh reloads the listing.",
           "Click a path segment in the breadcrumb bar to jump up the tree; use the copy icon to copy the full path.",
-          "Click Name or Size in the header to sort (folders stay first).",
-          "Toolbar groups: Navigate · Transfer · Edit — disabled actions stay visibly dimmed.",
-          "Checkboxes support multi-select for bulk download, delete, copy, or cut.",
-          "Right-click a row (or empty area) for context actions matching the toolbar.",
+          "Use Sort (Name / Size) and the direction button (A–Z / Z–A or 0→9) above the grid — folders stay first.",
+          "Toolbar groups: Follow · Navigate · Transfer · Edit — disabled actions stay visibly dimmed.",
+          "Checkboxes (hover or selected) support multi-select for bulk download, delete, copy, or cut.",
+          "Right-click a tile (or empty area) for context actions matching the toolbar.",
         ],
       },
       {
@@ -360,8 +363,9 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Check Follow shell to keep SFTP cwd synced with the linked terminal’s working directory.",
           "SSHyar injects a small remote helper (base64 eval) that emits an OSC cwd sequence — it does not send Ctrl+C, so SSH is not aborted.",
-          "Works most reliably on bash with PROMPT_COMMAND; disable Follow if you browse independently.",
-          "Toggle off to remove the helper from the remote shell session.",
+          "Works most reliably on bash with PROMPT_COMMAND.",
+          "Browsing in SFTP (open folder, Up, breadcrumbs) turns Follow off automatically so the list stays where you navigated.",
+          "Toggle Follow back on when you want the shell to drive the path again.",
         ],
       },
       {

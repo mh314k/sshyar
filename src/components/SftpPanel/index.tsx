@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
-import LinkIcon from "@mui/icons-material/Link";
-import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
+import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import { api } from "../../lib/api";
 import { appConfirm, appPrompt } from "../../lib/dialogs";
 import { toast, toastError, toastSuccess } from "../../lib/toast";
@@ -13,10 +12,10 @@ import { IconButton, iconProps, iconSize } from "../IconButton";
 import { RemoteFileEditor, type FileEditorMode } from "../RemoteFileEditor";
 import { buildSftpMenuItems } from "./buildMenuItems";
 import { SftpFileList } from "./FileList";
-import { buildFollowInject, CWD_OSC_RE } from "./followShell";
+import { buildFollowInject, CWD_OSC_RE, normalizeRemotePath } from "./followShell";
 import { joinRemote, parentPath } from "./format";
 import { SftpPathBar } from "./PathBar";
-import { nextSort, sortEntries, type SortDir, type SortKey } from "./sort";
+import { sortEntries, type SortDir, type SortKey } from "./sort";
 import { ComposeBar, findComposeFileName } from "./ComposeBar";
 import { SftpToolbar } from "./Toolbar";
 import { TransferBar } from "./TransferBar";
@@ -78,6 +77,8 @@ export function SftpPanel({
   const busyRef = useRef(false);
   const followWasOnRef = useRef(false);
   const followPtyRef = useRef<string | null>(null);
+  const browseInFlightRef = useRef(false);
+  const listGenRef = useRef(0);
   const jumpPathRef = useRef<string | null>(jumpPath);
   const onJumpConsumedRef = useRef(onJumpPathConsumed);
 
@@ -118,19 +119,25 @@ export function SftpPanel({
   }, []);
 
   const refresh = useCallback(async (id: string, path?: string) => {
+    const gen = ++listGenRef.current;
     const list = await api.sftpList(id, path);
-    setEntries(list);
-    if (path !== undefined) {
-      setCwd(path);
-      setChecked(new Set());
-      lastClickedRef.current = null;
-    } else {
-      setChecked((prev) => {
-        const next = new Set<string>();
-        for (const e of list) if (prev.has(e.path)) next.add(e.path);
-        return next;
-      });
-    }
+    if (gen !== listGenRef.current) return;
+    if (!Array.isArray(list)) throw new Error("Invalid SFTP listing");
+    startTransition(() => {
+      if (gen !== listGenRef.current) return;
+      setEntries(list);
+      if (path !== undefined) {
+        setCwd(path);
+        setChecked(new Set());
+        lastClickedRef.current = null;
+      } else {
+        setChecked((prev) => {
+          const next = new Set<string>();
+          for (const e of list) if (e?.path && prev.has(e.path)) next.add(e.path);
+          return next;
+        });
+      }
+    });
   }, []);
 
   const sortedEntries = useMemo(
@@ -150,15 +157,51 @@ export function SftpPanel({
   const navigateFollow = useCallback(
     (path: string) => {
       const id = sftpIdRef.current;
-      if (!id || !path) return;
-      const normalized = path.replace(/\/+$/, "") || "/";
-      if (normalized === cwdRef.current) return;
+      if (!id || !path || browseInFlightRef.current) return;
+      if (!followRef.current) return;
+      const normalized = normalizeRemotePath(path);
+      if (normalized === normalizeRemotePath(cwdRef.current)) return;
       if (busyRef.current) return;
       if (navTimerRef.current) window.clearTimeout(navTimerRef.current);
       navTimerRef.current = window.setTimeout(() => {
-        if (busyRef.current) return;
+        if (busyRef.current || browseInFlightRef.current || !followRef.current) return;
         void refresh(id, normalized).catch((err) => toastError(err, "SFTP"));
-      }, 120);
+      }, 150);
+    },
+    [refresh],
+  );
+
+  /** Manual SFTP browse — takes over from Follow (turns it off). */
+  const browseTo = useCallback(
+    async (path: string) => {
+      const id = sftpIdRef.current;
+      if (!id || browseInFlightRef.current) return;
+      const normalized = normalizeRemotePath(path);
+      if (normalized === normalizeRemotePath(cwdRef.current)) return;
+      if (followRef.current) {
+        setFollowShell(false);
+        toast("Follow shell off — browsing in SFTP", { kind: "info", durationMs: 2200 });
+      }
+      if (navTimerRef.current) {
+        window.clearTimeout(navTimerRef.current);
+        navTimerRef.current = null;
+      }
+      const prevCwd = cwdRef.current;
+      setCwd(normalized);
+      setChecked(new Set());
+      lastClickedRef.current = null;
+      browseInFlightRef.current = true;
+      setBusy(true);
+      try {
+        await refresh(id, normalized);
+      } catch (err) {
+        setCwd(prevCwd);
+        cwdRef.current = prevCwd;
+        toastError(err, "SFTP");
+      } finally {
+        browseInFlightRef.current = false;
+        setBusy(false);
+      }
     },
     [refresh],
   );
@@ -170,8 +213,15 @@ export function SftpPanel({
     }
     let cancelled = false;
     const unlisten = listen<string>(`pty-output-${ptyId}`, (ev) => {
-      if (!followRef.current || cancelled) return;
-      oscBufRef.current = (oscBufRef.current + ev.payload).slice(-8000);
+      if (!followRef.current || cancelled || browseInFlightRef.current) return;
+      const chunk = ev.payload;
+      if (!chunk.includes("7337;cwd=")) {
+        if (oscBufRef.current) {
+          oscBufRef.current = (oscBufRef.current + chunk).slice(-200);
+        }
+        return;
+      }
+      oscBufRef.current = (oscBufRef.current + chunk).slice(-4000);
       CWD_OSC_RE.lastIndex = 0;
       let match: RegExpExecArray | null;
       let last: string | null = null;
@@ -181,6 +231,11 @@ export function SftpPanel({
       if (last) {
         const cut = oscBufRef.current.lastIndexOf("\x1b]7337;cwd=");
         oscBufRef.current = cut >= 0 ? oscBufRef.current.slice(cut) : "";
+        try {
+          last = decodeURIComponent(last);
+        } catch {
+          /* keep raw */
+        }
         navigateFollow(last);
       }
     });
@@ -274,6 +329,11 @@ export function SftpPanel({
     void connect();
     return () => {
       cancelled = true;
+      const id = sftpIdRef.current;
+      if (id) {
+        sftpIdRef.current = null;
+        void api.sftpClose(id).catch(() => undefined);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, profileId]);
@@ -330,10 +390,12 @@ export function SftpPanel({
     else setChecked(new Set(sortedEntries.map((e) => e.path)));
   }
 
-  function onSort(key: SortKey) {
-    const next = nextSort(sortKey, sortDir, key);
-    setSortKey(next.key);
-    setSortDir(next.dir);
+  function onSortKeyChange(key: SortKey) {
+    setSortKey(key);
+  }
+
+  function onSortDirToggle() {
+    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
   }
 
   function onRowClick(e: React.MouseEvent, entry: RemoteEntry) {
@@ -374,13 +436,18 @@ export function SftpPanel({
 
   async function goUp() {
     if (!sftpId || !cwd) return;
-    await refresh(sftpId, parentPath(cwd));
+    await browseTo(parentPath(cwd));
   }
 
   async function openEntry(e: RemoteEntry) {
     if (!sftpId) return;
-    if (e.isDir) await refresh(sftpId, e.path);
-    else setEditor({ path: e.path, mode: "view" });
+    if (e.isDir) {
+      const target =
+        e.path && (e.path.startsWith("/") || e.path.includes("/"))
+          ? e.path
+          : joinRemote(cwd, e.name);
+      await browseTo(target);
+    } else setEditor({ path: e.path, mode: "view" });
   }
 
   async function runUpload(items: UploadPlanItem[]) {
@@ -668,9 +735,10 @@ export function SftpPanel({
           <strong>SFTP</strong>
           <IconButton
             variant="icon"
+            className="sidebar-hide-btn"
             title="Hide SFTP"
             onClick={onToggle}
-            icon={<ViewSidebarOutlinedIcon {...iconProps(iconSize)} />}
+            icon={<ExpandMoreOutlinedIcon {...iconProps(iconSize)} />}
           />
         </div>
       ) : null}
@@ -678,19 +746,6 @@ export function SftpPanel({
         <p className="muted sftp-empty">Connect a profile session to browse remote files here.</p>
       ) : (
         <>
-          <label
-            className="follow-shell"
-            title="When checked, SFTP tracks the remote shell cwd (after SSH is connected)"
-          >
-            <input
-              type="checkbox"
-              checked={followShell}
-              disabled={!ptyId}
-              onChange={(e) => setFollowShell(e.target.checked)}
-            />
-            <LinkIcon {...iconProps(14)} />
-            <span>Follow shell</span>
-          </label>
           <SftpToolbar
             sftpId={sftpId}
             busy={busy}
@@ -698,6 +753,9 @@ export function SftpPanel({
             hasFileSelection={hasFileSelection}
             single={single}
             clipboard={clipboard}
+            followShell={followShell}
+            followDisabled={!ptyId}
+            onFollowShellChange={setFollowShell}
             onUp={() => void goUp()}
             onRefresh={() => sftpId && void refresh(sftpId, cwd)}
             onUpload={() => void uploadPicker()}
@@ -720,7 +778,7 @@ export function SftpPanel({
           <SftpPathBar
             cwd={cwd}
             disabled={!sftpId || busy}
-            onNavigate={(path) => sftpId && void refresh(sftpId, path)}
+            onNavigate={(path) => void browseTo(path)}
           />
           <SftpFileList
             entries={sortedEntries}
@@ -730,7 +788,8 @@ export function SftpPanel({
             busy={busy}
             sortKey={sortKey}
             sortDir={sortDir}
-            onSort={onSort}
+            onSortKeyChange={onSortKeyChange}
+            onSortDirToggle={onSortDirToggle}
             onToggleAll={toggleAll}
             onRowClick={onRowClick}
             onOpen={(e) => void openEntry(e)}

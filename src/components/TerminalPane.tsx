@@ -120,7 +120,11 @@ export function TerminalPane({ ptyId, active, theme, onConnected, onDisconnected
 
     connectedOnceRef.current = false;
     const unlistenOut = listen<string>(`pty-output-${ptyId}`, (ev) => {
-      term.write(ev.payload);
+      try {
+        term.write(ev.payload);
+      } catch (err) {
+        console.error("xterm write failed:", err);
+      }
       if (!connectedOnceRef.current) {
         connectedOnceRef.current = true;
         onConnectedRef.current?.();

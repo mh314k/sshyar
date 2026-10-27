@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
-import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { api } from "../../lib/api";
-import type { ThemeMode } from "../../lib/theme";
 import { CronPanel } from "../CronPanel";
 import { DockerJobBar } from "../dockerJob/DockerJobBar";
-import { DockerJobProvider } from "../dockerJob/DockerJobContext";
 import { DockerPanel } from "../DockerPanel";
 import { IconButton, iconProps, iconSize } from "../IconButton";
 import { NginxPanel } from "../NginxPanel";
-import { SftpPanel } from "../SftpPanel";
 import { SystemdPanel } from "../SystemdPanel";
 
-export type PluginTab = "sftp" | "docker" | "nginx" | "systemd" | "cron";
+export type PluginTab = "docker" | "nginx" | "systemd" | "cron";
 
 export type PluginFlags = {
   docker: boolean;
@@ -20,12 +17,24 @@ export type PluginFlags = {
   cron: boolean;
 };
 
+export function anyPluginEnabled(plugins: PluginFlags): boolean {
+  return plugins.docker || plugins.nginx || plugins.systemd || plugins.cron;
+}
+
+function firstEnabledTab(plugins: PluginFlags): PluginTab | null {
+  if (plugins.docker) return "docker";
+  if (plugins.nginx) return "nginx";
+  if (plugins.systemd) return "systemd";
+  if (plugins.cron) return "cron";
+  return null;
+}
+
 interface Props {
   profileId: string | null;
   ptyId: string | null;
   plugins: PluginFlags;
   onToggle: () => void;
-  theme?: ThemeMode;
+  onOpenComposeInSftp?: (path: string) => void;
 }
 
 export function RightPlugins({
@@ -33,26 +42,20 @@ export function RightPlugins({
   ptyId,
   plugins,
   onToggle,
-  theme = "dark",
+  onOpenComposeInSftp,
 }: Props) {
-  const [tab, setTab] = useState<PluginTab>("sftp");
-  const [sftpJumpPath, setSftpJumpPath] = useState<string | null>(null);
+  const [tab, setTab] = useState<PluginTab>(() => firstEnabledTab(plugins) ?? "docker");
 
-  const needsRemoteSession =
-    plugins.docker || plugins.nginx || plugins.systemd || plugins.cron;
+  const needsRemoteSession = anyPluginEnabled(plugins);
 
   useEffect(() => {
-    if (tab === "docker" && !plugins.docker) setTab("sftp");
-    else if (tab === "nginx" && !plugins.nginx) setTab("sftp");
-    else if (tab === "systemd" && !plugins.systemd) setTab("sftp");
-    else if (tab === "cron" && !plugins.cron) setTab("sftp");
+    const first = firstEnabledTab(plugins);
+    if (!first) return;
+    if (tab === "docker" && !plugins.docker) setTab(first);
+    else if (tab === "nginx" && !plugins.nginx) setTab(first);
+    else if (tab === "systemd" && !plugins.systemd) setTab(first);
+    else if (tab === "cron" && !plugins.cron) setTab(first);
   }, [plugins, tab]);
-
-  function openComposeInSftp(path: string) {
-    const normalized = path.trim().replace(/\/+$/, "") || "/";
-    setSftpJumpPath(normalized);
-    setTab("sftp");
-  }
 
   useEffect(() => {
     if (!needsRemoteSession || !profileId) return;
@@ -62,105 +65,102 @@ export function RightPlugins({
     };
   }, [needsRemoteSession, profileId]);
 
-  return (
-    <DockerJobProvider>
+  if (!needsRemoteSession) {
+    return (
       <div className="right-plugins">
         <div className="plugin-header">
-          <div className="plugin-tabs" role="tablist" aria-label="Session plugins">
+          <div className="plugin-tabs" role="tablist" aria-label="Session plugins" />
+          <IconButton
+            variant="icon"
+            className="sidebar-hide-btn"
+            title="Hide panel"
+            onClick={onToggle}
+            icon={<ChevronRightOutlinedIcon {...iconProps(iconSize)} />}
+          />
+        </div>
+        <div className="right-plugins-body">
+          <p className="muted plugin-empty">No plugins enabled for this profile.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="right-plugins">
+      <div className="plugin-header">
+        <div className="plugin-tabs" role="tablist" aria-label="Session plugins">
+          {plugins.docker ? (
             <button
               type="button"
               role="tab"
-              aria-selected={tab === "sftp"}
-              className={`plugin-tab ${tab === "sftp" ? "is-active" : ""}`}
-              onClick={() => setTab("sftp")}
+              aria-selected={tab === "docker"}
+              className={`plugin-tab ${tab === "docker" ? "is-active" : ""}`}
+              onClick={() => setTab("docker")}
             >
-              SFTP
+              Docker
             </button>
-            {plugins.docker ? (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "docker"}
-                className={`plugin-tab ${tab === "docker" ? "is-active" : ""}`}
-                onClick={() => setTab("docker")}
-              >
-                Docker
-              </button>
-            ) : null}
-            {plugins.nginx ? (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "nginx"}
-                className={`plugin-tab ${tab === "nginx" ? "is-active" : ""}`}
-                onClick={() => setTab("nginx")}
-              >
-                Nginx
-              </button>
-            ) : null}
-            {plugins.systemd ? (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "systemd"}
-                className={`plugin-tab ${tab === "systemd" ? "is-active" : ""}`}
-                onClick={() => setTab("systemd")}
-              >
-                systemd
-              </button>
-            ) : null}
-            {plugins.cron ? (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "cron"}
-                className={`plugin-tab ${tab === "cron" ? "is-active" : ""}`}
-                onClick={() => setTab("cron")}
-              >
-                cron
-              </button>
-            ) : null}
-          </div>
-          <IconButton
-            variant="icon"
-            title="Hide panel"
-            onClick={onToggle}
-            icon={<ViewSidebarOutlinedIcon {...iconProps(iconSize)} />}
-          />
+          ) : null}
+          {plugins.nginx ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "nginx"}
+              className={`plugin-tab ${tab === "nginx" ? "is-active" : ""}`}
+              onClick={() => setTab("nginx")}
+            >
+              Nginx
+            </button>
+          ) : null}
+          {plugins.systemd ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "systemd"}
+              className={`plugin-tab ${tab === "systemd" ? "is-active" : ""}`}
+              onClick={() => setTab("systemd")}
+            >
+              systemd
+            </button>
+          ) : null}
+          {plugins.cron ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "cron"}
+              className={`plugin-tab ${tab === "cron" ? "is-active" : ""}`}
+              onClick={() => setTab("cron")}
+            >
+              cron
+            </button>
+          ) : null}
         </div>
-
-        <div className="right-plugins-body">
-          {tab === "sftp" ? (
-            <SftpPanel
-              profileId={profileId}
-              ptyId={ptyId}
-              open
-              onToggle={onToggle}
-              theme={theme}
-              showChrome={false}
-              dockerEnabled={plugins.docker}
-              jumpPath={sftpJumpPath}
-              onJumpPathConsumed={() => setSftpJumpPath(null)}
-            />
-          ) : null}
-          {tab === "docker" ? (
-            <DockerPanel
-              profileId={profileId}
-              enabled={plugins.docker}
-              onOpenComposeInSftp={openComposeInSftp}
-            />
-          ) : null}
-          {tab === "nginx" ? (
-            <NginxPanel profileId={profileId} ptyId={ptyId} enabled={plugins.nginx} />
-          ) : null}
-          {tab === "systemd" ? (
-            <SystemdPanel profileId={profileId} ptyId={ptyId} enabled={plugins.systemd} />
-          ) : null}
-          {tab === "cron" ? <CronPanel profileId={profileId} enabled={plugins.cron} /> : null}
-        </div>
-
-        {needsRemoteSession ? <DockerJobBar /> : null}
+        <IconButton
+          variant="icon"
+          className="sidebar-hide-btn"
+          title="Hide panel"
+          onClick={onToggle}
+          icon={<ChevronRightOutlinedIcon {...iconProps(iconSize)} />}
+        />
       </div>
-    </DockerJobProvider>
+
+      <div className="right-plugins-body">
+        {tab === "docker" ? (
+          <DockerPanel
+            profileId={profileId}
+            enabled={plugins.docker}
+            onOpenComposeInSftp={onOpenComposeInSftp}
+          />
+        ) : null}
+        {tab === "nginx" ? (
+          <NginxPanel profileId={profileId} ptyId={ptyId} enabled={plugins.nginx} />
+        ) : null}
+        {tab === "systemd" ? (
+          <SystemdPanel profileId={profileId} ptyId={ptyId} enabled={plugins.systemd} />
+        ) : null}
+        {tab === "cron" ? <CronPanel profileId={profileId} enabled={plugins.cron} /> : null}
+      </div>
+
+      {needsRemoteSession ? <DockerJobBar /> : null}
+    </div>
   );
 }

@@ -1,35 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import AddIcon from "@mui/icons-material/Add";
 import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ControlPointDuplicateOutlinedIcon from "@mui/icons-material/ControlPointDuplicateOutlined";
-import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
-import HelpOutlinedIcon from "@mui/icons-material/HelpOutlined";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
-import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import TerminalOutlinedIcon from "@mui/icons-material/TerminalOutlined";
 import UploadIcon from "@mui/icons-material/Upload";
-import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
+import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeftOutlined";
 import type { Profile, ProfileInput, Snippet } from "../../types";
 import { api } from "../../lib/api";
 import { appConfirm, appPasswordPrompt, appPrompt } from "../../lib/dialogs";
 import { toastError, toastSuccess } from "../../lib/toast";
-import type { ThemeMode } from "../../lib/theme";
-import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "../../lib/version";
-import { AboutPopover } from "../AboutPopover";
-import { BrandLogo } from "../BrandLogo";
 import { ContextMenu, type ContextMenuItem } from "../ContextMenu";
-import { HelpModal } from "../HelpModal";
 import { IconButton, iconProps, iconSize } from "../IconButton";
 import { Popover } from "../Popover";
 import { ProfileForm } from "../ProfileForm";
@@ -47,12 +38,10 @@ interface Props {
   hasMasterPassword: boolean;
   onMasterPasswordChange: () => void;
   onLock?: () => void;
-  theme: ThemeMode;
-  onToggleTheme: () => void;
   onCollapse?: () => void;
 }
 
-type Panel = "actions" | "snippets" | "security" | "about" | null;
+type Panel = "actions" | "snippets" | "security" | null;
 
 export function ProfileSidebar({
   profiles,
@@ -64,8 +53,6 @@ export function ProfileSidebar({
   hasMasterPassword,
   onMasterPasswordChange,
   onLock,
-  theme,
-  onToggleTheme,
   onCollapse,
 }: Props) {
   const [query, setQuery] = useState("");
@@ -73,27 +60,10 @@ export function ProfileSidebar({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; profile: Profile } | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [update, setUpdate] = useState<UpdateInfo | null>(null);
 
   const actionsBtnRef = useRef<HTMLButtonElement>(null);
   const snippetsBtnRef = useRef<HTMLButtonElement>(null);
   const securityBtnRef = useRef<HTMLButtonElement>(null);
-  const aboutBtnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void checkForAppUpdate()
-      .then((info) => {
-        if (!cancelled) setUpdate(info);
-      })
-      .catch(() => {
-        /* ignore background check failures */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -332,15 +302,9 @@ export function ProfileSidebar({
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-title">
-          <BrandLogo size={28} />
-          <div className="brand-text">
-            <h1>SSHyar</h1>
-            <span className="brand-version">v{APP_VERSION}</span>
-          </div>
-        </div>
-        <div className="brand-actions">
+      <div className="sidebar-titlebar">
+        <span className="sidebar-title">Profiles</span>
+        <div className="sidebar-title-actions">
           <IconButton
             ref={snippetsBtnRef}
             variant="icon"
@@ -350,42 +314,12 @@ export function ProfileSidebar({
             icon={<BoltOutlinedIcon {...iconProps(iconSize)} />}
           />
           <IconButton
-            variant="icon"
-            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            onClick={onToggleTheme}
-            icon={
-              theme === "dark" ? (
-                <LightModeOutlinedIcon {...iconProps(iconSize)} />
-              ) : (
-                <DarkModeOutlinedIcon {...iconProps(iconSize)} />
-              )
-            }
-          />
-          <IconButton
             ref={securityBtnRef}
             variant="icon"
-            title="Master password"
+            title="Vault & security"
             className={panel === "security" ? "is-active" : ""}
             onClick={() => togglePanel("security")}
             icon={<KeyOutlinedIcon {...iconProps(iconSize)} />}
-          />
-          <IconButton
-            ref={aboutBtnRef}
-            variant="icon"
-            title={update ? `About — update v${update.latest} available` : "About"}
-            className={`about-btn ${panel === "about" ? "is-active" : ""} ${update ? "has-update" : ""}`}
-            onClick={() => togglePanel("about")}
-            icon={<InfoOutlinedIcon {...iconProps(iconSize)} />}
-          />
-          <IconButton
-            variant="icon"
-            title="Help"
-            className={helpOpen ? "is-active" : ""}
-            onClick={() => {
-              setPanel(null);
-              setHelpOpen(true);
-            }}
-            icon={<HelpOutlinedIcon {...iconProps(iconSize)} />}
           />
           <IconButton
             variant="icon"
@@ -396,9 +330,10 @@ export function ProfileSidebar({
           {onCollapse && (
             <IconButton
               variant="icon"
+              className="sidebar-hide-btn"
               title="Hide sidebar"
               onClick={onCollapse}
-              icon={<ViewSidebarOutlinedIcon {...iconProps(iconSize)} />}
+              icon={<ChevronLeftOutlinedIcon {...iconProps(iconSize)} />}
             />
           )}
         </div>
@@ -407,7 +342,7 @@ export function ProfileSidebar({
       <div className="sidebar-section">
         <input
           className="search"
-          placeholder="Search name, host, tag, group…"
+          placeholder="Search profiles…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -555,20 +490,6 @@ export function ProfileSidebar({
           onClick={() => void importBackup()}
         />
       </Popover>
-
-      <Popover
-        open={panel === "about"}
-        onClose={() => setPanel(null)}
-        anchorRef={aboutBtnRef}
-        width={300}
-        align="end"
-        className="popover-about"
-      >
-        <div className="popover-header">About</div>
-        <AboutPopover update={update} onUpdateChange={setUpdate} />
-      </Popover>
-
-      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {menu && (
         <ContextMenu

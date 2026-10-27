@@ -6,6 +6,7 @@ import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutl
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import LinkIcon from "@mui/icons-material/Link";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import UploadIcon from "@mui/icons-material/Upload";
 import type { RemoteEntry } from "../../types";
@@ -19,6 +20,9 @@ type Props = {
   hasFileSelection: boolean;
   single: RemoteEntry | null;
   clipboard: ClipboardState | null;
+  followShell: boolean;
+  followDisabled: boolean;
+  onFollowShellChange: (on: boolean) => void;
   onUp: () => void;
   onRefresh: () => void;
   onUpload: () => void;
@@ -38,6 +42,9 @@ export function SftpToolbar({
   hasFileSelection,
   single,
   clipboard,
+  followShell,
+  followDisabled,
+  onFollowShellChange,
   onUp,
   onRefresh,
   onUpload,
@@ -53,16 +60,30 @@ export function SftpToolbar({
   const ip = iconProps(iconSizeSm);
   return (
     <div className="sftp-toolbar">
+      <label
+        className={`follow-shell follow-shell-inline ${followShell ? "is-on" : ""}`}
+        title="When checked, SFTP tracks the remote shell cwd (after SSH is connected)"
+      >
+        <input
+          type="checkbox"
+          checked={followShell}
+          disabled={followDisabled}
+          onChange={(e) => onFollowShellChange(e.target.checked)}
+        />
+        <LinkIcon {...ip} />
+        <span>Follow</span>
+      </label>
+      <span className="sftp-toolbar-divider" aria-hidden />
       <div className="sftp-toolbar-group" title="Navigate">
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Up"
           disabled={navOff}
           onClick={onUp}
           icon={<ArrowUpwardIcon {...ip} />}
         />
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Refresh"
           disabled={navOff}
           onClick={onRefresh}
@@ -72,15 +93,14 @@ export function SftpToolbar({
       <span className="sftp-toolbar-divider" aria-hidden />
       <div className="sftp-toolbar-group" title="Transfer">
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Upload"
-          label="Upload"
           disabled={navOff}
           onClick={onUpload}
           icon={<UploadIcon {...ip} />}
         />
         <IconButton
-          variant="soft"
+          variant="icon"
           title={hasFileSelection ? "Download selected" : "Select file(s) to download"}
           disabled={!hasFileSelection || busy}
           onClick={onDownload}
@@ -90,42 +110,42 @@ export function SftpToolbar({
       <span className="sftp-toolbar-divider" aria-hidden />
       <div className="sftp-toolbar-group" title="Edit">
         <IconButton
-          variant="soft"
+          variant="icon"
           title="New folder"
           disabled={navOff}
           onClick={onMkdir}
           icon={<CreateNewFolderOutlinedIcon {...ip} />}
         />
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Rename"
           disabled={!single || busy}
           onClick={onRename}
           icon={<EditOutlinedIcon {...ip} />}
         />
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Delete selected"
           disabled={!hasSelection || busy}
           onClick={onDelete}
           icon={<DeleteOutlinedIcon {...ip} />}
         />
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Copy selected"
           disabled={!hasSelection}
           onClick={onCopy}
           icon={<ContentCopyIcon {...ip} />}
         />
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Cut selected"
           disabled={!hasSelection}
           onClick={onCut}
           icon={<ContentCutIcon {...ip} />}
         />
         <IconButton
-          variant="soft"
+          variant="icon"
           title="Paste"
           disabled={!clipboard || busy}
           onClick={onPaste}

@@ -11,6 +11,8 @@ interface Props {
   onClose: (id: string) => void;
   onNew: () => void;
   onReconnect: (id: string) => void;
+  /** When true, omit outer tab-bar chrome (parent provides the row). */
+  embedded?: boolean;
 }
 
 function statusLabel(status: SessionStatus): string {
@@ -38,10 +40,11 @@ export function SessionTabBar({
   onClose,
   onNew,
   onReconnect,
+  embedded = false,
 }: Props) {
   const sm = iconProps(iconSizeSm);
-  return (
-    <div className="tab-bar">
+  const inner = (
+    <>
       <div className="tab-list">
         {tabs.map((t) => (
           <div
@@ -94,6 +97,8 @@ export function SessionTabBar({
         icon={<AddIcon {...iconProps(iconSize)} />}
         onClick={onNew}
       />
-    </div>
+    </>
   );
+  if (embedded) return <div className="tab-bar tab-bar-embedded">{inner}</div>;
+  return <div className="tab-bar">{inner}</div>;
 }

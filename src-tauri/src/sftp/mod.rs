@@ -28,7 +28,8 @@ pub use types::{CopyItem, RemoteEntry, RemoveItem, UploadItem};
 
 struct SftpConn {
     _handle: Handle<ClientHandler>,
-    sftp: SftpSession,
+    /// Arc so list/ops can clone the handle and release the mutex across awaits.
+    sftp: Arc<SftpSession>,
     cwd: String,
 }
 
@@ -65,7 +66,7 @@ impl SftpManager {
             id.clone(),
             Arc::new(Mutex::new(SftpConn {
                 _handle: handle,
-                sftp,
+                sftp: Arc::new(sftp),
                 cwd: cwd.clone(),
             })),
         );
@@ -79,17 +80,28 @@ impl SftpManager {
 
     pub async fn list(&self, id: &str, path: Option<String>) -> AppResult<Vec<RemoteEntry>> {
         let shared = self.conn(id).await?;
-        let mut conn = shared.lock().await;
-        let path = path.unwrap_or_else(|| conn.cwd.clone());
-        let entries = conn
-            .sftp
-            .read_dir(path.as_str())
-            .await
-            .map_err(|e| AppError::msg(format!("readdir: {e}")))?;
+        // Clone Arc<SftpSession> and release the mutex before awaiting read_dir
+        // so other ops cannot deadlock on this lock.
+        let (sftp, path) = {
+            let conn = shared.lock().await;
+            let path = path.unwrap_or_else(|| conn.cwd.clone());
+            (Arc::clone(&conn.sftp), path)
+        };
+
+        let entries = tokio::time::timeout(
+            std::time::Duration::from_secs(45),
+            sftp.read_dir(path.as_str()),
+        )
+        .await
+        .map_err(|_| AppError::msg("readdir: timed out"))?
+        .map_err(|e| AppError::msg(format!("readdir: {e}")))?;
 
         let mut out: Vec<RemoteEntry> = Vec::new();
         for entry in entries {
             let name = entry.file_name();
+            if name.is_empty() {
+                continue;
+            }
             let meta = entry.metadata();
             let is_dir = meta.file_type().is_dir();
             let full = entry.path();
@@ -107,7 +119,7 @@ impl SftpManager {
             (false, true) => std::cmp::Ordering::Greater,
             _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
         });
-        conn.cwd = path;
+        shared.lock().await.cwd = path;
         Ok(out)
     }
 

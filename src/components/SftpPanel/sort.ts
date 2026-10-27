@@ -9,10 +9,11 @@ export function sortEntries(
   dir: SortDir,
 ): RemoteEntry[] {
   const mul = dir === "asc" ? 1 : -1;
-  return [...entries].sort((a, b) => {
+  const safe = entries.filter((e) => e && typeof e.name === "string" && typeof e.path === "string");
+  return [...safe].sort((a, b) => {
     if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
     if (key === "size") {
-      const d = (a.size - b.size) * mul;
+      const d = ((a.size || 0) - (b.size || 0)) * mul;
       if (d !== 0) return d;
     }
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) * mul;

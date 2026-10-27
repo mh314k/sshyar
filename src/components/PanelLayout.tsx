@@ -1,29 +1,45 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
-import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
-import { iconProps } from "./icons";
 
 const STORAGE_KEY = "sshyar-panel-layout";
+
+export type MainLayoutMode = "terminal-first" | "sftp-first";
 
 interface LayoutState {
   leftWidth: number;
   rightWidth: number;
   leftOpen: boolean;
   rightOpen: boolean;
+  mainLayoutMode: MainLayoutMode;
+  /** Fraction of center stack height for the top pane (0.2–0.8). */
+  centerSplit: number;
+  /** Whether the bottom (secondary) pane is open. */
+  bottomOpen: boolean;
 }
 
 const DEFAULTS: LayoutState = {
-  leftWidth: 300,
+  leftWidth: 280,
   rightWidth: 340,
   leftOpen: true,
-  rightOpen: true,
+  rightOpen: false,
+  mainLayoutMode: "terminal-first",
+  centerSplit: 0.62,
+  bottomOpen: false,
 };
+
+function clampSplit(n: number) {
+  return Math.min(0.8, Math.max(0.2, n));
+}
 
 function loadLayout(): LayoutState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const parsed = { ...DEFAULTS, ...JSON.parse(raw) } as LayoutState;
+    parsed.centerSplit = clampSplit(Number(parsed.centerSplit) || DEFAULTS.centerSplit);
+    if (parsed.mainLayoutMode !== "sftp-first" && parsed.mainLayoutMode !== "terminal-first") {
+      parsed.mainLayoutMode = DEFAULTS.mainLayoutMode;
+    }
+    return parsed;
   } catch {
     return DEFAULTS;
   }
@@ -38,13 +54,16 @@ function saveLayout(s: LayoutState) {
 }
 
 interface Props {
+  menuBar: ReactNode;
+  activityBar: ReactNode;
+  statusBar: ReactNode;
   left: ReactNode;
   center: ReactNode;
   right: ReactNode;
   leftOpen: boolean;
   rightOpen: boolean;
-  onLeftOpenChange: (open: boolean) => void;
-  onRightOpenChange: (open: boolean) => void;
+  /** When false, hide the right pane entirely. */
+  rightAvailable: boolean;
   leftWidth: number;
   rightWidth: number;
   onLeftWidthChange: (w: number) => void;
@@ -70,29 +89,70 @@ export function usePanelLayout() {
   const setRightWidth = useCallback((w: number) => {
     setLayout((l) => ({ ...l, rightWidth: w }));
   }, []);
+  const setMainLayoutMode = useCallback((mode: MainLayoutMode) => {
+    setLayout((l) => ({
+      ...l,
+      mainLayoutMode: mode,
+      bottomOpen: mode === "sftp-first" ? true : l.bottomOpen,
+    }));
+  }, []);
+  const toggleMainLayoutMode = useCallback(() => {
+    setLayout((l) => {
+      const next: MainLayoutMode =
+        l.mainLayoutMode === "terminal-first" ? "sftp-first" : "terminal-first";
+      return {
+        ...l,
+        mainLayoutMode: next,
+        bottomOpen: next === "sftp-first" ? true : l.bottomOpen,
+      };
+    });
+  }, []);
+  const setCenterSplit = useCallback((ratio: number) => {
+    setLayout((l) => ({ ...l, centerSplit: clampSplit(ratio) }));
+  }, []);
+  const setBottomOpen = useCallback((open: boolean) => {
+    setLayout((l) => ({ ...l, bottomOpen: open }));
+  }, []);
+  const toggleBottomOpen = useCallback(() => {
+    setLayout((l) => ({ ...l, bottomOpen: !l.bottomOpen }));
+  }, []);
+  const openSftpPane = useCallback(() => {
+    setLayout((l) => ({ ...l, bottomOpen: true }));
+  }, []);
 
   return {
     leftOpen: layout.leftOpen,
     rightOpen: layout.rightOpen,
     leftWidth: layout.leftWidth,
     rightWidth: layout.rightWidth,
+    mainLayoutMode: layout.mainLayoutMode,
+    centerSplit: layout.centerSplit,
+    bottomOpen: layout.bottomOpen,
     setLeftOpen,
     setRightOpen,
     setLeftWidth,
     setRightWidth,
+    setMainLayoutMode,
+    toggleMainLayoutMode,
+    setCenterSplit,
+    setBottomOpen,
+    toggleBottomOpen,
+    openSftpPane,
   };
 }
 
 type DragSide = "left" | "right";
 
 export function PanelLayout({
+  menuBar,
+  activityBar,
+  statusBar,
   left,
   center,
   right,
   leftOpen,
   rightOpen,
-  onLeftOpenChange,
-  onRightOpenChange,
+  rightAvailable,
   leftWidth,
   rightWidth,
   onLeftWidthChange,
@@ -107,9 +167,12 @@ export function PanelLayout({
       const maxLeft = Math.min(520, window.innerWidth * 0.45);
       const minRight = 220;
       const maxRight = Math.min(560, window.innerWidth * 0.5);
+      const activityW = 48; // keep in sync with --activity-w
 
       if (dragging.current === "left") {
-        onLeftWidthChange(Math.round(Math.min(maxLeft, Math.max(minLeft, e.clientX))));
+        onLeftWidthChange(
+          Math.round(Math.min(maxLeft, Math.max(minLeft, e.clientX - activityW))),
+        );
       } else {
         const w = window.innerWidth - e.clientX;
         onRightWidthChange(Math.round(Math.min(maxRight, Math.max(minRight, w))));
@@ -120,7 +183,7 @@ export function PanelLayout({
 
   const stopDrag = useCallback(() => {
     dragging.current = null;
-    document.body.classList.remove("is-resizing");
+    document.body.classList.remove("is-resizing", "is-resizing-col");
   }, []);
 
   useEffect(() => {
@@ -136,60 +199,49 @@ export function PanelLayout({
 
   function startDrag(side: DragSide) {
     dragging.current = side;
-    document.body.classList.add("is-resizing");
+    document.body.classList.add("is-resizing", "is-resizing-col");
   }
 
+  const showRight = rightAvailable && rightOpen;
+
   return (
-    <div className="app-shell panel-layout">
-      {leftOpen ? (
-        <div className="panel panel-left" style={{ width: leftWidth }}>
-          {left}
-          <div
-            className="resize-handle resize-handle-right"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              startDrag("left");
-            }}
-            title="Drag to resize"
-          />
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="panel-rail panel-rail-left"
-          title="Show sidebar"
-          onClick={() => onLeftOpenChange(true)}
-        >
-          <DnsOutlinedIcon {...iconProps(16)} />
-          <span>Profiles</span>
-        </button>
-      )}
+    <div className="app-shell vscode-shell">
+      {menuBar}
+      <div className="vscode-body">
+        {activityBar}
+        <div className="panel-layout">
+          {leftOpen ? (
+            <div className="panel panel-left" style={{ width: leftWidth }}>
+              {left}
+              <div
+                className="resize-handle resize-handle-right"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  startDrag("left");
+                }}
+                title="Drag to resize"
+              />
+            </div>
+          ) : null}
 
-      <div className="panel panel-center">{center}</div>
+          <div className="panel panel-center">{center}</div>
 
-      {rightOpen ? (
-        <div className="panel panel-right" style={{ width: rightWidth }}>
-          <div
-            className="resize-handle resize-handle-left"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              startDrag("right");
-            }}
-            title="Drag to resize"
-          />
-          {right}
+          {showRight ? (
+            <div className="panel panel-right" style={{ width: rightWidth }}>
+              <div
+                className="resize-handle resize-handle-left"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  startDrag("right");
+                }}
+                title="Drag to resize"
+              />
+              {right}
+            </div>
+          ) : null}
         </div>
-      ) : (
-        <button
-          type="button"
-          className="panel-rail panel-rail-right"
-          title="Show SFTP"
-          onClick={() => onRightOpenChange(true)}
-        >
-          <FolderOpenOutlinedIcon {...iconProps(16)} />
-          <span>Files</span>
-        </button>
-      )}
+      </div>
+      {statusBar}
     </div>
   );
 }

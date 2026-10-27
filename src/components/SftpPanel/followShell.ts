@@ -1,5 +1,12 @@
 export const CWD_OSC_RE = /\x1b\]7337;cwd=([^\x07\x1b]*)\x07/g;
 
+/** Normalize remote paths for comparison / navigation. */
+export function normalizeRemotePath(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) return "/";
+  return trimmed.replace(/\/+$/, "") || "/";
+}
+
 /** Remote bash helper — base64 avoids $ / escape corruption while typing into the PTY. */
 export function buildFollowInject(enable: boolean): string {
   const script = enable
