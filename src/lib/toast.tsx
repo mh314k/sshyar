@@ -5,19 +5,35 @@ import { iconProps } from "../components/icons";
 
 export type ToastKind = "info" | "success" | "error";
 
+export type ToastAction = {
+  id: string;
+  label: string;
+  onClick: () => void;
+};
+
 type Toast = {
   id: number;
   kind: ToastKind;
   title?: string;
   message: string;
+  actions?: ToastAction[];
 };
 
 let seq = 0;
 let items: Toast[] = [];
 let notify: (() => void) | null = null;
+const timers = new Map<number, number>();
 
 function publish() {
   notify?.();
+}
+
+function clearToastTimer(id: number) {
+  const t = timers.get(id);
+  if (t != null) {
+    window.clearTimeout(t);
+    timers.delete(id);
+  }
 }
 
 /** Shorten/normalize backend & OS errors for the UI. */
@@ -50,20 +66,48 @@ export function formatAppError(err: unknown): string {
   return raw;
 }
 
+/** Remove a toast immediately (cancels any auto-dismiss timer). */
+export function dismissToast(id: number) {
+  clearToastTimer(id);
+  const before = items.length;
+  items = items.filter((t) => t.id !== id);
+  if (items.length !== before) publish();
+}
+
+/**
+ * Show a toast. Returns its id so callers can dismiss it.
+ * Pass `durationMs: 0` (or negative) to keep it until Close / dismissToast / an action.
+ */
 export function toast(
   message: string,
-  opts?: { kind?: ToastKind; title?: string; durationMs?: number },
-) {
+  opts?: {
+    kind?: ToastKind;
+    title?: string;
+    durationMs?: number;
+    actions?: ToastAction[];
+  },
+): number {
   const id = ++seq;
   const kind = opts?.kind ?? "info";
-  const entry: Toast = { id, kind, title: opts?.title, message };
+  const entry: Toast = {
+    id,
+    kind,
+    title: opts?.title,
+    message,
+    actions: opts?.actions,
+  };
   items = [...items, entry].slice(-4);
   publish();
+
   const ms = opts?.durationMs ?? (kind === "error" ? 6500 : 3200);
-  window.setTimeout(() => {
-    items = items.filter((t) => t.id !== id);
-    publish();
-  }, ms);
+  if (ms > 0) {
+    const timer = window.setTimeout(() => {
+      timers.delete(id);
+      dismissToast(id);
+    }, ms);
+    timers.set(id, timer);
+  }
+  return id;
 }
 
 export function toastError(err: unknown, title = "Error") {
@@ -94,15 +138,29 @@ export function ToastHost() {
           <div className="toast-body">
             {t.title ? <div className="toast-title">{t.title}</div> : null}
             <div className="toast-message">{t.message}</div>
+            {t.actions?.length ? (
+              <div className="toast-actions">
+                {t.actions.map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    className="toast-action"
+                    onClick={() => {
+                      action.onClick();
+                    }}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
             className="toast-close"
-            title="Dismiss"
-            onClick={() => {
-              items = items.filter((x) => x.id !== t.id);
-              publish();
-            }}
+            title="Close"
+            aria-label="Close"
+            onClick={() => dismissToast(t.id)}
           >
             <CloseIcon {...iconProps(14)} />
           </button>

@@ -12,6 +12,31 @@ export type UpdateInfo = {
   downloadUrl: string | null;
 };
 
+/** localStorage key: muted toast for a specific latest release tag (without forcing badge off). */
+const UPDATE_TOAST_MUTED_KEY = "sshyar.updateToast.mutedVersion";
+
+/** True when the user chose “Don’t show again” for this exact latest version. */
+export function isUpdateToastMuted(latestVersion: string): boolean {
+  const latest = latestVersion.replace(/^v/i, "").trim();
+  if (!latest) return false;
+  try {
+    return (localStorage.getItem(UPDATE_TOAST_MUTED_KEY) ?? "").replace(/^v/i, "") === latest;
+  } catch {
+    return false;
+  }
+}
+
+/** Persist “Don’t show again” for this latest version; a newer release will toast again. */
+export function muteUpdateToast(latestVersion: string): void {
+  const latest = latestVersion.replace(/^v/i, "").trim();
+  if (!latest) return;
+  try {
+    localStorage.setItem(UPDATE_TOAST_MUTED_KEY, latest);
+  } catch {
+    /* private mode / quota — ignore; Close still works for this session */
+  }
+}
+
 type ReleaseAsset = { name: string; browser_download_url: string };
 
 function normalizeVersion(v: string): number[] {

@@ -502,8 +502,9 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["about", "update", "download", "release", "msi"],
         steps: [
           "Open About from the SSHyar brand in the menu bar, or Help → About.",
-          "After unlock, SSHyar checks GitHub Releases in the background; a toast appears if a newer version exists.",
-          "A teal badge on the brand (and Help menu) means an update was detected.",
+          "After unlock, SSHyar checks GitHub Releases in the background.",
+          "If newer: a sticky Update available toast stays until you Close (×) or Don’t show again (mutes that version only; a newer release toasts again).",
+          "A teal badge on the brand (and Help menu) still marks an update even if the toast was dismissed or muted.",
           "In About: Download for your OS when an installer asset exists, or open the release page. Refresh re-checks.",
         ],
       },

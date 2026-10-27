@@ -3972,6 +3972,35 @@ body.is-resizing-row * {
   word-break: break-word;
 }
 
+.toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.toast-action {
+  margin: 0;
+  padding: 0.22rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 550;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: none;
+  width: auto;
+}
+
+.toast-action:hover {
+  color: var(--text);
+  background: var(--selected-bg);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
 .toast-close {
   flex-shrink: 0;
   width: 1.5rem;
@@ -3984,6 +4013,7 @@ body.is-resizing-row * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 .toast-close:hover {

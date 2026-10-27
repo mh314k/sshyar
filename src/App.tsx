@@ -25,9 +25,15 @@ import {
   readSessionSnapshot,
   type SavedSessionTab,
 } from "./lib/sessionRestore";
-import { ToastHost, toast, toastError } from "./lib/toast";
+import { ToastHost, dismissToast, toast, toastError } from "./lib/toast";
 import { BrandLogo } from "./features/chrome/BrandLogo";
-import { APP_VERSION, checkForAppUpdate, type UpdateInfo } from "./lib/version";
+import {
+  APP_VERSION,
+  checkForAppUpdate,
+  isUpdateToastMuted,
+  muteUpdateToast,
+  type UpdateInfo,
+} from "./lib/version";
 import type { Profile } from "./types";
 import { useAppSessions } from "./hooks/useAppSessions";
 import { usePanelLayout } from "./hooks/usePanelLayout";
@@ -65,25 +71,41 @@ export default function App() {
   useEffect(() => {
     if (!vault?.unlocked) return;
     let cancelled = false;
+    let toastId: number | null = null;
     void (async () => {
       try {
         const info = await checkForAppUpdate();
         if (cancelled || !info) return;
         setUpdate(info);
-        if (!updateToastShown.current) {
-          updateToastShown.current = true;
-          toast(`v${info.latest} is ready — click SSHyar or Help → About to download`, {
-            kind: "info",
-            title: "Update available",
-            durationMs: 7000,
-          });
-        }
+        // Sticky toast once per unlock session, unless muted for this latest version.
+        if (updateToastShown.current || isUpdateToastMuted(info.latest)) return;
+        updateToastShown.current = true;
+        toastId = toast(`v${info.latest} is ready — click SSHyar or Help → About to download`, {
+          kind: "info",
+          title: "Update available",
+          durationMs: 0,
+          actions: [
+            {
+              id: "mute",
+              label: "Don't show again",
+              onClick: () => {
+                muteUpdateToast(info.latest);
+                if (toastId != null) dismissToast(toastId);
+              },
+            },
+          ],
+        });
       } catch {
         /* offline / rate-limit — ignore; About can retry */
       }
     })();
     return () => {
       cancelled = true;
+      if (toastId != null) {
+        dismissToast(toastId);
+        // Allow a fresh sticky toast if this effect re-runs (StrictMode / re-unlock).
+        updateToastShown.current = false;
+      }
     };
   }, [vault?.unlocked]);
 
