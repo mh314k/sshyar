@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { WindowControls } from "./WindowControls";
 
 export type MenuBarAction =
   | "new-terminal"
@@ -9,7 +11,8 @@ export type MenuBarAction =
   | "switch-layout"
   | "toggle-theme"
   | "help"
-  | "about";
+  | "about"
+  | "exit";
 
 type MenuId = "file" | "view" | "help";
 
@@ -34,6 +37,8 @@ const MENUS: { id: MenuId; label: string; items: (ctx: Props) => MenuItem[] }[] 
       { kind: "item", id: "new-terminal", label: "New Terminal" },
       { kind: "sep" },
       { kind: "item", id: "lock", label: "Lock Vault" },
+      { kind: "sep" },
+      { kind: "item", id: "exit", label: "Exit" },
     ],
   },
   {
@@ -90,6 +95,14 @@ export function MenuBar({
     };
   }, [open]);
 
+  async function onDragRegionDoubleClick() {
+    try {
+      await getCurrentWindow().toggleMaximize();
+    } catch {
+      /* ignore */
+    }
+  }
+
   return (
     <div className="menu-bar" ref={rootRef} role="menubar">
       {brand ? (
@@ -144,6 +157,12 @@ export function MenuBar({
           </div>
         ))}
       </div>
+      <div
+        className="menu-bar-drag"
+        data-tauri-drag-region
+        onDoubleClick={() => void onDragRegionDoubleClick()}
+      />
+      <WindowControls />
     </div>
   );
 }

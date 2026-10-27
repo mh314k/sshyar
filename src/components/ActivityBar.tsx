@@ -27,6 +27,8 @@ interface Props {
   onToggleTheme: () => void;
   onHelp: () => void;
   onLock: () => void;
+  /** Hide Lock when no master password is configured. */
+  hasMasterPassword?: boolean;
 }
 
 function ActivityButton({
@@ -84,6 +86,7 @@ export function ActivityBar({
   onToggleTheme,
   onHelp,
   onLock,
+  hasMasterPassword = false,
 }: Props) {
   const ic = iconProps(20);
   const enabledPlugins = PLUGIN_ITEMS.filter((p) => plugins[p.flag]);
@@ -128,9 +131,11 @@ export function ActivityBar({
         <ActivityButton title="Help" onClick={onHelp}>
           <HelpOutlineOutlinedIcon {...ic} />
         </ActivityButton>
-        <ActivityButton title="Lock vault" onClick={onLock}>
-          <LockOutlinedIcon {...ic} />
-        </ActivityButton>
+        {hasMasterPassword ? (
+          <ActivityButton title="Lock vault" onClick={onLock}>
+            <LockOutlinedIcon {...ic} />
+          </ActivityButton>
+        ) : null}
       </div>
     </nav>
   );

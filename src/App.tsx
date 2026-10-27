@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./lib/api";
 import type { Profile, Snippet, VaultStatus } from "./types";
 import { UnlockGate } from "./components/UnlockGate";
+import { AppTitleChrome } from "./components/AppTitleChrome";
 import { ProfileSidebar } from "./components/ProfileSidebar";
 import { SessionTabBar } from "./components/SessionTabBar";
 import { TerminalPane } from "./components/TerminalPane";
@@ -190,6 +192,11 @@ export default function App() {
         case "about":
           setAboutOpen(true);
           break;
+        case "exit":
+          void getCurrentWindow()
+            .close()
+            .catch(() => undefined);
+          break;
       }
     },
     [
@@ -212,16 +219,19 @@ export default function App() {
     return (
       <>
         {hosts}
-        <div className="unlock-gate">
-          <div className="unlock-card">
-            <div className="brand-title">
-              <BrandLogo size={36} />
-              <div className="brand-text">
-                <h1>SSHyar</h1>
-                <span className="brand-version">v{APP_VERSION}</span>
+        <div className="unlock-shell">
+          <AppTitleChrome />
+          <div className="unlock-gate">
+            <div className="unlock-card">
+              <div className="brand-title">
+                <BrandLogo size={36} />
+                <div className="brand-text">
+                  <h1>SSHyar</h1>
+                  <span className="brand-version">v{APP_VERSION}</span>
+                </div>
               </div>
+              <p className="error">{bootError}</p>
             </div>
-            <p className="error">{bootError}</p>
           </div>
         </div>
       </>
@@ -232,16 +242,19 @@ export default function App() {
     return (
       <>
         {hosts}
-        <div className="unlock-gate">
-          <div className="unlock-card">
-            <div className="brand-title">
-              <BrandLogo size={36} />
-              <div className="brand-text">
-                <h1>SSHyar</h1>
-                <span className="brand-version">v{APP_VERSION}</span>
+        <div className="unlock-shell">
+          <AppTitleChrome />
+          <div className="unlock-gate">
+            <div className="unlock-card">
+              <div className="brand-title">
+                <BrandLogo size={36} />
+                <div className="brand-text">
+                  <h1>SSHyar</h1>
+                  <span className="brand-version">v{APP_VERSION}</span>
+                </div>
               </div>
+              <p className="muted">Loading…</p>
             </div>
-            <p className="muted">Loading…</p>
           </div>
         </div>
       </>
@@ -406,6 +419,7 @@ export default function App() {
             onToggleTheme={() => setTheme((t) => toggleTheme(t))}
             onHelp={() => setHelpOpen(true)}
             onLock={() => void lockVault()}
+            hasMasterPassword={vault.hasMasterPassword}
           />
         }
         statusBar={

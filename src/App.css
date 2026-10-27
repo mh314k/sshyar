@@ -389,6 +389,7 @@ textarea:focus {
   background: var(--menubar-bg);
   border-bottom: 1px solid var(--hairline);
   z-index: 40;
+  app-region: no-drag;
 }
 
 .menu-bar-menus {
@@ -396,6 +397,48 @@ textarea:focus {
   align-items: stretch;
   padding-inline: 0.05rem 0.15rem;
   min-width: 0;
+  flex-shrink: 0;
+}
+
+.menu-bar-drag {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 100%;
+  /* Tauri drag region; keep interactive chrome outside this node */
+  app-region: drag;
+}
+
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 100%;
+  margin-inline-start: auto;
+}
+
+.window-control {
+  width: 46px;
+  height: 100%;
+  display: inline-grid;
+  place-items: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  padding: 0;
+  opacity: 0.85;
+}
+
+.window-control:hover {
+  background: var(--list-hover);
+  opacity: 1;
+}
+
+.window-control-close:hover {
+  background: #e81123;
+  color: #fff;
+  opacity: 1;
 }
 
 .menu-bar-item {
@@ -3616,8 +3659,27 @@ body.is-resizing-row * {
   font-size: 1.1rem;
 }
 
-.unlock-gate {
+.unlock-shell {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-height: 0;
+}
+
+.app-title-chrome {
+  flex: 0 0 var(--menubar-h);
+  height: var(--menubar-h);
+  display: flex;
+  align-items: stretch;
+  background: var(--menubar-bg);
+  border-bottom: 1px solid var(--hairline);
+  z-index: 40;
+}
+
+.unlock-gate {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   place-items: center;
   background: var(--bg);
