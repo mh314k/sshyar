@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the docs first
+    url: https://github.com/mh314k/sshyar#readme
+    about: Product overview, screenshots, and download links

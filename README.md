@@ -1,105 +1,75 @@
 # SSHyar
 
-Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted profile vault, graphical SFTP, optional Docker / Nginx / systemd / cron / Monitor plugins, snippets, and optional master-password lock.
+[English](README.md) | [فارسی](README.fa.md) | [العربية](README.ar.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
 
-**Version:** 0.5.0 · **License:** [GPL-3.0-or-later](LICENSE)
+**SSH, SFTP, and server tools in one desktop window — no agent on the host.**
 
-## Features
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/mh314k/sshyar?include_prereleases)](https://github.com/mh314k/sshyar/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/mh314k/sshyar/total)](https://github.com/mh314k/sshyar/releases)
 
-- **Terminal** — local shell + OpenSSH in a real PTY (PowerShell / ConPTY on Windows; `$SHELL` on Linux); session tabs (`Ctrl+T` / `Ctrl+W` / `Ctrl+Tab`); reconnect; **restore previous sessions** after relaunch
-- **Clipboard** — copy/paste in the terminal (`Ctrl+C` with selection, `Ctrl+V`, context menu, middle-click)
-- **Profiles** — host, user, password or key, group, tags, search, post-connect command, keepalive, **remote shell** (bash / zsh / fish / sh / custom / server default), **local port forwards** (`ssh -L`, with common-port presets), optional **session plugins** (Docker, Nginx, systemd, cron, Monitor)
-- **Keys** — generate per-profile ed25519 keys; install public key on the server
-- **External SSH** — same command in your system terminal (Windows Terminal / PowerShell on Windows; gnome-terminal, konsole, kitty, … on Linux); copy SSH command to clipboard
-- **SFTP** — icon-grid browse (full name on select), sort by name/size, multi-select, upload/download with progress, mkdir, rename, delete, copy/cut/paste; View/Edit with syntax highlighting; **Follow shell** cwd sync on bash-compatible remote shells (disabled otherwise; turns off automatically when you browse in SFTP); active-tab SFTP session only; right-click empty list space → **cd here in terminal**; **Compose bar** when the folder has a compose file and Docker management is on
-- **Docker** — per-profile right-panel tab: Status (`docker system df` + **safe prune** for unused images/volumes with preview list and typed `PRUNE` confirm), Containers (Compose-grouped; start/stop/restart/remove; **live logs** popup; **Open in SFTP** when Compose working-dir labels exist), Images, Volumes, Networks; list search/filters; **persistent SSH** for Docker ops; toast + streamed progress bar; **desktop notifications** for long-running jobs
-- **Nginx / systemd / cron** — optional right-panel tabs: Nginx status + config list (nginx.conf / sites-enabled / sites-available / conf.d) with **View/Edit** in the full-screen editor; systemd unit list/filter/status; cron user crontab + system files (read-only preview). Privileged actions (**Test/Reload**, **Start/Stop/Restart**) inject into the SSH terminal for interactive `sudo` — no passwordless sudo required on the server
-- **Monitor** — optional right-panel tab: CPU / RAM / swap gauges + numbers, disk progress bars with used/free/total, load & uptime; optional CPU/RAM time charts; runtime tick (2s–30s or off)
-- **Snippets** — vault-backed commands injected into the active terminal
-- **Vault** — AES-GCM; Windows DPAPI by default; on Linux a user-only key file (`0600`); optional master password (set / change / remove / lock); **encrypted portable backup** export/import for moving machines
-- **UI** — frameless window (in-app minimize / maximize / close); menu / activity / status chrome; activity bar icons for Profiles, SFTP, and each enabled plugin (Lock only if a master password is set); terminal↔SFTP center split (Terminal first or SFTP first); dark/light theme; Material icons; in-app Help (floating framed window: drag / resize, topic sidebar + search); About (brand / Help menu) with background GitHub update check, in-app installer download + Update launch, sticky notice + teal badge when a newer release exists
-- **Remote trust** — no agent, no `.sshyar` folder, no silent file drops on the server. Plugins probe over SSH (read-only). Remote files change only when you explicitly use SFTP mutations, Edit → Save, or Install key; service actions only when you click them
+**Windows & Linux** · open source · encrypted vault on *your* machine
 
-## Requirements
+**[Download latest release](https://github.com/mh314k/sshyar/releases/latest)**
 
-### Both platforms
+## Screenshots
 
-- [Node.js](https://nodejs.org/) 20+
-- [Rust](https://rustup.rs/) stable
-- OpenSSH client (`ssh`, `ssh-keygen`)
+<p align="center">
+  <img src="docs/screenshots/main-window.png" alt="SSHyar main window" width="720" />
+</p>
 
-### Windows
+<p align="center">
+  <img src="docs/screenshots/terminal.png" alt="Terminal, SFTP, and Compose" width="360" />
+  &nbsp;
+  <img src="docs/screenshots/monitor.png" alt="Live Monitor panel" width="360" />
+</p>
 
-- Windows 10/11
-- OpenSSH Client optional feature (Settings → Apps → Optional features)
+<p align="center">
+  <img src="docs/screenshots/docker.png" alt="Docker status and safe prune" width="280" />
+</p>
 
-### Linux
+## Why SSHyar
 
-- A desktop environment with WebKitGTK 4.1 (e.g. Ubuntu 24.04+)
-- A terminal emulator for **Open external** (gnome-terminal, konsole, kitty, xfce4-terminal, or `x-terminal-emulator`)
-- Build deps (example on Debian/Ubuntu):
+- **One window** — SSH terminal, graphical SFTP, and optional host tools together (not three separate apps).
+- **Nothing installed on the server** — no agent, no `.sshyar` folder, no silent file drops. Plugins only run short commands over your SSH session.
+- **Your secrets stay local** — AES-GCM vault (optional master password) with portable encrypted backup.
+- **Server panels when you need them** — Docker, Nginx, systemd, cron, and live Monitor — enable per profile.
+- **Updates in-app** — download the installer from GitHub Releases and launch it when ready.
 
-```bash
-sudo apt-get install -y \
-  libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-  librsvg2-dev patchelf build-essential curl wget file libssl-dev xdg-utils \
-  openssh-client
-```
+## Compared to alternatives
 
-## Develop
+Honest, high-level fit — pick what matches your workflow:
 
-```bash
-npm install
-npm run tauri dev
-```
+| | **SSHyar** | Termius / Tabby-like | WinSCP + terminal | MobaXterm-class |
+|---|------------|----------------------|-------------------|-----------------|
+| SSH + SFTP in one desktop window | Yes | Varies | Split apps | Yes |
+| Docker / Nginx / systemd / Monitor panels | Yes | Rare | No | Limited |
+| Agent / extra footprint on the server | **None** | Usually none | None | Sometimes extras |
+| Local encrypted vault + portable backup | Yes | Often cloud / account | Keys elsewhere | Varies |
+| Windows **and** Linux desktop builds | Yes | Varies | Windows-first | Windows-first |
+| Open source (GPL) | **Yes** | Often proprietary | WinSCP is GPL | Proprietary tiers |
 
-## Build
+**Best when** you want a free desktop client that keeps profiles offline, refuses remote agents, and still gives you file + Docker/host panels next to the shell.
 
-```bash
-npm run tauri build
-```
+## Get it
 
-Artifacts land under `src-tauri/target/release/bundle/` (`.msi` / `.exe` on Windows; `.AppImage` / `.deb` on Linux).
+1. Open **[Releases](https://github.com/mh314k/sshyar/releases/latest)**.
+2. Download for your OS:
+   - **Windows** — `.msi` (preferred) or setup `.exe`
+   - **Linux** — `.AppImage` or `.deb`
+3. Install / run. OpenSSH client must be available on the machine.
 
-## Release (GitHub)
+Requirements in short: Windows 10/11 or a modern Linux desktop; OpenSSH (`ssh`). Building from source is optional — see [docs/develop.md](docs/develop.md).
 
-1. Bump version in `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, and `src/lib/version.ts` (keep them identical).
-2. Commit, then tag and push:
+After install, the app can check GitHub for newer releases and download the installer for you.
 
-```bash
-git tag v0.5.0
-git push origin v0.5.0
-```
+## Community
 
-Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds **Windows** and **Linux** (Ubuntu 24.04) and publishes a GitHub Release.
+SSHyar grows with people who use it day to day.
 
-To move an existing tag onto a new commit:
-
-```bash
-git tag -d v0.5.0
-git tag v0.5.0
-git push origin refs/tags/v0.5.0 --force
-```
-
-## Remote footprint
-
-SSHyar does **not** install anything on the SSH host. Profiles, keys, and vault data stay on your desktop (`Data location` below). Session plugins run short read commands over SSH and leave no helper files. Writes happen only for actions you start (SFTP upload/edit/delete, Install public key, Docker/Nginx/systemd controls you click).
-
-## Data location
-
-| Platform | Directory |
-|----------|-----------|
-| Windows | `%APPDATA%\sshyar\` |
-| Linux | `~/.local/share/sshyar/` |
-
-| Path | Purpose |
-|------|---------|
-| `vault.dat` | Encrypted profiles, secrets, snippets |
-| `vault.meta.json` | Public vault metadata |
-| `vault.key.dpapi` | DPAPI-wrapped key (Windows, when no master password) |
-| `vault.key.raw` | Local vault key, mode `0600` (Linux, when no master password) |
-| `keys/` | Generated SSH keys |
-| `known_hosts.json` | Host key tracking |
+- **Star** the repo if it saves you time — it helps others find the project.
+- **[Open an issue](https://github.com/mh314k/sshyar/issues)** for bugs, ideas, or questions. Templates welcome clear repro steps.
+- **Contribute** — docs, translations, and fixes are especially welcome. Start with [docs/develop.md](docs/develop.md).
 
 ## License
 
