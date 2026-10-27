@@ -13,7 +13,7 @@ import { SftpPanel } from "./features/sftp";
 import { MenuBar, type MenuBarAction } from "./features/chrome/MenuBar";
 import { ActivityBar } from "./features/chrome/ActivityBar";
 import { StatusBar } from "./features/chrome/StatusBar";
-import { HelpModal } from "./features/chrome/HelpModal";
+import { HelpWindow } from "./features/chrome/HelpWindow";
 import { AboutPopover } from "./features/chrome/AboutPopover";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DockerJobProvider } from "./features/plugins/docker/dockerJob/DockerJobContext";
@@ -314,7 +314,7 @@ export default function App() {
   return (
     <>
       {hosts}
-      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpWindow open={helpOpen} onClose={() => setHelpOpen(false)} />
       {aboutOpen ? (
         <div
           className="chrome-modal-backdrop"
