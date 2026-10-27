@@ -12,12 +12,12 @@ Desktop SSH helper for **Windows and Linux** — embedded terminal, encrypted pr
 - **Keys** — generate per-profile ed25519 keys; install public key on the server
 - **External SSH** — same command in your system terminal (Windows Terminal / PowerShell on Windows; gnome-terminal, konsole, kitty, … on Linux); copy SSH command to clipboard
 - **SFTP** — icon-grid browse (full name on select), sort by name/size, multi-select, upload/download with progress, mkdir, rename, delete, copy/cut/paste; View/Edit with syntax highlighting; **Follow shell** cwd sync (turns off automatically when you browse in SFTP); **Compose bar** (up/down/restart/recreate/build/pull/logs/ps) when the folder has a compose file and Docker management is on — **Logs** uses the shared live logs popup
-- **Docker** — per-profile plugin tab next to SFTP: Status (`docker system df` + **safe prune** for unused images/volumes with preview list and typed `PRUNE` confirm), Containers (Compose-grouped; start/stop/restart/remove; **live logs** popup; **Open in SFTP** when Compose working-dir labels exist), Images, Volumes, Networks; list search/filters; **persistent SSH** for Docker ops; toast + streamed progress bar; **desktop notifications** for long-running jobs
-- **Nginx / systemd / cron** — optional tabs: Nginx status + sites list; systemd unit list/filter/status; cron user crontab + system files (read-only preview). Privileged actions (**Test/Reload**, **Start/Stop/Restart**) inject into the SSH terminal for interactive `sudo` — no passwordless sudo required on the server
-- **Monitor** — optional tab: CPU / RAM / swap gauges + numbers, disk progress bars with used/free/total, load & uptime; optional CPU/RAM time charts; runtime tick (2s–30s or off)
+- **Docker** — per-profile right-panel tab: Status (`docker system df` + **safe prune** for unused images/volumes with preview list and typed `PRUNE` confirm), Containers (Compose-grouped; start/stop/restart/remove; **live logs** popup; **Open in SFTP** when Compose working-dir labels exist), Images, Volumes, Networks; list search/filters; **persistent SSH** for Docker ops; toast + streamed progress bar; **desktop notifications** for long-running jobs
+- **Nginx / systemd / cron** — optional right-panel tabs: Nginx status + sites list; systemd unit list/filter/status; cron user crontab + system files (read-only preview). Privileged actions (**Test/Reload**, **Start/Stop/Restart**) inject into the SSH terminal for interactive `sudo` — no passwordless sudo required on the server
+- **Monitor** — optional right-panel tab: CPU / RAM / swap gauges + numbers, disk progress bars with used/free/total, load & uptime; optional CPU/RAM time charts; runtime tick (2s–30s or off)
 - **Snippets** — vault-backed commands injected into the active terminal
 - **Vault** — AES-GCM; Windows DPAPI by default; on Linux a user-only key file (`0600`); optional master password (set / change / remove / lock); **encrypted portable backup** export/import for moving machines
-- **UI** — dark/light theme, Material icons, in-app Help (searchable), About with GitHub release update check
+- **UI** — menu / activity / status chrome, terminal↔SFTP center split (Terminal first or SFTP first), dark/light theme, Material icons, in-app Help (searchable), About with GitHub release update check
 
 ## Requirements
 
