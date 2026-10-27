@@ -24,8 +24,7 @@ export function ProfileList({
   onClearSearch,
 }: Props) {
   return (
-    <div className="sidebar-section profile-groups">
-      <div className="sidebar-section-label">Profiles</div>
+    <div className="profile-groups">
       {groups.map(([group, list]) => (
         <div key={group} className="group">
           <div className="group-title">{group}</div>

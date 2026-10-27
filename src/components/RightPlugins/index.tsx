@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { api } from "../../lib/api";
 import { CronPanel } from "../CronPanel";
@@ -29,19 +29,29 @@ export function anyPluginEnabled(plugins: PluginFlags): boolean {
   );
 }
 
-function firstEnabledTab(plugins: PluginFlags): PluginTab | null {
+/** Same order as the activity bar: overview → OS → containers → web → schedules */
+export function firstEnabledTab(plugins: PluginFlags): PluginTab | null {
+  if (plugins.monitor) return "monitor";
+  if (plugins.systemd) return "systemd";
   if (plugins.docker) return "docker";
   if (plugins.nginx) return "nginx";
-  if (plugins.systemd) return "systemd";
   if (plugins.cron) return "cron";
-  if (plugins.monitor) return "monitor";
   return null;
 }
+
+const TAB_LABEL: Record<PluginTab, string> = {
+  docker: "Docker",
+  nginx: "Nginx",
+  systemd: "systemd",
+  cron: "cron",
+  monitor: "Monitor",
+};
 
 interface Props {
   profileId: string | null;
   ptyId: string | null;
   plugins: PluginFlags;
+  activeTab: PluginTab;
   onToggle: () => void;
   onOpenComposeInSftp?: (path: string) => void;
 }
@@ -50,22 +60,12 @@ export function RightPlugins({
   profileId,
   ptyId,
   plugins,
+  activeTab,
   onToggle,
   onOpenComposeInSftp,
 }: Props) {
-  const [tab, setTab] = useState<PluginTab>(() => firstEnabledTab(plugins) ?? "docker");
-
   const needsRemoteSession = anyPluginEnabled(plugins);
-
-  useEffect(() => {
-    const first = firstEnabledTab(plugins);
-    if (!first) return;
-    if (tab === "docker" && !plugins.docker) setTab(first);
-    else if (tab === "nginx" && !plugins.nginx) setTab(first);
-    else if (tab === "systemd" && !plugins.systemd) setTab(first);
-    else if (tab === "cron" && !plugins.cron) setTab(first);
-    else if (tab === "monitor" && !plugins.monitor) setTab(first);
-  }, [plugins, tab]);
+  const tab = plugins[activeTab] ? activeTab : firstEnabledTab(plugins);
 
   useEffect(() => {
     if (!needsRemoteSession || !profileId) return;
@@ -75,11 +75,11 @@ export function RightPlugins({
     };
   }, [needsRemoteSession, profileId]);
 
-  if (!needsRemoteSession) {
+  if (!needsRemoteSession || !tab) {
     return (
       <div className="right-plugins">
         <div className="plugin-header">
-          <div className="plugin-tabs" role="tablist" aria-label="Session plugins" />
+          <span className="plugin-header-title">Plugins</span>
           <IconButton
             variant="icon"
             className="sidebar-hide-btn"
@@ -98,63 +98,7 @@ export function RightPlugins({
   return (
     <div className="right-plugins">
       <div className="plugin-header">
-        <div className="plugin-tabs" role="tablist" aria-label="Session plugins">
-          {plugins.docker ? (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "docker"}
-              className={`plugin-tab ${tab === "docker" ? "is-active" : ""}`}
-              onClick={() => setTab("docker")}
-            >
-              Docker
-            </button>
-          ) : null}
-          {plugins.nginx ? (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "nginx"}
-              className={`plugin-tab ${tab === "nginx" ? "is-active" : ""}`}
-              onClick={() => setTab("nginx")}
-            >
-              Nginx
-            </button>
-          ) : null}
-          {plugins.systemd ? (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "systemd"}
-              className={`plugin-tab ${tab === "systemd" ? "is-active" : ""}`}
-              onClick={() => setTab("systemd")}
-            >
-              systemd
-            </button>
-          ) : null}
-          {plugins.cron ? (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "cron"}
-              className={`plugin-tab ${tab === "cron" ? "is-active" : ""}`}
-              onClick={() => setTab("cron")}
-            >
-              cron
-            </button>
-          ) : null}
-          {plugins.monitor ? (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "monitor"}
-              className={`plugin-tab ${tab === "monitor" ? "is-active" : ""}`}
-              onClick={() => setTab("monitor")}
-            >
-              Monitor
-            </button>
-          ) : null}
-        </div>
+        <span className="plugin-header-title">{TAB_LABEL[tab]}</span>
         <IconButton
           variant="icon"
           className="sidebar-hide-btn"

@@ -5,7 +5,12 @@ import { UnlockGate } from "./components/UnlockGate";
 import { ProfileSidebar } from "./components/ProfileSidebar";
 import { SessionTabBar } from "./components/SessionTabBar";
 import { TerminalPane } from "./components/TerminalPane";
-import { RightPlugins, anyPluginEnabled } from "./components/RightPlugins";
+import {
+  RightPlugins,
+  anyPluginEnabled,
+  firstEnabledTab,
+  type PluginTab,
+} from "./components/RightPlugins";
 import { PanelLayout, usePanelLayout } from "./components/PanelLayout";
 import { MainSplit } from "./components/MainSplit";
 import { SftpPanel } from "./components/SftpPanel";
@@ -42,6 +47,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [pluginTab, setPluginTab] = useState<PluginTab>("docker");
   const panels = usePanelLayout();
 
   const sessions = useAppSessions({
@@ -65,12 +71,33 @@ export default function App() {
 
   const rightAvailable = anyPluginEnabled(pluginFlags);
   const sftpOpen = panels.mainLayoutMode === "sftp-first" || panels.bottomOpen;
+  const activePluginTab = pluginFlags[pluginTab]
+    ? pluginTab
+    : (firstEnabledTab(pluginFlags) ?? "docker");
 
   useEffect(() => {
     if (!rightAvailable && panels.rightOpen) {
       panels.setRightOpen(false);
     }
   }, [rightAvailable, panels.rightOpen, panels.setRightOpen]);
+
+  useEffect(() => {
+    if (pluginFlags[pluginTab]) return;
+    const first = firstEnabledTab(pluginFlags);
+    if (first) setPluginTab(first);
+  }, [pluginFlags, pluginTab]);
+
+  const selectPlugin = useCallback(
+    (tab: PluginTab) => {
+      if (panels.rightOpen && pluginTab === tab) {
+        panels.setRightOpen(false);
+        return;
+      }
+      setPluginTab(tab);
+      panels.setRightOpen(true);
+    },
+    [panels, pluginTab],
+  );
 
   useEffect(() => {
     if (!vault?.unlocked || sessions.tabs.length > 0) return;
@@ -140,10 +167,16 @@ export default function App() {
           panels.setLeftOpen(!panels.leftOpen);
           break;
         case "toggle-sftp":
-          panels.toggleBottomOpen();
+          panels.toggleSftpPane();
           break;
         case "toggle-plugins":
-          if (rightAvailable) panels.setRightOpen(!panels.rightOpen);
+          if (!rightAvailable) break;
+          if (panels.rightOpen) panels.setRightOpen(false);
+          else {
+            const first = firstEnabledTab(pluginFlags);
+            if (first) setPluginTab(first);
+            panels.setRightOpen(true);
+          }
           break;
         case "switch-layout":
           panels.toggleMainLayoutMode();
@@ -164,6 +197,7 @@ export default function App() {
       lockVault,
       panels,
       rightAvailable,
+      pluginFlags,
     ],
   );
 
@@ -363,13 +397,12 @@ export default function App() {
             leftOpen={panels.leftOpen}
             sftpOpen={sftpOpen}
             rightOpen={panels.rightOpen}
-            rightAvailable={rightAvailable}
+            plugins={pluginFlags}
+            activePlugin={activePluginTab}
             theme={theme}
             onToggleLeft={() => panels.setLeftOpen(!panels.leftOpen)}
-            onToggleSftp={() => panels.toggleBottomOpen()}
-            onToggleRight={() => {
-              if (rightAvailable) panels.setRightOpen(!panels.rightOpen);
-            }}
+            onToggleSftp={() => panels.toggleSftpPane()}
+            onSelectPlugin={selectPlugin}
             onToggleTheme={() => setTheme((t) => toggleTheme(t))}
             onHelp={() => setHelpOpen(true)}
             onLock={() => void lockVault()}
@@ -435,10 +468,10 @@ export default function App() {
                           profileId={t.profileId}
                           ptyId={t.ptyId ?? null}
                           open={sftpOpen}
-                          onToggle={() => panels.setBottomOpen(false)}
-                          theme={theme}
-                          showChrome={false}
-                          dockerEnabled={!!profile?.dockerManagement}
+                        onToggle={() => panels.toggleSftpPane()}
+                        theme={theme}
+                        showChrome={false}
+                        dockerEnabled={!!profile?.dockerManagement}
                           jumpPath={isActive ? sftpJumpPath : null}
                           onJumpPathConsumed={() => setSftpJumpPath(null)}
                         />
@@ -460,6 +493,7 @@ export default function App() {
             profileId={sessions.activeTab?.profileId ?? null}
             ptyId={sessions.activeTab?.ptyId ?? null}
             plugins={pluginFlags}
+            activeTab={activePluginTab}
             onToggle={() => panels.setRightOpen(false)}
             onOpenComposeInSftp={openComposeInSftp}
           />

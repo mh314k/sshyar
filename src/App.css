@@ -519,6 +519,14 @@ textarea:focus {
   gap: 0.15rem;
 }
 
+.activity-sep {
+  width: 18px;
+  height: 1px;
+  margin: 0.35rem 0;
+  background: var(--hairline);
+  flex-shrink: 0;
+}
+
 .activity-btn {
   width: var(--activity-w);
   height: var(--activity-w);
@@ -655,6 +663,11 @@ textarea:focus {
 .panel-right {
   flex: 0 0 auto;
   max-width: 50vw;
+  min-height: 0;
+  align-self: stretch;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-center {
@@ -675,6 +688,8 @@ textarea:focus {
 .panel-right .right-plugins {
   height: 100%;
   width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .resize-handle {
@@ -818,16 +833,22 @@ body.is-resizing-row * {
   min-width: 0;
 }
 
+.sidebar > .sidebar-section {
+  flex-shrink: 0;
+}
+
 .sidebar > .profile-groups {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .sidebar > .profile-quickbar {
-  padding-bottom: 0.45rem;
+  padding-block: 0.35rem 0.5rem;
   flex-shrink: 0;
+  border-top: 1px solid var(--hairline);
 }
 
 .brand {
@@ -1752,12 +1773,25 @@ body.is-resizing-row * {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 0.35rem 0 0.45rem;
+  gap: 0.35rem;
+  padding: 0 0.35rem 0 0.7rem;
   min-height: var(--chrome-h);
   height: var(--chrome-h);
   background: var(--sidebar);
   border-bottom: 1px solid var(--hairline);
-  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.plugin-header-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plugin-tabs {
@@ -2122,6 +2156,25 @@ body.is-resizing-row * {
   gap: 0.4rem;
   padding: 0.3rem 0.15rem;
   border-bottom: 1px solid var(--hairline);
+}
+
+.nginx-config-row {
+  align-items: flex-start;
+}
+
+.nginx-config-main {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.nginx-config-actions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.05rem;
 }
 
 .host-svc-row:last-child {
@@ -2518,6 +2571,11 @@ body.is-resizing-row * {
 .docker-state-badge.is-stopped {
   color: var(--muted);
   background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.docker-state-badge.is-unused {
+  color: color-mix(in srgb, #eab308 92%, var(--text));
+  background: color-mix(in srgb, #eab308 16%, transparent);
 }
 
 .follow-shell {

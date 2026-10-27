@@ -104,6 +104,9 @@ export function ImagesTab({ profileId, dockerInstalled }: Props) {
           {items.length
             ? ` (${filtered.length}${filtered.length !== items.length ? `/${items.length}` : ""})`
             : ""}
+          {items.some((i) => i.unused)
+            ? ` · ${items.filter((i) => i.unused).length} unused`
+            : ""}
         </span>
         <IconButton
           variant="icon"
@@ -140,6 +143,11 @@ export function ImagesTab({ profileId, dockerInstalled }: Props) {
                   <span className="docker-row-name" title={title}>
                     {title}
                   </span>
+                  {img.unused ? (
+                    <span className="docker-state-badge is-unused" title="Not used by any container">
+                      unused
+                    </span>
+                  ) : null}
                 </div>
                 <div className="docker-row-meta muted">
                   <span>{img.size || "—"}</span>

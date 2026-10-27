@@ -51,10 +51,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         ],
         steps: [
           "Top menu bar: File / View / Help plus the SSHyar brand.",
-          "Left activity bar toggles Profiles, SFTP, plugins, theme, help, and vault lock.",
-          "Left sidebar: search, profile list by group, and profile toolbar (snippets, vault, about, new profile, …).",
+          "Left activity bar: Profiles, SFTP, then one icon per enabled session plugin (Docker, Nginx, systemd, cron, Monitor), plus theme / help / lock at the bottom.",
+          "Left sidebar: search and a scrollable profile list by group, with profile toolbar (snippets, vault, new profile, …).",
           "Center: session tabs and a resizable terminal + SFTP split (Terminal first or SFTP first from View / the swap control).",
-          "Right panel: Docker / Nginx / systemd / cron / Monitor when enabled on the profile — use the tabs to switch plugins.",
+          "Click a plugin icon in the activity bar to open that plugin in the right panel (click again to close).",
           "Bottom status bar shows connection state, active tab host, layout mode, and version.",
           "Drag the splitters between panes to resize; widths and split ratios are remembered.",
         ],
@@ -138,7 +138,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Key auth: set the private key path (e.g. C:\\Users\\…\\.ssh\\id_ed25519).",
           "Group organizes the sidebar; Tags (comma-separated) are searchable.",
           "Notes are free-form reminders on the profile.",
-          "Under Session plugins, enable Docker, Nginx, systemd, cron, and/or Monitor to show matching tabs in the right panel for sessions of this profile.",
+          "Under Session plugins, enable Docker, Nginx, systemd, cron, and/or Monitor — matching icons appear on the activity bar and open the right panel.",
           "Local port forwards (optional) map a port on your PC to a host:port reachable from the server — see Local port forwards below.",
           "Save writes into the encrypted vault immediately.",
         ],
@@ -323,8 +323,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["panel", "split", "toggle", "connect", "tabs", "plugins"],
         steps: [
           "Connecting to a profile opens SFTP in the main split (with the terminal) for that session tab.",
-          "Enabled session plugins (Docker, Nginx, systemd, cron, Monitor) appear in the right panel.",
-          "Use the activity bar / layout controls to show or hide SFTP and the plugin panel; widths and split ratios are remembered.",
+          "Enabled session plugins appear as icons on the activity bar and open in the right panel.",
+          "Use the activity bar / layout controls to show or hide SFTP and plugins; widths and split ratios are remembered.",
         ],
       },
       {
@@ -591,7 +591,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["enable", "checkbox", "profile", "tab", "plugins"],
         steps: [
           "Edit the profile → Session plugins → check Nginx, systemd, cron, and/or Monitor, then Save.",
-          "Connect — matching tabs appear in the right panel (and Docker if enabled).",
+          "Connect — matching icons appear on the activity bar; click one to open that plugin in the right panel (Docker too if enabled).",
           "These plugins share the same pooled SSH session pattern as Docker when any of them is enabled.",
         ],
       },
@@ -601,10 +601,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         keywords: ["nginx", "reload", "test", "sites", "conf.d", "terminal", "sudo"],
         steps: [
           "Status shows whether nginx is installed, version, and active state when systemctl is available.",
-          "Sites / conf.d lists files under /etc/nginx/sites-enabled and /etc/nginx/conf.d.",
+          "Configs lists nginx.conf plus files under sites-enabled, sites-available, and conf.d.",
+          "View / Edit open the selected file in the same full-screen editor as SFTP (syntax highlight, Ctrl+S to save). Your SSH user needs read/write permission on that path.",
+          "After saving, use Test in terminal then Reload in terminal to apply safely.",
           "Test in terminal and Reload in terminal inject sudo nginx -t / sudo systemctl reload nginx (with nginx -s reload fallback) into the active SSH terminal.",
           "Enter your sudo password in the terminal if prompted — SSHyar does not store or automate sudo passwords, and does not require passwordless sudo on the server.",
-          "A terminal tab for that profile must be open; otherwise the buttons stay disabled and a toast asks you to open one.",
+          "A terminal tab for that profile must be open for Test/Reload; otherwise those buttons stay disabled.",
         ],
       },
       {
@@ -646,7 +648,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "uptime",
         ],
         steps: [
-          "Enable Monitor on the profile, connect, then open the Monitor tab in the right panel.",
+          "Enable Monitor on the profile, connect, then click the Monitor icon on the activity bar.",
           "Gauges and numbers show live CPU %, RAM used/total/available, and swap when present; load averages and uptime appear in the header.",
           "Disks list each mount with a progress bar plus used / free / total and the filesystem name underneath.",
           "Tick sets auto-refresh (Off, 2s, 5s, 10s, 30s). Refresh samples immediately.",

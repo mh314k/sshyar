@@ -45,6 +45,8 @@ pub struct DockerImage {
     pub tag: String,
     pub size: String,
     pub created: String,
+    /// True when no container (running or stopped) references this image.
+    pub unused: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -387,8 +389,21 @@ pub async fn docker_list_images(
     profile_id: String,
 ) -> AppResult<Vec<DockerImage>> {
     let profile = load_docker_profile(&state, &profile_id)?;
-    let result = docker_cli(&state, &profile, "images --format '{{json .}}'").await?;
+    let result = docker_cli(
+        &state,
+        &profile,
+        "images --no-trunc --format '{{json .}}'",
+    )
+    .await?;
     ensure_ok(&result, "docker images")?;
+    let ps = docker_cli(
+        &state,
+        &profile,
+        "ps -a --no-trunc --format '{{json .}}'",
+    )
+    .await?;
+    ensure_ok(&ps, "docker ps")?;
+    let used = collect_used_image_keys(&ps.stdout);
 
     let mut out = Vec::new();
     for line in result.stdout.lines() {
@@ -399,16 +414,18 @@ pub async fn docker_list_images(
         let row: ImageRow = serde_json::from_str(line)
             .map_err(|e| AppError::msg(format!("parse docker images: {e}")))?;
         let created = if !row.created_at.is_empty() {
-            row.created_at
+            row.created_at.clone()
         } else {
-            row.created_since
+            row.created_since.clone()
         };
+        let unused = !image_is_used(&row, &used);
         out.push(DockerImage {
-            id: row.id,
+            id: short_image_id(&row.id),
             repository: row.repository,
             tag: row.tag,
             size: row.size,
             created,
+            unused,
         });
     }
     Ok(out)

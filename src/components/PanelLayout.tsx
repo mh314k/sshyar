@@ -116,8 +116,26 @@ export function usePanelLayout() {
   const toggleBottomOpen = useCallback(() => {
     setLayout((l) => ({ ...l, bottomOpen: !l.bottomOpen }));
   }, []);
+  /** Show SFTP pane (does not toggle the unrelated bottom panel in sftp-first). */
   const openSftpPane = useCallback(() => {
-    setLayout((l) => ({ ...l, bottomOpen: true }));
+    setLayout((l) => {
+      if (l.mainLayoutMode === "sftp-first") return l;
+      return { ...l, bottomOpen: true };
+    });
+  }, []);
+  /**
+   * Activity-bar SFTP: show/hide the SFTP pane specifically.
+   * In terminal-first, SFTP is the bottom pane → toggle bottomOpen.
+   * In sftp-first, SFTP is the top pane → hide by switching to terminal-only.
+   */
+  const toggleSftpPane = useCallback(() => {
+    setLayout((l) => {
+      if (l.mainLayoutMode === "terminal-first") {
+        return { ...l, bottomOpen: !l.bottomOpen };
+      }
+      // sftp-first: SFTP is always the top pane — hide it → terminal fullscreen
+      return { ...l, mainLayoutMode: "terminal-first", bottomOpen: false };
+    });
   }, []);
 
   return {
@@ -138,6 +156,7 @@ export function usePanelLayout() {
     setBottomOpen,
     toggleBottomOpen,
     openSftpPane,
+    toggleSftpPane,
   };
 }
 

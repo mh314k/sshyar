@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { api } from "../lib/api";
 import { runInTerminal } from "../lib/runInTerminal";
-import { toastError } from "../lib/toast";
+import { readStoredTheme } from "../lib/theme";
+import { toastError, toastSuccess } from "../lib/toast";
 import type { NginxSite, NginxStatus } from "../types";
 import { IconButton, iconProps, iconSizeSm } from "./IconButton";
+import { RemoteFileEditor, type FileEditorMode } from "./RemoteFileEditor";
 
 interface Props {
   profileId: string | null;
@@ -20,6 +24,8 @@ export function NginxPanel({ profileId, ptyId, enabled }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
+  const [sftpId, setSftpId] = useState<string | null>(null);
+  const [editor, setEditor] = useState<{ path: string; mode: FileEditorMode } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!profileId || !enabled) {
@@ -49,6 +55,44 @@ export function NginxPanel({ profileId, ptyId, enabled }: Props) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    return () => {
+      const id = sftpId;
+      if (id) void api.sftpClose(id).catch(() => undefined);
+    };
+  }, [sftpId]);
+
+  useEffect(() => {
+    // Drop SFTP when leaving the plugin / profile.
+    return () => {
+      setEditor(null);
+    };
+  }, [profileId]);
+
+  async function ensureSftp(): Promise<string> {
+    if (!profileId) throw new Error("No profile");
+    if (sftpId) return sftpId;
+    const { sftpId: id } = await api.sftpOpen(profileId);
+    setSftpId(id);
+    return id;
+  }
+
+  async function openConfig(site: NginxSite, mode: FileEditorMode) {
+    setBusy(true);
+    try {
+      await ensureSftp();
+      setEditor({ path: site.path, mode });
+    } catch (e) {
+      toastError(e, "Open nginx config");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function closeEditor() {
+    setEditor(null);
+  }
 
   async function runTest() {
     const ok = await runInTerminal(ptyId, "sudo nginx -t", "Nginx test");
@@ -86,6 +130,7 @@ export function NginxPanel({ profileId, ptyId, enabled }: Props) {
   }
 
   const termOff = busy || !ptyId;
+  const theme = readStoredTheme();
 
   return (
     <div className="docker-panel">
@@ -120,8 +165,8 @@ export function NginxPanel({ profileId, ptyId, enabled }: Props) {
           {status.installed ? (
             <>
               <p className="muted docker-df-hint">
-                Test and Reload run in your terminal so you can enter sudo (needed to read the pid
-                file / reload the service).
+                Test and Reload run in your terminal so you can enter sudo. View/Edit open the
+                config in the full-screen editor (needs SFTP read/write on that path).
               </p>
               <div className="docker-prune-actions">
                 <IconButton
@@ -147,15 +192,35 @@ export function NginxPanel({ profileId, ptyId, enabled }: Props) {
       ) : null}
       {status?.installed ? (
         <div className="docker-status-card">
-          <span className="docker-toolbar-label">Sites / conf.d ({sites.length})</span>
+          <span className="docker-toolbar-label">Configs ({sites.length})</span>
           {sites.length === 0 ? (
-            <p className="muted docker-df-hint">No files in sites-enabled or conf.d.</p>
+            <p className="muted docker-df-hint">
+              No files in nginx.conf, sites-enabled, sites-available, or conf.d.
+            </p>
           ) : (
             <ul className="host-svc-list">
               {sites.map((s) => (
-                <li key={s.path} className="host-svc-row" title={s.path}>
-                  <span className="host-svc-name">{s.name}</span>
-                  <span className="muted host-svc-meta">{s.path}</span>
+                <li key={s.path} className="host-svc-row nginx-config-row" title={s.path}>
+                  <div className="nginx-config-main">
+                    <span className="host-svc-name">{s.name}</span>
+                    <span className="muted host-svc-meta">{s.path}</span>
+                  </div>
+                  <div className="nginx-config-actions">
+                    <IconButton
+                      variant="icon"
+                      title="View config"
+                      disabled={busy}
+                      onClick={() => void openConfig(s, "view")}
+                      icon={<VisibilityOutlinedIcon {...iconProps(iconSizeSm)} />}
+                    />
+                    <IconButton
+                      variant="icon"
+                      title="Edit config"
+                      disabled={busy}
+                      onClick={() => void openConfig(s, "edit")}
+                      icon={<EditOutlinedIcon {...iconProps(iconSizeSm)} />}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -166,6 +231,19 @@ export function NginxPanel({ profileId, ptyId, enabled }: Props) {
         <pre className="docker-df-raw host-svc-output" tabIndex={0}>
           {output}
         </pre>
+      ) : null}
+
+      {editor && sftpId ? (
+        <RemoteFileEditor
+          sftpId={sftpId}
+          path={editor.path}
+          mode={editor.mode}
+          theme={theme}
+          onClose={() => void closeEditor()}
+          onSaved={() => {
+            toastSuccess("Config saved — run Test / Reload in terminal if needed");
+          }}
+        />
       ) : null}
     </div>
   );

@@ -276,6 +276,22 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         <label className="profile-check">
           <input
             type="checkbox"
+            checked={form.monitorManagement}
+            onChange={(e) => set("monitorManagement", e.target.checked)}
+          />
+          <span>Monitor</span>
+        </label>
+        <label className="profile-check">
+          <input
+            type="checkbox"
+            checked={form.systemdManagement}
+            onChange={(e) => set("systemdManagement", e.target.checked)}
+          />
+          <span>systemd</span>
+        </label>
+        <label className="profile-check">
+          <input
+            type="checkbox"
             checked={form.dockerManagement}
             onChange={(e) => set("dockerManagement", e.target.checked)}
           />
@@ -292,26 +308,10 @@ export function ProfileForm({ initial, onSave, onCancel }: Props) {
         <label className="profile-check">
           <input
             type="checkbox"
-            checked={form.systemdManagement}
-            onChange={(e) => set("systemdManagement", e.target.checked)}
-          />
-          <span>systemd</span>
-        </label>
-        <label className="profile-check">
-          <input
-            type="checkbox"
             checked={form.cronManagement}
             onChange={(e) => set("cronManagement", e.target.checked)}
           />
           <span>cron</span>
-        </label>
-        <label className="profile-check">
-          <input
-            type="checkbox"
-            checked={form.monitorManagement}
-            onChange={(e) => set("monitorManagement", e.target.checked)}
-          />
-          <span>Monitor</span>
         </label>
       </div>
       <div className="profile-forwards">

@@ -348,7 +348,8 @@ pub async fn nginx_list_sites(
     let result = exec(
         &state,
         &profile,
-        r#"for d in /etc/nginx/sites-enabled /etc/nginx/conf.d; do
+        r#"if [ -f /etc/nginx/nginx.conf ]; then echo /etc/nginx/nginx.conf; fi
+for d in /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/nginx/sites-available; do
   if [ -d "$d" ]; then
     for f in "$d"/*; do
       [ -f "$f" ] || [ -L "$f" ] || continue
@@ -362,9 +363,13 @@ done"#,
         return Ok(vec![]);
     }
     let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     for line in result.stdout.lines() {
         let path = line.trim();
         if path.is_empty() || path.ends_with("/*") {
+            continue;
+        }
+        if !seen.insert(path.to_string()) {
             continue;
         }
         let name = path.rsplit('/').next().unwrap_or(path).to_string();

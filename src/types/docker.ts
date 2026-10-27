@@ -59,6 +59,8 @@ export interface DockerImage {
   tag: string;
   size: string;
   created: string;
+  /** True when no container references this image. */
+  unused: boolean;
 }
 
 export interface DockerVolume {
