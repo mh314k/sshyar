@@ -8,13 +8,22 @@ export function buildSftpMenuItems(opts: {
   clipboard: ClipboardState | null;
   sftpId: string | null;
   busy: boolean;
+  /** Current SFTP folder — used for empty-area “cd in terminal”. */
+  cwd?: string;
+  ptyId?: string | null;
 }): ContextMenuItem[] {
-  const { menuEntry, targets, clipboard, sftpId, busy } = opts;
+  const { menuEntry, targets, clipboard, sftpId, busy, cwd = "", ptyId = null } = opts;
   const n = targets.length;
   const multi = n > 1;
 
   if (!menuEntry && n === 0) {
     return [
+      {
+        id: "cd-terminal",
+        label: "cd here in terminal",
+        disabled: !ptyId || !cwd || busy,
+      },
+      { id: "sep0", label: "", separator: true },
       { id: "upload", label: "Upload…", disabled: !sftpId || busy },
       { id: "mkdir", label: "New folder", disabled: !sftpId || busy },
       { id: "paste", label: "Paste", disabled: !clipboard || busy },

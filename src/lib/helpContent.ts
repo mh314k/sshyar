@@ -409,6 +409,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Copy / Cut place selected entries on the SFTP clipboard; Paste applies them in the current folder (move if cut).",
           "Folder copy pastes the whole tree (subfolders and files) into the current directory.",
           "New folder, Rename, and Delete are on the toolbar and context menu.",
+          "Right-click empty space in the file list → cd here in terminal — injects cd to the current SFTP folder into the linked terminal tab (needs an open session).",
           "Destructive actions ask for confirmation where appropriate.",
         ],
       },

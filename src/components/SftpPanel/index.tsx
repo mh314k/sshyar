@@ -707,6 +707,24 @@ export function SftpPanel({
     else if (id === "mkdir") await mkdir();
     else if (id === "upload") await uploadPicker();
     else if (id === "refresh" && sftpId) await refresh(sftpId, cwd);
+    else if (id === "cd-terminal") await cdHereInTerminal();
+  }
+
+  async function cdHereInTerminal() {
+    if (!ptyId) {
+      toastError("Open a terminal tab for this profile first", "SFTP");
+      return;
+    }
+    const path = cwd.trim();
+    if (!path) return;
+    // Single-quote for bash/zsh/sh; escape embedded quotes.
+    const quoted = `'${path.replace(/'/g, `'\\''`)}'`;
+    try {
+      await api.ptyInject(ptyId, `cd ${quoted}`);
+      toastSuccess(`cd ${path}`, "Terminal");
+    } catch (e) {
+      toastError(e, "Terminal");
+    }
   }
 
   const menuItems = menu
@@ -716,6 +734,8 @@ export function SftpPanel({
         clipboard,
         sftpId,
         busy,
+        cwd,
+        ptyId,
       })
     : [];
 
