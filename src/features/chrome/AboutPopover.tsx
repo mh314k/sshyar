@@ -46,6 +46,7 @@ export function AboutPopover({ update, onUpdateChange, download, onDownload, onI
       toastError(e, "Update check");
     } finally {
       setChecking(false);
+      setChecked(true);
     }
   }
 
