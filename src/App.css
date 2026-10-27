@@ -851,6 +851,15 @@ body.is-resizing-row * {
   border-top: 1px solid var(--hairline);
 }
 
+.sidebar > .profile-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.55rem 0.7rem 0.75rem;
+}
+
 .brand {
   display: flex;
   flex-direction: column;
@@ -3584,6 +3593,11 @@ body.is-resizing-row * {
   justify-content: flex-end;
   gap: 0.4rem;
   margin-top: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.45rem 0 0.15rem;
+  position: sticky;
+  bottom: 0;
+  background: var(--sidebar);
 }
 
 .error-boundary {
