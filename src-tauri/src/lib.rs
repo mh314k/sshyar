@@ -112,6 +112,9 @@ pub fn run() {
             cron_system_list,
             cron_read_system_file,
             monitor_snapshot,
+            app_update_download,
+            app_update_cached_path,
+            app_update_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

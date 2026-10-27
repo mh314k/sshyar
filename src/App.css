@@ -3913,6 +3913,150 @@ body.is-resizing-row * {
   margin: 0.2rem 0;
 }
 
+.update-notifier {
+  position: fixed;
+  right: 0.75rem;
+  bottom: calc(var(--statusbar-h) + 0.65rem);
+  z-index: 30010;
+  width: min(360px, calc(100vw - 1.5rem));
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.7rem 0.65rem 0.7rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: var(--bg-elev);
+  box-shadow: 0 10px 28px var(--shadow);
+  pointer-events: auto;
+}
+
+.update-notifier-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-notifier-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-hover);
+  margin-bottom: 0.2rem;
+}
+
+.update-notifier-message {
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.update-notifier-progress {
+  margin-top: 0.5rem;
+  height: 4px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  overflow: hidden;
+}
+
+.update-notifier-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.update-notifier-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.update-notifier-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 550;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: none;
+  width: auto;
+}
+
+.update-notifier-btn svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  display: block;
+}
+
+.update-notifier-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--selected-bg);
+}
+
+.update-notifier-btn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-fg);
+}
+
+.update-notifier-btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: var(--accent-fg);
+}
+
+.update-notifier-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.update-notifier-close {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.update-notifier-close:hover:not(:disabled) {
+  background: var(--selected-bg);
+  color: var(--text);
+}
+
+.update-notifier-close:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.about-update-progress {
+  height: 4px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  overflow: hidden;
+}
+
+.about-update-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
 .toast-stack {
   position: fixed;
   right: 0.75rem;

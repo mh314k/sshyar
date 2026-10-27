@@ -1,3 +1,4 @@
+import { appUpdateApi } from "./appUpdate";
 import { dockerApi } from "./docker";
 import { hostSvcApi } from "./hostSvc";
 import { keysApi, ptyApi } from "./pty";
@@ -82,6 +83,10 @@ export const api = {
   cronSystemList: hostSvcApi.cronSystemList,
   cronReadSystemFile: hostSvcApi.cronReadSystemFile,
   monitorSnapshot: hostSvcApi.monitorSnapshot,
+
+  appUpdateDownload: appUpdateApi.download,
+  appUpdateCachedPath: appUpdateApi.cachedPath,
+  appUpdateInstall: appUpdateApi.install,
 };
 
 export {
@@ -93,4 +98,5 @@ export {
   sftpApi,
   dockerApi,
   hostSvcApi,
+  appUpdateApi,
 };

@@ -1,3 +1,4 @@
+mod app_update;
 mod docker;
 mod host_svc;
 mod keys;
@@ -7,7 +8,7 @@ mod pty;
 mod sftp;
 mod vault;
 
-
+pub use app_update::*;
 pub use docker::*;
 pub use host_svc::*;
 pub use keys::*;

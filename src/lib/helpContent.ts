@@ -503,9 +503,9 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Open About from the SSHyar brand in the menu bar, or Help → About.",
           "After unlock, SSHyar checks GitHub Releases in the background.",
-          "If newer: a sticky Update available toast stays until you Close (×) or Don’t show again (mutes that version only; a newer release toasts again).",
-          "A teal badge on the brand (and Help menu) still marks an update even if the toast was dismissed or muted.",
-          "In About: Download for your OS when an installer asset exists, or open the release page. Refresh re-checks.",
+          "If newer: a sticky Update available card appears — Download pulls the OS installer into app cache; when finished it says ready and Update runs the installer (then SSHyar quits so files can be replaced).",
+          "Close (×) hides the card for this session; Don’t show again mutes that version only (a newer release notifies again). The teal badge on the brand / Help menu still marks an update.",
+          "About has the same Download → progress → Update flow, plus Release notes on GitHub.",
         ],
       },
       {

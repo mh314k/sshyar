@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import DownloadIcon from "@mui/icons-material/Download";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SystemUpdateAltIcon from "@mui/icons-material/SystemUpdateAlt";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   APP_VERSION,
@@ -11,12 +12,16 @@ import {
   type UpdateInfo,
 } from "../../lib/version";
 import { toastError } from "../../lib/toast";
+import type { UpdateDownloadState } from "../../hooks/useAppUpdate";
 import { BrandLogo } from "./BrandLogo";
 import { IconButton, iconProps, iconSize } from "../../components/IconButton";
 
 interface Props {
   update: UpdateInfo | null;
   onUpdateChange: (info: UpdateInfo | null) => void;
+  download: UpdateDownloadState;
+  onDownload: () => void;
+  onInstall: () => void;
 }
 
 function hostLabel(): string {
@@ -27,7 +32,7 @@ function hostLabel(): string {
   return "Desktop";
 }
 
-export function AboutPopover({ update, onUpdateChange }: Props) {
+export function AboutPopover({ update, onUpdateChange, download, onDownload, onInstall }: Props) {
   const [checking, setChecking] = useState(false);
   const [checked, setChecked] = useState(false);
   const platform = hostLabel();
@@ -37,7 +42,6 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
     try {
       const info = await checkForAppUpdate();
       onUpdateChange(info);
-      setChecked(true);
     } catch (e) {
       toastError(e, "Update check");
     } finally {
@@ -57,6 +61,11 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
       toastError(e, "Open link");
     }
   }
+
+  const busy = download.phase === "downloading" || download.phase === "installing";
+  const canDownload =
+    Boolean(update?.downloadUrl) && (download.phase === "idle" || download.phase === "error");
+  const canInstall = download.phase === "ready" && Boolean(download.path);
 
   return (
     <div className="about-panel">
@@ -96,17 +105,48 @@ export function AboutPopover({ update, onUpdateChange }: Props) {
             <span className="about-ver is-latest">v{update.latest}</span>
           </p>
           <p className="muted about-update-hint">
-            {update.downloadUrl
-              ? `Installer for ${platform} from GitHub Releases.`
-              : `No ${platform} installer in this release — open the page to pick an asset.`}
+            {!update.downloadUrl
+              ? `No ${platform} installer in this release — open the page to pick an asset.`
+              : download.phase === "downloading"
+                ? download.percent != null
+                  ? `Downloading… ${download.percent}%`
+                  : "Downloading installer…"
+                : download.phase === "ready"
+                  ? "Installer ready — Update launches it and closes SSHyar."
+                  : download.phase === "installing"
+                    ? "Starting installer…"
+                    : download.phase === "error"
+                      ? download.error || "Download failed — try again."
+                      : `SSHyar downloads the ${platform} installer, then Update runs it.`}
           </p>
+          {download.phase === "downloading" ? (
+            <div className="about-update-progress" role="progressbar">
+              <div
+                className="about-update-progress-bar"
+                style={{
+                  width: download.percent != null ? `${download.percent}%` : "30%",
+                  opacity: download.percent != null ? 1 : 0.55,
+                }}
+              />
+            </div>
+          ) : null}
           <div className="about-update-actions">
-            {update.downloadUrl ? (
+            {canDownload ? (
               <IconButton
                 variant="primary"
                 label={`Download for ${platform}`}
                 icon={<DownloadIcon {...iconProps(iconSize)} />}
-                onClick={() => void open(update.downloadUrl!)}
+                disabled={busy}
+                onClick={onDownload}
+              />
+            ) : null}
+            {canInstall ? (
+              <IconButton
+                variant="primary"
+                label="Update"
+                icon={<SystemUpdateAltIcon {...iconProps(iconSize)} />}
+                disabled={busy}
+                onClick={onInstall}
               />
             ) : null}
             <IconButton

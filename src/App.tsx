@@ -15,6 +15,7 @@ import { ActivityBar } from "./features/chrome/ActivityBar";
 import { StatusBar } from "./features/chrome/StatusBar";
 import { HelpWindow } from "./features/chrome/HelpWindow";
 import { AboutPopover } from "./features/chrome/AboutPopover";
+import { UpdateNotifier } from "./features/chrome/UpdateNotifier";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DockerJobProvider } from "./features/plugins/docker/dockerJob/DockerJobContext";
 import { readStoredTheme, toggleTheme, type ThemeMode } from "./lib/theme";
@@ -25,7 +26,7 @@ import {
   readSessionSnapshot,
   type SavedSessionTab,
 } from "./lib/sessionRestore";
-import { ToastHost, dismissToast, toast, toastError } from "./lib/toast";
+import { ToastHost, toastError } from "./lib/toast";
 import { BrandLogo } from "./features/chrome/BrandLogo";
 import {
   APP_VERSION,
@@ -36,6 +37,7 @@ import {
 } from "./lib/version";
 import type { Profile } from "./types";
 import { useAppSessions } from "./hooks/useAppSessions";
+import { useAppUpdate } from "./hooks/useAppUpdate";
 import { usePanelLayout } from "./hooks/usePanelLayout";
 import { usePluginShell } from "./hooks/usePluginShell";
 import { useVaultData } from "./hooks/useVaultData";
@@ -49,7 +51,9 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
-  const updateToastShown = useRef(false);
+  const [updateNoticeOpen, setUpdateNoticeOpen] = useState(false);
+  const updateNoticeShown = useRef(false);
+  const appUpdate = useAppUpdate(update);
 
   const panels = usePanelLayout();
   const killAllTabsRef = useRef<() => void>(() => undefined);
@@ -71,43 +75,29 @@ export default function App() {
   useEffect(() => {
     if (!vault?.unlocked) return;
     let cancelled = false;
-    let toastId: number | null = null;
     void (async () => {
       try {
         const info = await checkForAppUpdate();
         if (cancelled || !info) return;
         setUpdate(info);
-        // Sticky toast once per unlock session, unless muted for this latest version.
-        if (updateToastShown.current || isUpdateToastMuted(info.latest)) return;
-        updateToastShown.current = true;
-        toastId = toast(`v${info.latest} is ready — click SSHyar or Help → About to download`, {
-          kind: "info",
-          title: "Update available",
-          durationMs: 0,
-          actions: [
-            {
-              id: "mute",
-              label: "Don't show again",
-              onClick: () => {
-                muteUpdateToast(info.latest);
-                if (toastId != null) dismissToast(toastId);
-              },
-            },
-          ],
-        });
+        if (updateNoticeShown.current || isUpdateToastMuted(info.latest)) return;
+        updateNoticeShown.current = true;
+        setUpdateNoticeOpen(true);
       } catch {
         /* offline / rate-limit — ignore; About can retry */
       }
     })();
     return () => {
       cancelled = true;
-      if (toastId != null) {
-        dismissToast(toastId);
-        // Allow a fresh sticky toast if this effect re-runs (StrictMode / re-unlock).
-        updateToastShown.current = false;
-      }
     };
   }, [vault?.unlocked]);
+
+  // Sticky notice also appears when download finishes (even if user closed the banner earlier).
+  useEffect(() => {
+    if (appUpdate.state.phase === "ready" && update && !isUpdateToastMuted(update.latest)) {
+      setUpdateNoticeOpen(true);
+    }
+  }, [appUpdate.state.phase, update]);
 
   const {
     pluginFlags,
@@ -337,6 +327,19 @@ export default function App() {
     <>
       {hosts}
       <HelpWindow open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {update && updateNoticeOpen ? (
+        <UpdateNotifier
+          info={update}
+          download={appUpdate.state}
+          onDownload={() => void appUpdate.startDownload()}
+          onInstall={() => void appUpdate.install()}
+          onClose={() => setUpdateNoticeOpen(false)}
+          onDontShowAgain={() => {
+            muteUpdateToast(update.latest);
+            setUpdateNoticeOpen(false);
+          }}
+        />
+      ) : null}
       {aboutOpen ? (
         <div
           className="chrome-modal-backdrop"
@@ -357,7 +360,13 @@ export default function App() {
                 Close
               </button>
             </div>
-            <AboutPopover update={update} onUpdateChange={setUpdate} />
+            <AboutPopover
+              update={update}
+              onUpdateChange={setUpdate}
+              download={appUpdate.state}
+              onDownload={() => void appUpdate.startDownload()}
+              onInstall={() => void appUpdate.install()}
+            />
           </div>
         </div>
       ) : null}
