@@ -1,22 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="SSHyar">
-  <!-- Flat mark: teal tile + prompt + lock — matches VS Code–style chrome -->
-  <rect width="128" height="128" rx="22" fill="#0f766e"/>
+  <!-- Flat minimal mark: navy tile + mint prompt -->
+  <rect width="128" height="128" rx="28" fill="#0B1220"/>
   <path
-    d="M36 42 L58 64 L36 86"
+    d="M32 38 L66 64 L32 90"
     fill="none"
-    stroke="#ecfeff"
-    stroke-width="8"
+    stroke="#2DD4BF"
+    stroke-width="13"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
-  <path
-    d="M74 58 V52.5 C74 45.5 79.6 40 86.5 40 C93.4 40 99 45.5 99 52.5 V58"
-    fill="none"
-    stroke="#ecfeff"
-    stroke-width="7"
-    stroke-linecap="round"
-  />
-  <rect x="68" y="56" width="37" height="30" rx="7" fill="#ecfeff"/>
-  <circle cx="86.5" cy="68" r="3.6" fill="#0f766e"/>
-  <path d="M84.8 70.5 h3.4 v7.2 c0 .9-.8 1.7-1.7 1.7s-1.7-.8-1.7-1.7z" fill="#0f766e"/>
+  <rect x="76" y="58" width="28" height="12" rx="6" fill="#2DD4BF"/>
 </svg>
