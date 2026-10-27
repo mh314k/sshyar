@@ -14,18 +14,27 @@
 ## لقطات الشاشة
 
 <p align="center">
-  <img src="docs/screenshots/main-window.png" alt="النافذة الرئيسية" width="720" />
+  <img src="docs/screenshots/main-window.png" alt="النافذة الرئيسية" width="520" />
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/terminal.png" alt="الطرفية وSFTP وCompose" width="360" />
-  &nbsp;
-  <img src="docs/screenshots/monitor.png" alt="لوحة المراقبة" width="360" />
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/docker.png" alt="حالة Docker والتنظيف الآمن" width="280" />
-</p>
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/terminal.png" alt="الطرفية وSFTP وCompose" width="380" /><br/>
+      <sub>Terminal + SFTP</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/monitor.png" alt="لوحة المراقبة" width="380" /><br/>
+      <sub>Monitor</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="docs/screenshots/docker.png" alt="حالة Docker والتنظيف الآمن" width="180" /><br/>
+      <sub>Docker</sub>
+    </td>
+  </tr>
+</table>
 
 ## لماذا SSHyar
 

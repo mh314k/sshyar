@@ -14,18 +14,27 @@
 ## 截图
 
 <p align="center">
-  <img src="docs/screenshots/main-window.png" alt="SSHyar 主窗口" width="720" />
+  <img src="docs/screenshots/main-window.png" alt="SSHyar 主窗口" width="520" />
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/terminal.png" alt="终端、SFTP 与 Compose" width="360" />
-  &nbsp;
-  <img src="docs/screenshots/monitor.png" alt="Monitor 面板" width="360" />
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/docker.png" alt="Docker 状态与安全清理" width="280" />
-</p>
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/terminal.png" alt="终端、SFTP 与 Compose" width="380" /><br/>
+      <sub>Terminal + SFTP</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/monitor.png" alt="Monitor 面板" width="380" /><br/>
+      <sub>Monitor</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="docs/screenshots/docker.png" alt="Docker 状态与安全清理" width="180" /><br/>
+      <sub>Docker</sub>
+    </td>
+  </tr>
+</table>
 
 ## 为什么选择 SSHyar
 

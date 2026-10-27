@@ -14,18 +14,27 @@
 ## Скриншоты
 
 <p align="center">
-  <img src="docs/screenshots/main-window.png" alt="Главное окно SSHyar" width="720" />
+  <img src="docs/screenshots/main-window.png" alt="Главное окно SSHyar" width="520" />
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/terminal.png" alt="Терминал, SFTP и Compose" width="360" />
-  &nbsp;
-  <img src="docs/screenshots/monitor.png" alt="Панель Monitor" width="360" />
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/docker.png" alt="Статус Docker и безопасный prune" width="280" />
-</p>
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/terminal.png" alt="Терминал, SFTP и Compose" width="380" /><br/>
+      <sub>Terminal + SFTP</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/monitor.png" alt="Панель Monitor" width="380" /><br/>
+      <sub>Monitor</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="docs/screenshots/docker.png" alt="Статус Docker и безопасный prune" width="180" /><br/>
+      <sub>Docker</sub>
+    </td>
+  </tr>
+</table>
 
 ## Зачем SSHyar
 

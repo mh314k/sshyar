@@ -14,18 +14,27 @@
 ## تصاویر
 
 <p align="center">
-  <img src="docs/screenshots/main-window.png" alt="پنجره اصلی SSHyar" width="720" />
+  <img src="docs/screenshots/main-window.png" alt="پنجره اصلی SSHyar" width="520" />
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/terminal.png" alt="ترمینال، SFTP و Compose" width="360" />
-  &nbsp;
-  <img src="docs/screenshots/monitor.png" alt="پنل Monitor" width="360" />
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/docker.png" alt="وضعیت Docker و prune امن" width="280" />
-</p>
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/terminal.png" alt="ترمینال، SFTP و Compose" width="380" /><br/>
+      <sub>ترمینال + SFTP</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/screenshots/monitor.png" alt="پنل Monitor" width="380" /><br/>
+      <sub>Monitor</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="docs/screenshots/docker.png" alt="وضعیت Docker و prune امن" width="180" /><br/>
+      <sub>Docker</sub>
+    </td>
+  </tr>
+</table>
 
 ## چرا SSHyar
 
