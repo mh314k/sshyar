@@ -163,7 +163,7 @@ export default function App() {
           void sessions.createLocalTab();
           break;
         case "lock":
-          void lockVault();
+          if (vault?.hasMasterPassword) void lockVault();
           break;
         case "toggle-sidebar":
           panels.setLeftOpen(!panels.leftOpen);
@@ -205,6 +205,7 @@ export default function App() {
       panels,
       rightAvailable,
       pluginFlags,
+      vault?.hasMasterPassword,
     ],
   );
 
@@ -397,6 +398,7 @@ export default function App() {
               panels.mainLayoutMode === "sftp-first" ? "SFTP first" : "Terminal first"
             }
             themeLabel={theme === "dark" ? "Switch to Light Theme" : "Switch to Dark Theme"}
+            hasMasterPassword={vault.hasMasterPassword}
             brand={
               <>
                 <BrandLogo size={16} />

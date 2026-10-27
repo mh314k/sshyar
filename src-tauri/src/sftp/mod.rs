@@ -78,6 +78,10 @@ impl SftpManager {
         Ok(())
     }
 
+    pub async fn close_all(&self) {
+        self.sessions.lock().await.clear();
+    }
+
     pub async fn list(&self, id: &str, path: Option<String>) -> AppResult<Vec<RemoteEntry>> {
         let shared = self.conn(id).await?;
         // Clone Arc<SftpSession> and release the mutex before awaiting read_dir

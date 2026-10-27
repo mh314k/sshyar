@@ -46,16 +46,21 @@ export function WindowControls() {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
     let cancelled = false;
-    void (async () => {
+    let unlisten: (() => void) | undefined;
+    const pending = (async () => {
       try {
         const win = getCurrentWindow();
         setMaximized(await win.isMaximized());
-        unlisten = await win.onResized(async () => {
+        const stop = await win.onResized(async () => {
           if (cancelled) return;
           setMaximized(await win.isMaximized());
         });
+        if (cancelled) {
+          stop();
+          return;
+        }
+        unlisten = stop;
       } catch {
         /* browser / non-Tauri preview */
       }
@@ -63,6 +68,7 @@ export function WindowControls() {
     return () => {
       cancelled = true;
       unlisten?.();
+      void pending.then(() => unlisten?.());
     };
   }, []);
 

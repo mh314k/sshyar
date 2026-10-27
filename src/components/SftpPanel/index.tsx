@@ -287,12 +287,14 @@ export function SftpPanel({
           await api.sftpClose(sftpId).catch(() => undefined);
           setSftpId(null);
         }
+        setEditor(null);
         return;
       }
       setBusy(true);
       try {
         if (sftpId) {
           await api.sftpClose(sftpId).catch(() => undefined);
+          setEditor(null);
         }
         const { sftpId: id, cwd: c } = await api.sftpOpen(profileId);
         if (cancelled) {
@@ -683,7 +685,11 @@ export function SftpPanel({
   function openCtx(e: React.MouseEvent, entry: RemoteEntry | null) {
     e.preventDefault();
     e.stopPropagation();
-    if (entry && !checked.has(entry.path)) {
+    if (entry === null) {
+      // Empty-area menu (cd here, upload, …) — don't reuse file selection.
+      setChecked(new Set());
+      lastClickedRef.current = null;
+    } else if (!checked.has(entry.path)) {
       setChecked(new Set([entry.path]));
       lastClickedRef.current = entry.path;
     }

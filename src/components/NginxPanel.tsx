@@ -56,19 +56,23 @@ export function NginxPanel({ profileId, ptyId, enabled }: Props) {
     void refresh();
   }, [refresh]);
 
+  // Close SFTP on profile change / unmount (avoid StrictMode closing the live id).
   useEffect(() => {
-    return () => {
-      const id = sftpId;
-      if (id) void api.sftpClose(id).catch(() => undefined);
-    };
-  }, [sftpId]);
-
-  useEffect(() => {
-    // Drop SFTP when leaving the plugin / profile.
+    setEditor(null);
+    const prev = sftpId;
+    if (prev) {
+      setSftpId(null);
+      void api.sftpClose(prev).catch(() => undefined);
+    }
     return () => {
       setEditor(null);
+      setSftpId((cur) => {
+        if (cur) void api.sftpClose(cur).catch(() => undefined);
+        return null;
+      });
     };
-  }, [profileId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when profile/enabled changes
+  }, [profileId, enabled]);
 
   async function ensureSftp(): Promise<string> {
     if (!profileId) throw new Error("No profile");

@@ -25,6 +25,8 @@ interface Props {
   pluginsAvailable: boolean;
   layoutModeLabel: string;
   themeLabel: string;
+  /** Hide Lock Vault when no master password is configured. */
+  hasMasterPassword?: boolean;
   /** App mark — shown at the start of the menubar (VS Code–style). */
   brand?: ReactNode;
 }
@@ -33,10 +35,11 @@ const MENUS: { id: MenuId; label: string; items: (ctx: Props) => MenuItem[] }[] 
   {
     id: "file",
     label: "File",
-    items: () => [
+    items: (ctx) => [
       { kind: "item", id: "new-terminal", label: "New Terminal" },
-      { kind: "sep" },
-      { kind: "item", id: "lock", label: "Lock Vault" },
+      ...(ctx.hasMasterPassword
+        ? ([{ kind: "sep" }, { kind: "item", id: "lock" as const, label: "Lock Vault" }] as MenuItem[])
+        : []),
       { kind: "sep" },
       { kind: "item", id: "exit", label: "Exit" },
     ],
@@ -73,11 +76,12 @@ export function MenuBar({
   pluginsAvailable,
   layoutModeLabel,
   themeLabel,
+  hasMasterPassword = false,
   brand,
 }: Props) {
   const [open, setOpen] = useState<MenuId | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const ctx = { onAction, pluginsAvailable, layoutModeLabel, themeLabel };
+  const ctx = { onAction, pluginsAvailable, layoutModeLabel, themeLabel, hasMasterPassword };
 
   useEffect(() => {
     if (!open) return;
