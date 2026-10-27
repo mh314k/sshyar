@@ -2,10 +2,10 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::docker_logs::{DockerLogManager, SharedDockerLogs};
-use crate::docker_session::{DockerSessionManager, SharedDockerSessions};
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
 use crate::pty::{PtyManager, SharedPty};
+use crate::remote_exec::{RemoteExecManager, SharedRemoteExec};
 use crate::sftp::{SftpManager, SharedSftp};
 use crate::vault::VaultState;
 
@@ -14,7 +14,8 @@ pub struct AppState {
     pub pty: SharedPty,
     pub sftp: SharedSftp,
     pub docker_logs: SharedDockerLogs,
-    pub docker_sessions: SharedDockerSessions,
+    /// Shared russh exec pool (Docker + host plugins).
+    pub remote_exec: SharedRemoteExec,
 }
 
 impl AppState {
@@ -24,7 +25,7 @@ impl AppState {
             pty: Arc::new(PtyManager::new()),
             sftp: Arc::new(SftpManager::new()),
             docker_logs: Arc::new(DockerLogManager::new()),
-            docker_sessions: Arc::new(DockerSessionManager::new()),
+            remote_exec: Arc::new(RemoteExecManager::new()),
         }
     }
 }

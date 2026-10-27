@@ -4,23 +4,9 @@ use tauri::{AppHandle, State};
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
 use crate::ssh_session::ExecResult;
-use crate::state::{find_profile, AppState};
+use crate::state::AppState;
 
-fn load_flagged_profile(
-    state: &State<'_, AppState>,
-    profile_id: &str,
-    enabled: impl Fn(&Profile) -> bool,
-    label: &str,
-) -> AppResult<Profile> {
-    let v = state.vault.lock();
-    let profile = find_profile(&v, profile_id)?.clone();
-    if !enabled(&profile) {
-        return Err(AppError::msg(format!(
-            "{label} management is not enabled for this profile"
-        )));
-    }
-    Ok(profile)
-}
+use super::profile_gate::load_flagged_profile;
 
 fn combined_output(result: &ExecResult) -> String {
     if !result.stdout.is_empty() {
@@ -49,7 +35,7 @@ async fn exec(
     profile: &Profile,
     cmd: &str,
 ) -> AppResult<ExecResult> {
-    state.docker_sessions.exec(profile, cmd).await
+    state.remote_exec.exec(profile, cmd).await
 }
 
 async fn exec_stream(
@@ -61,11 +47,11 @@ async fn exec_stream(
 ) -> AppResult<ExecResult> {
     if let Some(job_id) = job_id {
         state
-            .docker_sessions
+            .remote_exec
             .exec_streaming(app, job_id, profile, cmd)
             .await
     } else {
-        state.docker_sessions.exec(profile, cmd).await
+        state.remote_exec.exec(profile, cmd).await
     }
 }
 

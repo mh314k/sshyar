@@ -7,7 +7,7 @@ use crate::docker_logs;
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
 use crate::ssh_session::ExecResult;
-use crate::state::{find_profile, AppState};
+use crate::state::AppState;
 
 const STANDALONE_GROUP: &str = "__standalone__";
 
@@ -84,14 +84,12 @@ fn parse_docker_version(raw: &str) -> Option<String> {
 }
 
 fn load_docker_profile(state: &State<'_, AppState>, profile_id: &str) -> AppResult<Profile> {
-    let v = state.vault.lock();
-    let profile = find_profile(&v, profile_id)?.clone();
-    if !profile.docker_management {
-        return Err(AppError::msg(
-            "Docker management is not enabled for this profile",
-        ));
-    }
-    Ok(profile)
+    super::profile_gate::load_flagged_profile(
+        state,
+        profile_id,
+        |p| p.docker_management,
+        "Docker",
+    )
 }
 
 fn shell_quote(s: &str) -> AppResult<String> {
@@ -131,7 +129,7 @@ async fn docker_cli(
     args: &str,
 ) -> AppResult<ExecResult> {
     let cmd = format!("docker {args}");
-    state.docker_sessions.exec(profile, &cmd).await
+    state.remote_exec.exec(profile, &cmd).await
 }
 
 fn combined_output(result: &ExecResult) -> String {
@@ -219,7 +217,7 @@ pub async fn docker_probe(state: State<'_, AppState>, profile_id: String) -> App
     let profile = load_docker_profile(&state, &profile_id)?;
 
     let result = state
-        .docker_sessions
+        .remote_exec
         .exec(
             &profile,
             "if command -v docker >/dev/null 2>&1; then docker --version; else echo '__DOCKER_NOT_INSTALLED__'; fi",
@@ -595,11 +593,11 @@ pub async fn docker_compose_run(
     );
     let result = if let Some(ref job_id) = job_id {
         state
-            .docker_sessions
+            .remote_exec
             .exec_streaming(&app, job_id, &profile, &cmd)
             .await?
     } else {
-        state.docker_sessions.exec(&profile, &cmd).await?
+        state.remote_exec.exec(&profile, &cmd).await?
     };
     let mut output = String::new();
     if !result.stdout.is_empty() {
@@ -929,11 +927,11 @@ pub async fn docker_prune(
 
     let result = if let Some(ref job_id) = job_id {
         state
-            .docker_sessions
+            .remote_exec
             .exec_streaming(&app, job_id, &profile, &cmd)
             .await?
     } else {
-        state.docker_sessions.exec(&profile, &cmd).await?
+        state.remote_exec.exec(&profile, &cmd).await?
     };
 
     let mut output = String::new();
@@ -978,7 +976,7 @@ pub async fn docker_logs_start(
     docker_logs::start_stream(
         app,
         Arc::clone(&state.docker_logs),
-        Arc::clone(&state.docker_sessions),
+        Arc::clone(&state.remote_exec),
         profile,
         container_id,
         tail.unwrap_or(200),
@@ -1012,7 +1010,7 @@ pub async fn docker_compose_logs_start(
     docker_logs::start_stream_cmd(
         app,
         Arc::clone(&state.docker_logs),
-        Arc::clone(&state.docker_sessions),
+        Arc::clone(&state.remote_exec),
         profile,
         cmd,
     )
@@ -1032,7 +1030,7 @@ pub async fn docker_session_ensure(
     profile_id: String,
 ) -> AppResult<()> {
     let profile = load_docker_profile(&state, &profile_id)?;
-    state.docker_sessions.ensure(&profile).await
+    state.remote_exec.ensure(&profile).await
 }
 
 /// Close the persistent Docker SSH session for a profile.
@@ -1041,5 +1039,5 @@ pub async fn docker_session_close(
     state: State<'_, AppState>,
     profile_id: String,
 ) -> AppResult<()> {
-    state.docker_sessions.close(&profile_id).await
+    state.remote_exec.close(&profile_id).await
 }

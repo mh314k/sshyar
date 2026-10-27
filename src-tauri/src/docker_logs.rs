@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use russh::ChannelMsg;
 
-use crate::docker_session::SharedDockerSessions;
+use crate::remote_exec::SharedRemoteExec;
 use crate::error::{AppError, AppResult};
 use crate::profiles::Profile;
 
@@ -89,7 +89,7 @@ fn emit(app: &AppHandle, stream_id: &str, kind: &str, text: impl Into<String>) {
 pub async fn start_stream(
     app: AppHandle,
     manager: SharedDockerLogs,
-    sessions: SharedDockerSessions,
+    sessions: SharedRemoteExec,
     profile: Profile,
     container_id: String,
     tail: u32,
@@ -104,7 +104,7 @@ pub async fn start_stream(
 pub async fn start_stream_cmd(
     app: AppHandle,
     manager: SharedDockerLogs,
-    sessions: SharedDockerSessions,
+    sessions: SharedRemoteExec,
     profile: Profile,
     cmd: String,
 ) -> AppResult<String> {
@@ -143,7 +143,7 @@ pub async fn start_stream_cmd(
 async fn run_logs_loop(
     app: &AppHandle,
     stream_id: &str,
-    sessions: &SharedDockerSessions,
+    sessions: &SharedRemoteExec,
     profile: &Profile,
     cmd: &str,
     mut cancel_rx: oneshot::Receiver<()>,

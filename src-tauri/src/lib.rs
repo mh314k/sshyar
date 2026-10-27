@@ -6,6 +6,8 @@ mod host_key;
 mod keys;
 mod profiles;
 mod pty;
+mod remote_exec;
+mod session_shutdown;
 mod sftp;
 mod ssh_cmd;
 mod ssh_session;

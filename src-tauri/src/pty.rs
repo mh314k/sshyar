@@ -133,6 +133,14 @@ impl PtyManager {
         }
         Ok(())
     }
+
+    pub fn kill_all(&self) {
+        let mut sessions = self.sessions.lock();
+        for (_, mut session) in sessions.drain() {
+            let _ = session.child.kill();
+            let _ = session.child.wait();
+        }
+    }
 }
 
 fn build_shell_command(initial_command: Option<&str>) -> CommandBuilder {

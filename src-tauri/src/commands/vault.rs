@@ -22,9 +22,7 @@ pub fn vault_unlock(state: State<AppState>, password: String) -> AppResult<Vault
 
 #[tauri::command]
 pub async fn vault_lock(state: State<'_, AppState>) -> AppResult<()> {
-    state.docker_logs.stop_all().await;
-    state.docker_sessions.close_all().await;
-    state.sftp.close_all().await;
+    crate::session_shutdown::session_shutdown(&state).await;
     state.vault.lock().lock();
     Ok(())
 }

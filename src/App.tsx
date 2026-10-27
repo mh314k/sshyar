@@ -1,28 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./lib/api";
-import type { Profile, Snippet, VaultStatus } from "./types";
-import { UnlockGate } from "./components/UnlockGate";
-import { AppTitleChrome } from "./components/AppTitleChrome";
-import { ProfileSidebar } from "./components/ProfileSidebar";
-import { SessionTabBar } from "./components/SessionTabBar";
-import { TerminalPane } from "./components/TerminalPane";
-import {
-  RightPlugins,
-  anyPluginEnabled,
-  firstEnabledTab,
-  type PluginTab,
-} from "./components/RightPlugins";
-import { PanelLayout, usePanelLayout } from "./components/PanelLayout";
-import { MainSplit } from "./components/MainSplit";
-import { SftpPanel } from "./components/SftpPanel";
-import { MenuBar, type MenuBarAction } from "./components/MenuBar";
-import { ActivityBar } from "./components/ActivityBar";
-import { StatusBar } from "./components/StatusBar";
-import { HelpModal } from "./components/HelpModal";
-import { AboutPopover } from "./components/AboutPopover";
+import { UnlockGate } from "./features/chrome/UnlockGate";
+import { AppTitleChrome } from "./features/chrome/AppTitleChrome";
+import { ProfileSidebar } from "./features/profiles/ProfileSidebar";
+import { SessionTabBar } from "./features/terminal/SessionTabBar";
+import { TerminalPane } from "./features/terminal/TerminalPane";
+import { RightPlugins } from "./features/plugins/RightPlugins";
+import { PanelLayout } from "./features/chrome/PanelLayout";
+import { MainSplit } from "./features/chrome/MainSplit";
+import { SftpPanel } from "./features/sftp";
+import { MenuBar, type MenuBarAction } from "./features/chrome/MenuBar";
+import { ActivityBar } from "./features/chrome/ActivityBar";
+import { StatusBar } from "./features/chrome/StatusBar";
+import { HelpModal } from "./features/chrome/HelpModal";
+import { AboutPopover } from "./features/chrome/AboutPopover";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { DockerJobProvider } from "./components/dockerJob/DockerJobContext";
+import { DockerJobProvider } from "./features/plugins/docker/dockerJob/DockerJobContext";
 import { readStoredTheme, toggleTheme, type ThemeMode } from "./lib/theme";
 import { DialogHost } from "./lib/dialogs";
 import {
@@ -32,16 +26,16 @@ import {
   type SavedSessionTab,
 } from "./lib/sessionRestore";
 import { ToastHost, toastError } from "./lib/toast";
-import { BrandLogo } from "./components/BrandLogo";
+import { BrandLogo } from "./features/chrome/BrandLogo";
 import { APP_VERSION, type UpdateInfo } from "./lib/version";
+import type { Profile } from "./types";
 import { useAppSessions } from "./hooks/useAppSessions";
+import { usePanelLayout } from "./hooks/usePanelLayout";
+import { usePluginShell } from "./hooks/usePluginShell";
+import { useVaultData } from "./hooks/useVaultData";
 import "./App.css";
 
 export default function App() {
-  const [vault, setVault] = useState<VaultStatus | null>(null);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [snippets, setSnippets] = useState<Snippet[]>([]);
-  const [bootError, setBootError] = useState("");
   const [theme, setTheme] = useState<ThemeMode>(() => readStoredTheme());
   const [restoreOffer, setRestoreOffer] = useState<SavedSessionTab[] | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -49,57 +43,38 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
-  const [pluginTab, setPluginTab] = useState<PluginTab>("docker");
+
   const panels = usePanelLayout();
+  const killAllTabsRef = useRef<() => void>(() => undefined);
+
+  const { vault, setVault, profiles, snippets, bootError, refreshData, lockVault } = useVaultData({
+    killAllTabs: () => killAllTabsRef.current(),
+    onLocked: () => {
+      panels.setRightOpen(false);
+      panels.setBottomOpen(false);
+    },
+  });
 
   const sessions = useAppSessions({
     profiles,
     onOpenSftp: () => panels.openSftpPane(),
   });
+  killAllTabsRef.current = sessions.killAllTabs;
+
+  const {
+    pluginFlags,
+    rightAvailable,
+    activePluginTab,
+    selectPlugin,
+    openFirstPluginOrToggle,
+  } = usePluginShell({
+    profiles,
+    activeProfileId: sessions.activeTab?.profileId,
+    panels,
+  });
 
   const profileIdSet = useMemo(() => new Set(profiles.map((p) => p.id)), [profiles]);
-
-  const pluginFlags = useMemo(() => {
-    const p = profiles.find((x) => x.id === sessions.activeTab?.profileId);
-    const on = !!sessions.activeTab?.profileId && !!p;
-    return {
-      docker: on && !!p?.dockerManagement,
-      nginx: on && !!p?.nginxManagement,
-      systemd: on && !!p?.systemdManagement,
-      cron: on && !!p?.cronManagement,
-      monitor: on && !!p?.monitorManagement,
-    };
-  }, [profiles, sessions.activeTab?.profileId]);
-
-  const rightAvailable = anyPluginEnabled(pluginFlags);
   const sftpOpen = panels.mainLayoutMode === "sftp-first" || panels.bottomOpen;
-  const activePluginTab = pluginFlags[pluginTab]
-    ? pluginTab
-    : (firstEnabledTab(pluginFlags) ?? "docker");
-
-  useEffect(() => {
-    if (!rightAvailable && panels.rightOpen) {
-      panels.setRightOpen(false);
-    }
-  }, [rightAvailable, panels.rightOpen, panels.setRightOpen]);
-
-  useEffect(() => {
-    if (pluginFlags[pluginTab]) return;
-    const first = firstEnabledTab(pluginFlags);
-    if (first) setPluginTab(first);
-  }, [pluginFlags, pluginTab]);
-
-  const selectPlugin = useCallback(
-    (tab: PluginTab) => {
-      if (panels.rightOpen && pluginTab === tab) {
-        panels.setRightOpen(false);
-        return;
-      }
-      setPluginTab(tab);
-      panels.setRightOpen(true);
-    },
-    [panels, pluginTab],
-  );
 
   useEffect(() => {
     if (!vault?.unlocked || sessions.tabs.length > 0) return;
@@ -111,41 +86,6 @@ export default function App() {
     const restorable = filterRestorableTabs(snap, profileIdSet);
     setRestoreOffer(restorable.length ? restorable : null);
   }, [vault?.unlocked, profiles, profileIdSet, sessions.tabs.length]);
-
-  const refreshData = useCallback(async () => {
-    const [p, s, st] = await Promise.all([
-      api.listProfiles(),
-      api.listSnippets(),
-      api.vaultStatus(),
-    ]);
-    setProfiles(p);
-    setSnippets(s);
-    setVault(st);
-  }, []);
-
-  useEffect(() => {
-    api
-      .vaultStatus()
-      .then(async (st) => {
-        setVault(st);
-        if (st.unlocked) await refreshData();
-      })
-      .catch((e) => setBootError(String(e)));
-  }, [refreshData]);
-
-  const lockVault = useCallback(async () => {
-    try {
-      sessions.killAllTabs();
-      setProfiles([]);
-      setSnippets([]);
-      panels.setRightOpen(false);
-      panels.setBottomOpen(false);
-      await api.vaultLock();
-      setVault(await api.vaultStatus());
-    } catch (e) {
-      toastError(e, "Lock vault");
-    }
-  }, [sessions.killAllTabs, panels.setRightOpen, panels.setBottomOpen]);
 
   const openComposeInSftp = useCallback(
     (path: string) => {
@@ -172,13 +112,7 @@ export default function App() {
           panels.toggleSftpPane();
           break;
         case "toggle-plugins":
-          if (!rightAvailable) break;
-          if (panels.rightOpen) panels.setRightOpen(false);
-          else {
-            const first = firstEnabledTab(pluginFlags);
-            if (first) setPluginTab(first);
-            panels.setRightOpen(true);
-          }
+          openFirstPluginOrToggle();
           break;
         case "switch-layout":
           panels.toggleMainLayoutMode();
@@ -203,8 +137,7 @@ export default function App() {
       sessions.createLocalTab,
       lockVault,
       panels,
-      rightAvailable,
-      pluginFlags,
+      openFirstPluginOrToggle,
       vault?.hasMasterPassword,
     ],
   );
@@ -381,141 +314,142 @@ export default function App() {
         </div>
       ) : null}
       <ErrorBoundary>
-      <DockerJobProvider>
-      <PanelLayout
-        leftOpen={panels.leftOpen}
-        rightOpen={panels.rightOpen}
-        rightAvailable={rightAvailable}
-        leftWidth={panels.leftWidth}
-        rightWidth={panels.rightWidth}
-        onLeftWidthChange={panels.setLeftWidth}
-        onRightWidthChange={panels.setRightWidth}
-        menuBar={
-          <MenuBar
-            onAction={handleMenuAction}
-            pluginsAvailable={rightAvailable}
-            layoutModeLabel={
-              panels.mainLayoutMode === "sftp-first" ? "SFTP first" : "Terminal first"
-            }
-            themeLabel={theme === "dark" ? "Switch to Light Theme" : "Switch to Dark Theme"}
-            hasMasterPassword={vault.hasMasterPassword}
-            brand={
-              <>
-                <BrandLogo size={16} />
-                <span className="menu-bar-brand-name">SSHyar</span>
-              </>
-            }
-          />
-        }
-        activityBar={
-          <ActivityBar
+        <DockerJobProvider>
+          <PanelLayout
             leftOpen={panels.leftOpen}
-            sftpOpen={sftpOpen}
             rightOpen={panels.rightOpen}
-            plugins={pluginFlags}
-            activePlugin={activePluginTab}
-            theme={theme}
-            onToggleLeft={() => panels.setLeftOpen(!panels.leftOpen)}
-            onToggleSftp={() => panels.toggleSftpPane()}
-            onSelectPlugin={selectPlugin}
-            onToggleTheme={() => setTheme((t) => toggleTheme(t))}
-            onHelp={() => setHelpOpen(true)}
-            onLock={() => void lockVault()}
-            hasMasterPassword={vault.hasMasterPassword}
-          />
-        }
-        statusBar={
-          <StatusBar
-            status={sessions.activeTab?.status ?? null}
-            title={sessions.activeTab?.title ?? null}
-            hostLabel={sessions.activeTab?.hostLabel ?? null}
-            tabCount={sessions.tabs.length}
-            layoutMode={panels.mainLayoutMode}
-          />
-        }
-        left={
-          <ProfileSidebar
-            profiles={profiles}
-            snippets={snippets}
-            onRefresh={() => void refreshData()}
-            onConnect={(p) => void sessions.createLocalTab(p)}
-            onExternal={(p) => void api.openExternalSsh(p.id)}
-            onRunSnippet={(c) => void sessions.runSnippet(c)}
-            hasMasterPassword={vault.hasMasterPassword}
-            onMasterPasswordChange={() => void refreshData()}
-            onLock={() => void lockVault()}
-            onCollapse={() => panels.setLeftOpen(false)}
-          />
-        }
-        center={
-          <MainSplit
-            mode={panels.mainLayoutMode}
-            centerSplit={panels.centerSplit}
-            bottomOpen={panels.bottomOpen}
-            onModeChange={panels.setMainLayoutMode}
-            onCenterSplitChange={panels.setCenterSplit}
-            onBottomOpenChange={panels.setBottomOpen}
-            header={
-              <SessionTabBar
-                embedded
-                tabs={sessions.tabs}
-                activeId={sessions.activeId}
-                onSelect={sessions.setActiveId}
-                onClose={(id) => void sessions.closeTab(id)}
-                onNew={() => void sessions.createLocalTab()}
-                onReconnect={(id) => void sessions.reconnect(id)}
+            rightAvailable={rightAvailable}
+            leftWidth={panels.leftWidth}
+            rightWidth={panels.rightWidth}
+            onLeftWidthChange={panels.setLeftWidth}
+            onRightWidthChange={panels.setRightWidth}
+            menuBar={
+              <MenuBar
+                onAction={handleMenuAction}
+                pluginsAvailable={rightAvailable}
+                layoutModeLabel={
+                  panels.mainLayoutMode === "sftp-first" ? "SFTP first" : "Terminal first"
+                }
+                themeLabel={theme === "dark" ? "Switch to Light Theme" : "Switch to Dark Theme"}
+                hasMasterPassword={vault.hasMasterPassword}
+                brand={
+                  <>
+                    <BrandLogo size={16} />
+                    <span className="menu-bar-brand-name">SSHyar</span>
+                  </>
+                }
               />
             }
-            terminal={terminalArea}
-            sftp={
-              <div className="sftp-stack">
-                {sessions.tabs.map((t) => {
-                  if (!t.profileId) return null;
-                  const profile = profiles.find((p) => p.id === t.profileId);
-                  const isActive = t.id === sessions.activeId;
-                  return (
-                    <div
-                      key={t.id}
-                      className={`sftp-stack-item ${isActive ? "is-active" : "is-hidden"}`}
-                      aria-hidden={!isActive}
-                    >
-                      <ErrorBoundary>
-                        <SftpPanel
-                          profileId={t.profileId}
-                          ptyId={t.ptyId ?? null}
-                          open={sftpOpen}
-                        onToggle={() => panels.toggleSftpPane()}
-                        theme={theme}
-                        showChrome={false}
-                        dockerEnabled={!!profile?.dockerManagement}
-                          jumpPath={isActive ? sftpJumpPath : null}
-                          onJumpPathConsumed={() => setSftpJumpPath(null)}
-                        />
-                      </ErrorBoundary>
-                    </div>
-                  );
-                })}
-                {sftpOpen && !sessions.activeTab?.profileId ? (
-                  <p className="muted sftp-empty">
-                    Connect a profile session to browse remote files here.
-                  </p>
-                ) : null}
-              </div>
+            activityBar={
+              <ActivityBar
+                leftOpen={panels.leftOpen}
+                sftpOpen={sftpOpen}
+                rightOpen={panels.rightOpen}
+                plugins={pluginFlags}
+                activePlugin={activePluginTab}
+                theme={theme}
+                onToggleLeft={() => panels.setLeftOpen(!panels.leftOpen)}
+                onToggleSftp={() => panels.toggleSftpPane()}
+                onSelectPlugin={selectPlugin}
+                onToggleTheme={() => setTheme((t) => toggleTheme(t))}
+                onHelp={() => setHelpOpen(true)}
+                onLock={() => void lockVault()}
+                hasMasterPassword={vault.hasMasterPassword}
+              />
+            }
+            statusBar={
+              <StatusBar
+                status={sessions.activeTab?.status ?? null}
+                title={sessions.activeTab?.title ?? null}
+                hostLabel={sessions.activeTab?.hostLabel ?? null}
+                tabCount={sessions.tabs.length}
+                layoutMode={panels.mainLayoutMode}
+              />
+            }
+            left={
+              <ProfileSidebar
+                profiles={profiles}
+                snippets={snippets}
+                onRefresh={() => void refreshData()}
+                onConnect={(p: Profile) => void sessions.createLocalTab(p)}
+                onExternal={(p: Profile) => void api.openExternalSsh(p.id)}
+                onRunSnippet={(c: string) => void sessions.runSnippet(c)}
+                hasMasterPassword={vault.hasMasterPassword}
+                onMasterPasswordChange={() => void refreshData()}
+                onLock={() => void lockVault()}
+                onCollapse={() => panels.setLeftOpen(false)}
+              />
+            }
+            center={
+              <MainSplit
+                mode={panels.mainLayoutMode}
+                centerSplit={panels.centerSplit}
+                bottomOpen={panels.bottomOpen}
+                onModeChange={panels.setMainLayoutMode}
+                onCenterSplitChange={panels.setCenterSplit}
+                onBottomOpenChange={panels.setBottomOpen}
+                header={
+                  <SessionTabBar
+                    embedded
+                    tabs={sessions.tabs}
+                    activeId={sessions.activeId}
+                    onSelect={sessions.setActiveId}
+                    onClose={(id: string) => void sessions.closeTab(id)}
+                    onNew={() => void sessions.createLocalTab()}
+                    onReconnect={(id: string) => void sessions.reconnect(id)}
+                  />
+                }
+                terminal={terminalArea}
+                sftp={
+                  <div className="sftp-stack">
+                    {sessions.tabs.map((t) => {
+                      if (!t.profileId) return null;
+                      const profile = profiles.find((p) => p.id === t.profileId);
+                      const isActive = t.id === sessions.activeId;
+                      return (
+                        <div
+                          key={t.id}
+                          className={`sftp-stack-item ${isActive ? "is-active" : "is-hidden"}`}
+                          aria-hidden={!isActive}
+                        >
+                          <ErrorBoundary>
+                            <SftpPanel
+                              profileId={t.profileId}
+                              ptyId={t.ptyId ?? null}
+                              open={sftpOpen && isActive}
+                              onToggle={() => panels.toggleSftpPane()}
+                              theme={theme}
+                              showChrome={false}
+                              dockerEnabled={!!profile?.dockerManagement}
+                              remoteShell={profile?.remoteShell}
+                              jumpPath={isActive ? sftpJumpPath : null}
+                              onJumpPathConsumed={() => setSftpJumpPath(null)}
+                            />
+                          </ErrorBoundary>
+                        </div>
+                      );
+                    })}
+                    {sftpOpen && !sessions.activeTab?.profileId ? (
+                      <p className="muted sftp-empty">
+                        Connect a profile session to browse remote files here.
+                      </p>
+                    ) : null}
+                  </div>
+                }
+              />
+            }
+            right={
+              <RightPlugins
+                profileId={sessions.activeTab?.profileId ?? null}
+                ptyId={sessions.activeTab?.ptyId ?? null}
+                plugins={pluginFlags}
+                activeTab={activePluginTab}
+                onToggle={() => panels.setRightOpen(false)}
+                onOpenComposeInSftp={openComposeInSftp}
+              />
             }
           />
-        }
-        right={
-          <RightPlugins
-            profileId={sessions.activeTab?.profileId ?? null}
-            ptyId={sessions.activeTab?.ptyId ?? null}
-            plugins={pluginFlags}
-            activeTab={activePluginTab}
-            onToggle={() => panels.setRightOpen(false)}
-            onOpenComposeInSftp={openComposeInSftp}
-          />
-        }
-      />
-      </DockerJobProvider>
+        </DockerJobProvider>
       </ErrorBoundary>
     </>
   );
