@@ -164,20 +164,20 @@ export function DockerLogsModal({ profileId, source, subtitle, onClose }: Props)
 
   return createPortal(
     <div
-      className="help-overlay docker-logs-overlay"
+      className="app-modal-overlay docker-logs-overlay"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="help-modal docker-logs-modal"
+        className="docker-logs-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="docker-logs-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <header className="help-header">
-          <div className="help-header-text">
+        <header className="docker-logs-header">
+          <div className="docker-logs-header-text">
             <h2 id="docker-logs-title">{heading}</h2>
             <p
               className="muted"

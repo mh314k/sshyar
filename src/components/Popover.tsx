@@ -62,7 +62,7 @@ export function Popover({
       // Keep popover open while an app modal is up (modals portal to body).
       if (
         t instanceof Element &&
-        t.closest(".app-modal-overlay, .help-overlay, .docker-logs-overlay")
+        t.closest(".app-modal-overlay, .docker-logs-overlay")
       )
         return;
       onClose();
