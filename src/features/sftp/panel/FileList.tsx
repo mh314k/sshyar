@@ -25,6 +25,7 @@ type Props = {
   onTogglePath: (path: string) => void;
   onMarkLast: (path: string) => void;
   onDrop: (e: React.DragEvent) => void;
+  listRef?: React.Ref<HTMLDivElement>;
 };
 
 export function SftpFileList({
@@ -44,6 +45,7 @@ export function SftpFileList({
   onTogglePath,
   onMarkLast,
   onDrop,
+  listRef,
 }: Props) {
   const dirLabel =
     sortKey === "size"
@@ -58,6 +60,7 @@ export function SftpFileList({
 
   return (
     <div
+      ref={listRef}
       className="sftp-list sftp-list-icons"
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
@@ -142,7 +145,7 @@ export function SftpFileList({
         </div>
       ) : null}
       {!entries.length && !busy && (
-        <p className="muted sftp-list-empty">Empty — drop files here to upload</p>
+        <p className="muted sftp-list-empty">Empty — drop files or folders here to upload</p>
       )}
     </div>
   );

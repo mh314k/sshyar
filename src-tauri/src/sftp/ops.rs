@@ -1,4 +1,5 @@
 use russh_sftp::client::SftpSession;
+use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::error::{AppError, AppResult};
@@ -164,6 +165,165 @@ pub async fn write_local_to_remote(
     }
     let _ = remote.shutdown().await;
     Ok(())
+}
+
+/// Create a remote directory; OK if it already exists as a directory.
+pub async fn ensure_remote_dir(sftp: &SftpSession, path: &str) -> AppResult<()> {
+    let path = path.trim_end_matches('/');
+    if path.is_empty() || path == "/" {
+        return Ok(());
+    }
+    match sftp.create_dir(path).await {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            let meta = sftp
+                .metadata(path)
+                .await
+                .map_err(|e| AppError::msg(format!("mkdir {path}: {e}")))?;
+            if meta.file_type().is_dir() {
+                Ok(())
+            } else {
+                Err(AppError::msg(format!(
+                    "{path} exists and is not a directory"
+                )))
+            }
+        }
+    }
+}
+
+/// Ensure every ancestor of a remote file path exists (`/a/b/c.txt` → `/a`, `/a/b`).
+pub async fn ensure_remote_ancestors(sftp: &SftpSession, remote_file: &str) -> AppResult<()> {
+    let remote_file = remote_file.trim_end_matches('/');
+    let Some((parent, _)) = remote_file.rsplit_once('/') else {
+        return Ok(());
+    };
+    if parent.is_empty() {
+        return Ok(());
+    }
+    let mut built = String::new();
+    for seg in parent.split('/').filter(|s| !s.is_empty()) {
+        if built.is_empty() {
+            // Absolute remote paths start with /
+            if remote_file.starts_with('/') {
+                built.push('/');
+            }
+            built.push_str(seg);
+        } else {
+            built.push('/');
+            built.push_str(seg);
+        }
+        ensure_remote_dir(sftp, &built).await?;
+    }
+    Ok(())
+}
+
+/// Recursively plan a local → remote upload: dirs to create, then files
+/// `(local_path, remote_path, display_name, size)`.
+pub async fn collect_upload_plan(
+    local_path: &Path,
+    remote_path: &str,
+    name_root: &Path,
+    dirs: &mut Vec<String>,
+    files: &mut Vec<(String, String, String, u64)>,
+) -> AppResult<()> {
+    let meta = tokio::fs::metadata(local_path)
+        .await
+        .map_err(|e| AppError::msg(format!("stat {}: {e}", local_path.display())))?;
+
+    if meta.is_dir() {
+        let remote = remote_path.trim_end_matches('/').to_string();
+        dirs.push(remote.clone());
+        let mut rd = tokio::fs::read_dir(local_path)
+            .await
+            .map_err(|e| AppError::msg(format!("readdir {}: {e}", local_path.display())))?;
+        while let Some(entry) = rd
+            .next_entry()
+            .await
+            .map_err(|e| AppError::msg(format!("readdir {}: {e}", local_path.display())))?
+        {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name == "." || name == ".." {
+                continue;
+            }
+            let child_local = entry.path();
+            let child_remote = pathutil::join(&remote, name.as_ref());
+            Box::pin(collect_upload_plan(
+                &child_local,
+                &child_remote,
+                name_root,
+                dirs,
+                files,
+            ))
+            .await?;
+        }
+        return Ok(());
+    }
+
+    if meta.is_file() {
+        let display = upload_display_name(name_root, local_path);
+        files.push((
+            local_path.to_string_lossy().into_owned(),
+            remote_path.to_string(),
+            display,
+            meta.len(),
+        ));
+        return Ok(());
+    }
+
+    // Skip sockets, devices, etc.
+    Ok(())
+}
+
+fn upload_display_name(root: &Path, file: &Path) -> String {
+    if let Ok(rel) = file.strip_prefix(root) {
+        let s = rel.to_string_lossy().replace('\\', "/");
+        if !s.is_empty() {
+            return s;
+        }
+    }
+    file.file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| file.to_string_lossy().into_owned())
+}
+
+#[cfg(test)]
+mod upload_plan_tests {
+    use super::*;
+    use std::fs;
+
+    #[tokio::test]
+    async fn collect_upload_plan_includes_nested_files_and_dirs() {
+        let root = std::env::temp_dir().join(format!(
+            "sshyar-upload-plan-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("sub").join("deep")).unwrap();
+        fs::write(root.join("a.txt"), b"a").unwrap();
+        fs::write(root.join("sub").join("b.txt"), b"bb").unwrap();
+        fs::write(root.join("sub").join("deep").join("c.txt"), b"ccc").unwrap();
+
+        let mut dirs = Vec::new();
+        let mut files = Vec::new();
+        collect_upload_plan(&root, "/remote/proj", &root, &mut dirs, &mut files)
+            .await
+            .unwrap();
+
+        assert!(dirs.iter().any(|d| d == "/remote/proj"));
+        assert!(dirs.iter().any(|d| d == "/remote/proj/sub"));
+        assert!(dirs.iter().any(|d| d == "/remote/proj/sub/deep"));
+        assert_eq!(files.len(), 3);
+        assert!(files.iter().any(|(_, remote, name, _)| {
+            remote == "/remote/proj/sub/deep/c.txt" && name == "sub/deep/c.txt"
+        }));
+
+        let _ = fs::remove_dir_all(&root);
+    }
 }
 
 pub async fn remove_dir_recursive(

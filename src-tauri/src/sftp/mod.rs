@@ -6,7 +6,7 @@ mod types;
 use russh::client::Handle;
 use russh_sftp::client::SftpSession;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::AppHandle;
 use tokio::io::AsyncWriteExt;
@@ -18,8 +18,8 @@ use crate::profiles::Profile;
 use crate::ssh_session::{self, ClientHandler};
 
 use ops::{
-    collect_copy_plan, remote_tree_size, remove_dir_recursive, stream_copy_remote,
-    write_local_to_remote,
+    collect_copy_plan, collect_upload_plan, ensure_remote_ancestors, ensure_remote_dir,
+    remote_tree_size, remove_dir_recursive, stream_copy_remote, write_local_to_remote,
 };
 use pathutil::{basename, is_self_or_descendant};
 use progress::TransferProgressCtx;
@@ -227,9 +227,16 @@ impl SftpManager {
     }
 
     pub async fn upload(&self, id: &str, local_path: &str, remote_path: &str) -> AppResult<()> {
-        let shared = self.conn(id).await?;
-        let conn = shared.lock().await;
-        write_local_to_remote(&conn.sftp, local_path, remote_path, None).await
+        self.upload_batch_inner(
+            None,
+            id,
+            "",
+            &[UploadItem {
+                local_path: local_path.to_string(),
+                remote_path: remote_path.to_string(),
+            }],
+        )
+        .await
     }
 
     pub async fn upload_batch(
@@ -239,53 +246,67 @@ impl SftpManager {
         transfer_id: &str,
         items: &[UploadItem],
     ) -> AppResult<()> {
+        self.upload_batch_inner(Some(app), id, transfer_id, items)
+            .await
+    }
+
+    async fn upload_batch_inner(
+        &self,
+        app: Option<&AppHandle>,
+        id: &str,
+        transfer_id: &str,
+        items: &[UploadItem],
+    ) -> AppResult<()> {
         if items.is_empty() {
             return Ok(());
         }
 
-        let mut sizes = Vec::with_capacity(items.len());
-        let mut overall_total = 0u64;
+        let mut dirs: Vec<String> = Vec::new();
+        let mut files: Vec<(String, String, String, u64)> = Vec::new();
         for item in items {
-            let meta = tokio::fs::metadata(&item.local_path)
-                .await
-                .map_err(|e| AppError::msg(format!("stat local: {e}")))?;
-            let len = meta.len();
-            sizes.push(len);
-            overall_total += len;
+            let local = PathBuf::from(&item.local_path);
+            collect_upload_plan(&local, &item.remote_path, &local, &mut dirs, &mut files).await?;
         }
 
         let shared = self.conn(id).await?;
         let conn = shared.lock().await;
-        let file_count = items.len() as u32;
+        let sftp = &conn.sftp;
+
+        for dir in &dirs {
+            ensure_remote_dir(sftp, dir).await?;
+        }
+
+        if files.is_empty() {
+            return Ok(());
+        }
+
+        let overall_total: u64 = files.iter().map(|f| f.3).sum();
+        let file_count = files.len() as u32;
         let mut overall_base = 0u64;
 
-        for (i, item) in items.iter().enumerate() {
-            let file_name = Path::new(&item.local_path)
-                .file_name()
-                .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_else(|| item.remote_path.clone());
-            let bytes_total = sizes[i];
-            let progress = TransferProgressCtx::new(
-                app,
-                transfer_id,
-                id,
-                file_name,
-                i as u32,
-                file_count,
-                bytes_total,
-                overall_total,
-                overall_base,
-            );
-            progress.emit(0);
-            write_local_to_remote(
-                &conn.sftp,
-                &item.local_path,
-                &item.remote_path,
-                Some(&progress),
-            )
-            .await?;
-            progress.finish();
-            overall_base += bytes_total;
+        for (i, (local_path, remote_path, name, size)) in files.iter().enumerate() {
+            let progress = app.map(|app| {
+                TransferProgressCtx::new(
+                    app,
+                    transfer_id,
+                    id,
+                    name.clone(),
+                    i as u32,
+                    file_count,
+                    *size,
+                    overall_total,
+                    overall_base,
+                )
+            });
+            if let Some(ctx) = &progress {
+                ctx.emit(0);
+            }
+            ensure_remote_ancestors(sftp, remote_path).await?;
+            write_local_to_remote(sftp, local_path, remote_path, progress.as_ref()).await?;
+            if let Some(ctx) = &progress {
+                ctx.finish();
+            }
+            overall_base += size;
         }
 
         Ok(())

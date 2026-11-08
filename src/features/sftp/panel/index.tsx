@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import { api } from "../../../lib/api";
 import { appConfirm, appPrompt } from "../../../lib/dialogs";
@@ -29,6 +30,7 @@ import {
   initialTransfer,
   markTransferError,
 } from "./transferState";
+import { collectHtmlDropItems, pathsToUploadItems } from "./uploadPaths";
 import type { ClipboardState, TransferState, UploadPlanItem } from "./types";
 
 interface Props {
@@ -87,6 +89,9 @@ export function SftpPanel({
   const navTimerRef = useRef<number | null>(null);
   const lastClickedRef = useRef<string | null>(null);
   const transferIdRef = useRef<string | null>(null);
+  const listElRef = useRef<HTMLDivElement | null>(null);
+  const nativeDropAtRef = useRef(0);
+  const runUploadRef = useRef<(items: UploadPlanItem[]) => Promise<void>>(async () => {});
   const busyRef = useRef(false);
   const followWasOnRef = useRef(false);
   const followPtyRef = useRef<string | null>(null);
@@ -465,58 +470,98 @@ export function SftpPanel({
     } else setEditor({ path: e.path, mode: "view" });
   }
 
-  async function runUpload(items: UploadPlanItem[]) {
-    if (!sftpId || !items.length) return;
-    const transferId = crypto.randomUUID();
-    beginTransfer(initialTransfer(transferId, "upload", items));
-    setBusy(true);
-    try {
-      await api.sftpUploadBatch(
-        sftpId,
-        transferId,
-        items.map(({ localPath, remotePath }) => ({ localPath, remotePath })),
-      );
-      await refresh(sftpId, cwd);
-      toastSuccess(items.length === 1 ? "Upload done" : `Uploaded ${items.length} files`);
-      endTransfer(true);
-    } catch (err) {
-      toastError(err, "Upload");
-      endTransfer(false);
-    }
-  }
+  const runUpload = useCallback(
+    async (items: UploadPlanItem[]) => {
+      if (!sftpId || !items.length) return;
+      const transferId = crypto.randomUUID();
+      beginTransfer(initialTransfer(transferId, "upload", items));
+      setBusy(true);
+      try {
+        await api.sftpUploadBatch(
+          sftpId,
+          transferId,
+          items.map(({ localPath, remotePath }) => ({ localPath, remotePath })),
+        );
+        await refresh(sftpId, cwd);
+        toastSuccess(
+          items.length === 1 ? "Upload done" : `Uploaded ${items.length} item(s)`,
+        );
+        endTransfer(true);
+      } catch (err) {
+        toastError(err, "Upload");
+        endTransfer(false);
+      }
+    },
+    // begin/endTransfer are stable enough via refs/state setters in this component
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sftpId, cwd, refresh],
+  );
+
+  useEffect(() => {
+    runUploadRef.current = runUpload;
+  }, [runUpload]);
+
+  /** Tauri native drag-drop gives real folder paths (HTML FileList often skips dirs). */
+  useEffect(() => {
+    if (!open || !sftpId) return;
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    void (async () => {
+      try {
+        const stop = await getCurrentWebview().onDragDropEvent(async (event) => {
+          if (cancelled) return;
+          if (event.payload.type !== "drop") return;
+          if (busyRef.current) return;
+
+          const paths = event.payload.paths ?? [];
+          if (!paths.length) return;
+          nativeDropAtRef.current = Date.now();
+          const items = pathsToUploadItems(paths, cwdRef.current);
+          if (!items.length) return;
+          await runUploadRef.current(items);
+        });
+        if (cancelled) {
+          void stop();
+          return;
+        }
+        unlisten = stop;
+      } catch (e) {
+        console.warn("SFTP native drag-drop unavailable", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [open, sftpId]);
 
   async function onDrop(ev: React.DragEvent) {
     ev.preventDefault();
     if (!sftpId) return;
-    const files = ev.dataTransfer.files;
-    if (!files?.length) return;
-    const items: UploadPlanItem[] = [];
-    for (const file of Array.from(files)) {
-      const localPath = (file as File & { path?: string }).path;
-      if (!localPath) {
-        toast("Drag path unavailable — use Upload", { kind: "error", title: "Upload" });
-        continue;
-      }
-      items.push({
-        localPath,
-        remotePath: joinRemote(cwd, file.name),
-        name: file.name,
-        sizeHint: file.size,
+    if (Date.now() - nativeDropAtRef.current < 800) return;
+    const items = await collectHtmlDropItems(ev.dataTransfer, cwd);
+    if (!items.length) {
+      toast("Drop path unavailable — use Upload folder", {
+        kind: "error",
+        title: "Upload",
       });
+      return;
     }
     await runUpload(items);
   }
 
-  async function uploadPicker() {
+  async function uploadPicker(directory = false) {
     if (!sftpId) return;
-    const selectedPath = await open({ multiple: true });
+    const selectedPath = await open({
+      multiple: true,
+      directory,
+      title: directory ? "Upload folder" : "Upload files",
+    });
     if (!selectedPath) return;
     const paths = Array.isArray(selectedPath) ? selectedPath : [selectedPath];
-    const items = paths.map((p) => {
-      const name = p.replace(/\\/g, "/").split("/").pop()!;
-      return { localPath: p, remotePath: joinRemote(cwd, name), name };
-    });
-    await runUpload(items);
+    await runUpload(pathsToUploadItems(paths, cwd));
   }
 
   async function downloadEntries(list: RemoteEntry[]) {
@@ -724,7 +769,8 @@ export function SftpPanel({
     else if (id === "cut") copyOrCut(list, true);
     else if (id === "paste") await paste();
     else if (id === "mkdir") await mkdir();
-    else if (id === "upload") await uploadPicker();
+    else if (id === "upload") await uploadPicker(false);
+    else if (id === "upload-folder") await uploadPicker(true);
     else if (id === "refresh" && sftpId) await refresh(sftpId, cwd);
     else if (id === "cd-terminal") await cdHereInTerminal();
   }
@@ -805,7 +851,8 @@ export function SftpPanel({
             }}
             onUp={() => void goUp()}
             onRefresh={() => sftpId && void refresh(sftpId, cwd)}
-            onUpload={() => void uploadPicker()}
+            onUpload={() => void uploadPicker(false)}
+            onUploadFolder={() => void uploadPicker(true)}
             onDownload={() => void downloadEntries(selectedEntries)}
             onMkdir={() => void mkdir()}
             onRename={() => single && void renameEntry(single)}
@@ -846,6 +893,7 @@ export function SftpPanel({
               lastClickedRef.current = path;
             }}
             onDrop={(e) => void onDrop(e)}
+            listRef={listElRef}
           />
           {hasSelection && (
             <div className="sftp-selection-bar">

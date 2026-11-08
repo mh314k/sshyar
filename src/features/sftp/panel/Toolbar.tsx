@@ -9,6 +9,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import LinkIcon from "@mui/icons-material/Link";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import UploadIcon from "@mui/icons-material/Upload";
+import DriveFolderUploadIcon from "@mui/icons-material/DriveFolderUpload";
 import type { RemoteEntry } from "../../../types";
 import { IconButton, iconProps, iconSizeSm } from "../../../components/IconButton";
 import type { ClipboardState } from "./types";
@@ -27,6 +28,7 @@ type Props = {
   onUp: () => void;
   onRefresh: () => void;
   onUpload: () => void;
+  onUploadFolder: () => void;
   onDownload: () => void;
   onMkdir: () => void;
   onRename: () => void;
@@ -50,6 +52,7 @@ export function SftpToolbar({
   onUp,
   onRefresh,
   onUpload,
+  onUploadFolder,
   onDownload,
   onMkdir,
   onRename,
@@ -96,10 +99,17 @@ export function SftpToolbar({
       <div className="sftp-toolbar-group" title="Transfer">
         <IconButton
           variant="icon"
-          title="Upload"
+          title="Upload files"
           disabled={navOff}
           onClick={onUpload}
           icon={<UploadIcon {...ip} />}
+        />
+        <IconButton
+          variant="icon"
+          title="Upload folder (includes all subfolders and files)"
+          disabled={navOff}
+          onClick={onUploadFolder}
+          icon={<DriveFolderUploadIcon {...ip} />}
         />
         <IconButton
           variant="icon"

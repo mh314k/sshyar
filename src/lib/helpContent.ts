@@ -250,7 +250,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "Transfer, view, and edit",
         keywords: ["upload", "download", "view", "edit", "save", "codemirror"],
         steps: [
-          "Upload picks local files into the current remote folder (batch supported).",
+          "Upload files (toolbar ↑) picks files. Upload folder (folder↑ icon, or right-click → Upload folder…) uploads the whole tree.",
+          "Drag-and-drop also accepts folders — all subfolders and nested files are created on the remote side.",
           "Download saves selected remote file(s) via a save dialog.",
           "A bottom transfer bar shows per-file and overall progress for uploads, copies, moves, and deletes.",
           "View (read-only) or Edit opens the in-app CodeMirror editor with syntax highlighting by extension.",
